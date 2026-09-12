@@ -862,6 +862,11 @@ impl Item {
         Ok(events)
     }
 
+    /// Records the application-supplied time of a successfully persisted change.
+    pub(crate) fn set_updated_at(&mut self, updated_at: Timestamp) {
+        self.updated_at = updated_at;
+    }
+
     fn transition_with_required_reason(
         &mut self,
         from: Status,
