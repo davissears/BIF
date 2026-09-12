@@ -63,6 +63,10 @@ impl ProjectPathMapping {
     pub fn path(&self) -> &Path {
         &self.path
     }
+
+    pub(crate) fn from_canonical(project: ProjectId, path: PathBuf) -> Self {
+        Self { project, path }
+    }
 }
 
 /// A validated, in-memory set of registered project paths.
@@ -166,6 +170,18 @@ impl ProjectRemoteMapping {
             project,
             identity: NormalizedRemoteIdentity::new(target)?,
         })
+    }
+
+    pub fn project(&self) -> &ProjectId {
+        &self.project
+    }
+
+    pub fn identity(&self) -> &NormalizedRemoteIdentity {
+        &self.identity
+    }
+
+    pub(crate) fn from_normalized(project: ProjectId, identity: NormalizedRemoteIdentity) -> Self {
+        Self { project, identity }
     }
 }
 

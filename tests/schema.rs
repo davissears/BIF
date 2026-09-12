@@ -1,6 +1,5 @@
-use rusqlite::{Connection, Result, params};
-
-const INITIAL_SCHEMA: &str = include_str!("../migrations/0001_initial.sql");
+use bif::storage::open;
+use rusqlite::{Result, params};
 
 const REQUIRED_TABLES: &[&str] = &[
     "store_metadata",
@@ -17,7 +16,8 @@ const REQUIRED_TABLES: &[&str] = &[
 ];
 
 #[test]
-fn fresh_database_has_complete_constrained_schema_and_persistent_store_id() -> Result<()> {
+fn fresh_database_has_complete_constrained_schema_and_persistent_store_id()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
     let temporary = std::env::temp_dir().join(format!(
         "bif-schema-{}-{}.sqlite",
         std::process::id(),
@@ -29,9 +29,7 @@ fn fresh_database_has_complete_constrained_schema_and_persistent_store_id() -> R
 
     let store_id: String;
     {
-        let connection = Connection::open(&temporary)?;
-        connection.execute_batch("PRAGMA foreign_keys = ON;")?;
-        connection.execute_batch(INITIAL_SCHEMA)?;
+        let connection = open(&temporary)?;
 
         let mut table_query = connection
             .prepare("SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ?1")?;
@@ -159,7 +157,7 @@ fn fresh_database_has_complete_constrained_schema_and_persistent_store_id() -> R
         assert_eq!(criteria, ["first", "second"]);
     }
 
-    let reopened = Connection::open(&temporary)?;
+    let reopened = open(&temporary)?;
     let persisted_id: String =
         reopened.query_row("SELECT store_id FROM store_metadata", [], |row| row.get(0))?;
     assert_eq!(persisted_id, store_id);
