@@ -1,0 +1,377 @@
+{
+  "fixture": "bif-v1-rpc",
+  "fixture_version": 1,
+  "protocol": {
+    "name": "BIF RPC",
+    "version": 1,
+    "invocation": "bif rpc",
+    "transport": {
+      "input": "stdin",
+      "output": "stdout",
+      "diagnostics": "stderr",
+      "request_count": 1,
+      "response_count": 1,
+      "encoding": "UTF-8",
+      "framing": "One JSON value followed only by JSON whitespace and EOF",
+      "maximum_input_bytes": 1048576,
+      "size_measurement": "Bytes read from stdin, including leading and trailing whitespace",
+      "oversize_behavior": {
+        "request_id": null,
+        "error_code": "invalid_input"
+      }
+    },
+    "request_envelope": {
+      "type": "object",
+      "required_fields": [
+        "protocol_version",
+        "request_id",
+        "operation",
+        "params"
+      ],
+      "allowed_fields": [
+        "protocol_version",
+        "request_id",
+        "operation",
+        "params"
+      ],
+      "field_contract": {
+        "protocol_version": "integer equal to 1; JSON booleans are not integers",
+        "request_id": "non-empty JSON string",
+        "operation": "one exact, case-sensitive operation name from operation_names",
+        "params": "JSON object validated strictly by the selected operation"
+      }
+    },
+    "response_envelope": {
+      "common_required_fields": [
+        "protocol_version",
+        "request_id",
+        "ok"
+      ],
+      "common_field_contract": {
+        "protocol_version": "integer equal to 1",
+        "request_id": "the request request_id, or null when it cannot be recovered from a valid envelope",
+        "ok": "JSON boolean"
+      },
+      "success": {
+        "required_fields": [
+          "protocol_version",
+          "request_id",
+          "ok",
+          "result"
+        ],
+        "allowed_fields": [
+          "protocol_version",
+          "request_id",
+          "ok",
+          "result"
+        ],
+        "ok": true,
+        "result": "operation-specific JSON value"
+      },
+      "error": {
+        "required_fields": [
+          "protocol_version",
+          "request_id",
+          "ok",
+          "error"
+        ],
+        "allowed_fields": [
+          "protocol_version",
+          "request_id",
+          "ok",
+          "error"
+        ],
+        "ok": false,
+        "error_required_fields": [
+          "code",
+          "message",
+          "details"
+        ],
+        "error_allowed_fields": [
+          "code",
+          "message",
+          "details"
+        ],
+        "error_field_contract": {
+          "code": "one exact value from docs/fixtures/bif-v1-canonical.json closed_enums.error_code",
+          "message": "non-empty human-readable JSON string; not intended for programmatic matching",
+          "details": "JSON object; code-specific keys may be added compatibly"
+        }
+      }
+    },
+    "versioning": {
+      "unsupported_protocol_version_error": "unsupported_version",
+      "malformed_or_missing_protocol_version_error": "invalid_input",
+      "database_schema_version": {
+        "separate_from_protocol_version": true,
+        "present_in_rpc_envelopes": false,
+        "meaning": "The storage schema is an implementation concern and is neither selected nor negotiated by BIF RPC v1"
+      }
+    },
+    "validation": {
+      "enum_matching": "exact and case-sensitive",
+      "unexpected_request_fields": "reject_with_invalid_input",
+      "unexpected_field_scope": "Every input object, including the request envelope and operation params",
+      "duplicate_object_keys": "reject_with_invalid_input",
+      "unknown_operation": "reject_with_invalid_input",
+      "malformed_json": "reject_with_invalid_input_and_null_request_id",
+      "invalid_utf8": "reject_with_invalid_input_and_null_request_id",
+      "trailing_non_whitespace": "reject_with_invalid_input_and_null_request_id"
+    }
+  },
+  "operation_names": [
+    "capture",
+    "get",
+    "list",
+    "next",
+    "history",
+    "triage",
+    "approve",
+    "reject",
+    "prioritize",
+    "assign",
+    "start",
+    "block",
+    "resume",
+    "finish"
+  ],
+  "exit_codes": {
+    "success": 0,
+    "errors": {
+      "invalid_input": 2,
+      "not_found": 3,
+      "unauthorized": 4,
+      "invalid_transition": 5,
+      "version_conflict": 6,
+      "idempotency_conflict": 7,
+      "unsupported_version": 8,
+      "not_initialized": 9,
+      "storage_busy": 10,
+      "internal": 1
+    },
+    "rule": "After writing exactly one response, exit with 0 for success or the mapped code for its error. A diagnostic on stderr does not alter the mapping."
+  },
+  "examples": {
+    "success": {
+      "name": "get_item",
+      "request": {
+        "protocol_version": 1,
+        "request_id": "req-001",
+        "operation": "get",
+        "params": {
+          "item_id": "DAVIS:delta-db:001"
+        }
+      },
+      "response": {
+        "protocol_version": 1,
+        "request_id": "req-001",
+        "ok": true,
+        "result": {
+          "item": {
+            "id": "DAVIS:delta-db:001",
+            "requester": "DAVIS",
+            "project": "delta-db",
+            "sequence": 1,
+            "title": "Freeze BIF RPC v1",
+            "description": null,
+            "acceptance_criteria": [],
+            "status": "proposed",
+            "priority": null,
+            "assignee": null,
+            "status_reason": null,
+            "revision": 1,
+            "captured_at": "2025-01-02T03:04:05Z",
+            "updated_at": "2025-01-02T03:04:05Z",
+            "provenance": {
+              "source_host": "delta",
+              "thread_id": null,
+              "message_id": null,
+              "url": null,
+              "repository_reference": null,
+              "revision_reference": null,
+              "context_excerpt": null
+            }
+          }
+        }
+      },
+      "exit_code": 0,
+      "requires_storage": false
+    },
+    "strict_unexpected_request_field": {
+      "request": {
+        "protocol_version": 1,
+        "request_id": "req-extra-envelope",
+        "operation": "get",
+        "params": {
+          "item_id": "DAVIS:delta-db:001"
+        },
+        "extra": true
+      },
+      "error_code": "invalid_input",
+      "exit_code": 2
+    },
+    "strict_unexpected_params_field": {
+      "request": {
+        "protocol_version": 1,
+        "request_id": "req-extra-params",
+        "operation": "get",
+        "params": {
+          "item_id": "DAVIS:delta-db:001",
+          "extra": true
+        }
+      },
+      "error_code": "invalid_input",
+      "exit_code": 2
+    }
+  },
+  "stable_error_envelopes": [
+    {
+      "code": "invalid_input",
+      "response": {
+        "protocol_version": 1,
+        "request_id": null,
+        "ok": false,
+        "error": {
+          "code": "invalid_input",
+          "message": "Request input is not valid BIF RPC v1",
+          "details": {}
+        }
+      },
+      "exit_code": 2
+    },
+    {
+      "code": "not_found",
+      "response": {
+        "protocol_version": 1,
+        "request_id": "req-not-found",
+        "ok": false,
+        "error": {
+          "code": "not_found",
+          "message": "Item was not found",
+          "details": {}
+        }
+      },
+      "exit_code": 3
+    },
+    {
+      "code": "unauthorized",
+      "response": {
+        "protocol_version": 1,
+        "request_id": "req-unauthorized",
+        "ok": false,
+        "error": {
+          "code": "unauthorized",
+          "message": "The requested operation is not authorized",
+          "details": {}
+        }
+      },
+      "exit_code": 4
+    },
+    {
+      "code": "invalid_transition",
+      "response": {
+        "protocol_version": 1,
+        "request_id": "req-invalid-transition",
+        "ok": false,
+        "error": {
+          "code": "invalid_transition",
+          "message": "The requested status transition is not allowed",
+          "details": {}
+        }
+      },
+      "exit_code": 5
+    },
+    {
+      "code": "version_conflict",
+      "response": {
+        "protocol_version": 1,
+        "request_id": "req-version-conflict",
+        "ok": false,
+        "error": {
+          "code": "version_conflict",
+          "message": "The item revision does not match",
+          "details": {
+            "expected_revision": 2,
+            "actual_revision": 3
+          }
+        }
+      },
+      "exit_code": 6
+    },
+    {
+      "code": "idempotency_conflict",
+      "response": {
+        "protocol_version": 1,
+        "request_id": "req-idempotency-conflict",
+        "ok": false,
+        "error": {
+          "code": "idempotency_conflict",
+          "message": "The idempotency key was already used with different input",
+          "details": {}
+        }
+      },
+      "exit_code": 7
+    },
+    {
+      "code": "unsupported_version",
+      "response": {
+        "protocol_version": 1,
+        "request_id": "req-unsupported-version",
+        "ok": false,
+        "error": {
+          "code": "unsupported_version",
+          "message": "The requested protocol version is not supported",
+          "details": {
+            "requested_version": 2,
+            "supported_versions": [
+              1
+            ]
+          }
+        }
+      },
+      "exit_code": 8
+    },
+    {
+      "code": "not_initialized",
+      "response": {
+        "protocol_version": 1,
+        "request_id": "req-not-initialized",
+        "ok": false,
+        "error": {
+          "code": "not_initialized",
+          "message": "BIF is not initialized",
+          "details": {}
+        }
+      },
+      "exit_code": 9
+    },
+    {
+      "code": "storage_busy",
+      "response": {
+        "protocol_version": 1,
+        "request_id": "req-storage-busy",
+        "ok": false,
+        "error": {
+          "code": "storage_busy",
+          "message": "The BIF store is busy",
+          "details": {}
+        }
+      },
+      "exit_code": 10
+    },
+    {
+      "code": "internal",
+      "response": {
+        "protocol_version": 1,
+        "request_id": "req-internal",
+        "ok": false,
+        "error": {
+          "code": "internal",
+          "message": "An internal error occurred",
+          "details": {}
+        }
+      },
+      "exit_code": 1
+    }
+  ]
+}

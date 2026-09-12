@@ -1,0 +1,15 @@
+[package]
+name = "bif"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "bif"
+path = "src/main.rs"
+
+[dependencies]
+rusqlite = { version = "0.38.0", features = ["bundled"] }

@@ -1,0 +1,264 @@
+{
+  "fixture": "bif-v1-canonical",
+  "fixture_version": 1,
+  "closed_enums": {
+    "status": [
+      "proposed",
+      "ready",
+      "in_progress",
+      "blocked",
+      "done",
+      "rejected"
+    ],
+    "priority": [
+      "P0",
+      "P1",
+      "P2",
+      "P3",
+      "P4"
+    ],
+    "event_type": [
+      "captured",
+      "approved",
+      "rejected",
+      "started",
+      "blocked",
+      "resumed",
+      "finished",
+      "priority_changed",
+      "assignee_changed",
+      "note_added"
+    ],
+    "actor_surface": [
+      "thread",
+      "cli",
+      "rpc"
+    ],
+    "source_host": [
+      "delta",
+      "codex",
+      "local"
+    ],
+    "error_code": [
+      "invalid_input",
+      "not_found",
+      "unauthorized",
+      "invalid_transition",
+      "version_conflict",
+      "idempotency_conflict",
+      "unsupported_version",
+      "not_initialized",
+      "storage_busy",
+      "internal"
+    ]
+  },
+  "enum_rules": {
+    "matching": "exact_case_sensitive",
+    "unexpected_values": "reject",
+    "priority_nullability": "priority may be null; null is not an enum value",
+    "source_host_nullability": "source_host may be null when source provenance is unavailable; null is not an enum value"
+  },
+  "identifiers": {
+    "requester": {
+      "canonical_pattern": "^[A-Z0-9]+(?:-[A-Z0-9]+)*$",
+      "normalization": {
+        "case": "ASCII uppercase",
+        "token_characters": "ASCII letters and digits",
+        "separator_rule": "Replace each maximal run of all other Unicode scalar values with one hyphen",
+        "edge_rule": "Remove leading and trailing hyphens",
+        "empty_rule": "Reject when no ASCII letter or digit remains"
+      },
+      "cases": [
+        {
+          "input": "Davis",
+          "valid": true,
+          "canonical": "DAVIS"
+        },
+        {
+          "input": "  davis smith  ",
+          "valid": true,
+          "canonical": "DAVIS-SMITH"
+        },
+        {
+          "input": "Team__42",
+          "valid": true,
+          "canonical": "TEAM-42"
+        },
+        {
+          "input": "already-CANONICAL",
+          "valid": true,
+          "canonical": "ALREADY-CANONICAL"
+        },
+        {
+          "input": "",
+          "valid": false,
+          "error": "invalid_input"
+        },
+        {
+          "input": "---",
+          "valid": false,
+          "error": "invalid_input"
+        },
+        {
+          "input": "💡",
+          "valid": false,
+          "error": "invalid_input"
+        }
+      ]
+    },
+    "project": {
+      "canonical_pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "normalization": {
+        "case": "ASCII lowercase",
+        "token_characters": "ASCII letters and digits",
+        "separator_rule": "Replace each maximal run of all other Unicode scalar values with one hyphen",
+        "edge_rule": "Remove leading and trailing hyphens",
+        "empty_rule": "Reject when no ASCII letter or digit remains"
+      },
+      "cases": [
+        {
+          "input": "Delta DB",
+          "valid": true,
+          "canonical": "delta-db"
+        },
+        {
+          "input": "  BIF_v1  ",
+          "valid": true,
+          "canonical": "bif-v1"
+        },
+        {
+          "input": "project--42",
+          "valid": true,
+          "canonical": "project-42"
+        },
+        {
+          "input": "",
+          "valid": false,
+          "error": "invalid_input"
+        },
+        {
+          "input": "___",
+          "valid": false,
+          "error": "invalid_input"
+        },
+        {
+          "input": "日本語",
+          "valid": false,
+          "error": "invalid_input"
+        }
+      ]
+    },
+    "assignee": {
+      "canonical_pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "normalization": {
+        "case": "ASCII lowercase",
+        "token_characters": "ASCII letters and digits",
+        "separator_rule": "Replace each maximal run of all other Unicode scalar values with one hyphen",
+        "edge_rule": "Remove leading and trailing hyphens",
+        "empty_rule": "Reject when no ASCII letter or digit remains"
+      },
+      "cases": [
+        {
+          "input": "Davis",
+          "valid": true,
+          "canonical": "davis"
+        },
+        {
+          "input": "Agent 007",
+          "valid": true,
+          "canonical": "agent-007"
+        },
+        {
+          "input": "team/backend",
+          "valid": true,
+          "canonical": "team-backend"
+        },
+        {
+          "input": "",
+          "valid": false,
+          "error": "invalid_input"
+        },
+        {
+          "input": " -_- ",
+          "valid": false,
+          "error": "invalid_input"
+        },
+        {
+          "input": "🤖",
+          "valid": false,
+          "error": "invalid_input"
+        }
+      ]
+    }
+  },
+  "item_display_id": {
+    "format": "REQUESTER:project:SEQUENCE",
+    "requester_component": "canonical requester identifier",
+    "project_component": "canonical project identifier",
+    "sequence": {
+      "type": "positive base-10 integer",
+      "minimum": 1,
+      "format": "Pad with leading zeroes to a minimum width of three digits; never truncate larger values"
+    },
+    "canonical_pattern": "^[A-Z0-9]+(?:-[A-Z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*:[0-9]{3,}$",
+    "cases": [
+      {
+        "requester": "DAVIS",
+        "project": "delta-db",
+        "sequence": 1,
+        "valid": true,
+        "display": "DAVIS:delta-db:001"
+      },
+      {
+        "requester": "TEAM-42",
+        "project": "bif-v1",
+        "sequence": 42,
+        "valid": true,
+        "display": "TEAM-42:bif-v1:042"
+      },
+      {
+        "requester": "DAVIS",
+        "project": "delta-db",
+        "sequence": 999,
+        "valid": true,
+        "display": "DAVIS:delta-db:999"
+      },
+      {
+        "requester": "DAVIS",
+        "project": "delta-db",
+        "sequence": 1000,
+        "valid": true,
+        "display": "DAVIS:delta-db:1000"
+      },
+      {
+        "requester": "DAVIS",
+        "project": "delta-db",
+        "sequence": 0,
+        "valid": false,
+        "error": "invalid_input"
+      },
+      {
+        "requester": "davis",
+        "project": "delta-db",
+        "sequence": 1,
+        "valid": false,
+        "error": "invalid_input"
+      },
+      {
+        "requester": "DAVIS",
+        "project": "Delta_DB",
+        "sequence": 1,
+        "valid": false,
+        "error": "invalid_input"
+      }
+    ],
+    "invalid_display_strings": [
+      "DAVIS:delta-db:000",
+      "DAVIS:delta-db:01",
+      "davis:delta-db:001",
+      "DAVIS:Delta_DB:001",
+      "DAVIS:delta-db:-1",
+      "DAVIS:delta-db:001:extra"
+    ]
+  }
+}
