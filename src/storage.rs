@@ -11,14 +11,15 @@ use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 
 use crate::application::{
     Actor, ActorKind, CaptureIdentity, CaptureRequest, CaptureResult, CaptureStore,
-    CaptureStoreError, Execution, MutationIdentity, MutationRequest, MutationResult, MutationStore,
-    MutationStoreError,
+    CaptureStoreError, EventActor, EventExecution, Execution, ItemHistoryEvent, ItemHistoryStore,
+    ItemHistoryStoreError, ItemListFilters, ItemStore, MutationIdentity, MutationRequest,
+    MutationResult, MutationStore, MutationStoreError, NamedViewStore,
 };
 use crate::config::{NormalizedRemoteIdentity, ProjectPathMapping, ProjectRemoteMapping};
 use crate::domain::{
     AssigneeId, DomainEvent, EventType, EventValue, Item, ItemContent, ItemId, ItemMutation,
-    MessageId, Priority, ProjectId, Provenance, RepositoryReference, RequesterId, Revision,
-    RevisionReference, SourceHost, SourceUrl, Status, ThreadId, Timestamp,
+    MessageId, NamedView, Priority, ProjectId, Provenance, RepositoryReference, RequesterId,
+    Revision, RevisionReference, SourceHost, SourceUrl, Status, ThreadId, Timestamp,
 };
 
 const INITIAL_SCHEMA: &str = include_str!("../migrations/0001_initial.sql");
@@ -117,6 +118,154 @@ pub fn open(path: impl AsRef<Path>) -> Result<Connection, MigrationError> {
     configure(&connection)?;
     migrate(&mut connection)?;
     Ok(connection)
+}
+
+/// SQLite implementation of the read-one-item persistence boundary.
+pub struct ItemRepository<'connection> {
+    connection: &'connection Connection,
+}
+
+impl<'connection> ItemRepository<'connection> {
+    pub fn new(connection: &'connection Connection) -> Self {
+        Self { connection }
+    }
+}
+
+/// Failures while loading canonical item state.
+#[derive(Debug)]
+pub enum ItemStorageError {
+    Sqlite(rusqlite::Error),
+    InvalidPersistedData { item_id: String, detail: String },
+}
+
+impl fmt::Display for ItemStorageError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Sqlite(error) => write!(formatter, "SQLite item read error: {error}"),
+            Self::InvalidPersistedData { item_id, detail } => {
+                write!(
+                    formatter,
+                    "invalid persisted data for item {item_id}: {detail}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for ItemStorageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Sqlite(error) => Some(error),
+            Self::InvalidPersistedData { .. } => None,
+        }
+    }
+}
+
+impl crate::rpc_read::ClassifyReadStorageError for ItemStorageError {
+    fn rpc_read_kind(&self) -> crate::rpc_read::ReadStorageErrorKind {
+        match self {
+            Self::Sqlite(error) if is_busy(error) => crate::rpc_read::ReadStorageErrorKind::Busy,
+            Self::InvalidPersistedData { .. } => {
+                crate::rpc_read::ReadStorageErrorKind::InvalidPersistedData
+            }
+            Self::Sqlite(_) => crate::rpc_read::ReadStorageErrorKind::Other,
+        }
+    }
+}
+
+impl From<rusqlite::Error> for ItemStorageError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::Sqlite(error)
+    }
+}
+
+impl ItemStore for ItemRepository<'_> {
+    type Error = ItemStorageError;
+
+    fn read_item(&self, item_id: &ItemId) -> Result<Option<Item>, Self::Error> {
+        load_item(self.connection, &item_id.to_string())
+    }
+}
+
+impl NamedViewStore for ItemRepository<'_> {
+    type Error = ItemStorageError;
+
+    fn select_items(
+        &self,
+        view: NamedView,
+        configured_requester: &RequesterId,
+        filters: &ItemListFilters,
+    ) -> Result<Vec<Item>, Self::Error> {
+        let predicate = match view {
+            NamedView::Proposed => "i.status = 'proposed'",
+            NamedView::Ready => "i.status = 'ready'",
+            NamedView::Active => "i.status IN ('in_progress', 'blocked')",
+            NamedView::Blocked => "i.status = 'blocked'",
+            NamedView::Done => "i.status = 'done'",
+            NamedView::Rejected => "i.status = 'rejected'",
+            NamedView::Mine => "i.status NOT IN ('done', 'rejected') AND i.assignee = ?",
+            NamedView::All => "1 = 1",
+        };
+        let mut predicates = vec![predicate];
+        let mut parameters = Vec::<String>::new();
+        if view == NamedView::Mine {
+            parameters.push(configured_requester.as_str().to_ascii_lowercase());
+        }
+        if let Some(project) = &filters.project {
+            predicates.push("i.project_id = ?");
+            parameters.push(project.to_string());
+        }
+        if let Some(requester) = &filters.requester {
+            predicates.push("i.requester = ?");
+            parameters.push(requester.to_string());
+        }
+        if let Some(assignee) = &filters.assignee {
+            predicates.push("i.assignee = ?");
+            parameters.push(assignee.to_string());
+        }
+        if let Some(status) = filters.status {
+            predicates.push("i.status = ?");
+            parameters.push(crate::storage::status(status).to_owned());
+        }
+        if let Some(priority) = filters.priority {
+            predicates.push("i.priority = ?");
+            parameters.push(crate::storage::priority(priority).to_owned());
+        }
+        if filters.unassigned {
+            predicates.push("i.assignee IS NULL");
+        }
+        if let Some(text) = &filters.text {
+            predicates.push(
+                "(instr(lower(i.title), lower(?)) > 0 \
+                 OR instr(lower(coalesce(i.description, '')), lower(?)) > 0 \
+                 OR EXISTS (SELECT 1 FROM item_acceptance_criteria AS c \
+                            WHERE c.item_id = i.item_id \
+                            AND instr(lower(c.criterion), lower(?)) > 0))",
+            );
+            parameters.extend(std::iter::repeat_n(text.as_str().to_owned(), 3));
+        }
+        let sql = format!(
+            "SELECT i.item_id FROM items AS i WHERE {}",
+            predicates.join(" AND ")
+        );
+        let item_ids = {
+            let mut statement = self.connection.prepare(&sql)?;
+            statement
+                .query_map(rusqlite::params_from_iter(parameters), |row| {
+                    row.get::<_, String>(0)
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+
+        item_ids
+            .into_iter()
+            .map(|item_id| {
+                load_item(self.connection, &item_id)?.ok_or_else(|| {
+                    invalid_item(&item_id, "item disappeared during named view selection")
+                })
+            })
+            .collect()
+    }
 }
 
 /// SQLite implementation of the atomic capture persistence boundary.
@@ -337,6 +486,313 @@ impl CaptureRepository<'_> {
     }
 }
 
+/// SQLite implementation of immutable item-history reads.
+pub struct ItemHistoryRepository<'connection> {
+    connection: &'connection Connection,
+}
+
+impl<'connection> ItemHistoryRepository<'connection> {
+    pub fn new(connection: &'connection Connection) -> Self {
+        Self { connection }
+    }
+}
+
+/// A storage or data-integrity failure encountered while reading history.
+#[derive(Debug)]
+pub enum ItemHistoryStorageError {
+    InvalidPersistedData { field: &'static str, value: String },
+    Sqlite(rusqlite::Error),
+}
+
+impl fmt::Display for ItemHistoryStorageError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidPersistedData { field, value } => {
+                write!(formatter, "invalid {field}: {value:?}")
+            }
+            Self::Sqlite(error) => write!(formatter, "SQLite item history error: {error}"),
+        }
+    }
+}
+
+impl std::error::Error for ItemHistoryStorageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::InvalidPersistedData { .. } => None,
+            Self::Sqlite(error) => Some(error),
+        }
+    }
+}
+
+impl crate::rpc_read::ClassifyReadStorageError for ItemHistoryStorageError {
+    fn rpc_read_kind(&self) -> crate::rpc_read::ReadStorageErrorKind {
+        match self {
+            Self::Sqlite(error) if is_busy(error) => crate::rpc_read::ReadStorageErrorKind::Busy,
+            Self::InvalidPersistedData { .. } => {
+                crate::rpc_read::ReadStorageErrorKind::InvalidPersistedData
+            }
+            Self::Sqlite(_) => crate::rpc_read::ReadStorageErrorKind::Other,
+        }
+    }
+}
+
+impl ItemHistoryStore for ItemHistoryRepository<'_> {
+    type Error = ItemHistoryStorageError;
+
+    fn item_history(
+        &self,
+        item_id: &ItemId,
+    ) -> Result<Vec<ItemHistoryEvent>, ItemHistoryStoreError<Self::Error>> {
+        let item_id = item_id.to_string();
+        let exists = self
+            .connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM items WHERE item_id = ?1)",
+                [&item_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(history_sqlite)?;
+        if !exists {
+            return Err(ItemHistoryStoreError::NotFound);
+        }
+
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT operation_id, event_id, item_revision, event_index, event_type,
+                        before_value, after_value, actor_kind, actor_id, actor_surface,
+                        actor_host, execution_kind, execution_agent_id, execution_surface,
+                        execution_host, reason, note, occurred_at, event_schema_version
+                 FROM events
+                 WHERE item_id = ?1
+                 ORDER BY item_revision ASC, event_index ASC",
+            )
+            .map_err(history_sqlite)?;
+        type HistoryRow = (
+            String,
+            String,
+            i64,
+            i64,
+            String,
+            Option<String>,
+            Option<String>,
+            String,
+            String,
+            String,
+            String,
+            String,
+            Option<String>,
+            String,
+            String,
+            Option<String>,
+            Option<String>,
+            String,
+            i64,
+        );
+        let rows = statement
+            .query_map([item_id], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
+                    row.get(8)?,
+                    row.get(9)?,
+                    row.get(10)?,
+                    row.get(11)?,
+                    row.get(12)?,
+                    row.get(13)?,
+                    row.get(14)?,
+                    row.get(15)?,
+                    row.get(16)?,
+                    row.get(17)?,
+                    row.get(18)?,
+                ))
+            })
+            .map_err(history_sqlite)?;
+
+        rows.map(|row| {
+            row.map_err(history_sqlite)
+                .and_then(|row: HistoryRow| history_event(row))
+        })
+        .collect()
+    }
+}
+
+fn history_sqlite(error: rusqlite::Error) -> ItemHistoryStoreError<ItemHistoryStorageError> {
+    ItemHistoryStoreError::Storage(ItemHistoryStorageError::Sqlite(error))
+}
+
+fn invalid_history(
+    field: &'static str,
+    value: impl Into<String>,
+) -> ItemHistoryStoreError<ItemHistoryStorageError> {
+    ItemHistoryStoreError::InvalidPersistedData(ItemHistoryStorageError::InvalidPersistedData {
+        field,
+        value: value.into(),
+    })
+}
+
+fn history_event(
+    row: (
+        String,
+        String,
+        i64,
+        i64,
+        String,
+        Option<String>,
+        Option<String>,
+        String,
+        String,
+        String,
+        String,
+        String,
+        Option<String>,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        String,
+        i64,
+    ),
+) -> Result<ItemHistoryEvent, ItemHistoryStoreError<ItemHistoryStorageError>> {
+    let revision = Revision::new(
+        u64::try_from(row.2).map_err(|_| invalid_history("item_revision", row.2.to_string()))?,
+    )
+    .map_err(|_| invalid_history("item_revision", row.2.to_string()))?;
+    let event_index =
+        u64::try_from(row.3).map_err(|_| invalid_history("event_index", row.3.to_string()))?;
+    let event_type = parse_history_event_type(&row.4)?;
+    let before = parse_history_value(event_type, "before_value", row.5)?;
+    let after = parse_history_value(event_type, "after_value", row.6)?;
+    let actor_kind = match row.7.as_str() {
+        "human" => ActorKind::Human,
+        "agent" => ActorKind::Agent,
+        _ => return Err(invalid_history("actor_kind", row.7)),
+    };
+    let execution = match row.11.as_str() {
+        "direct" if row.12.is_none() => EventExecution::Direct {
+            surface: row.13,
+            host: row.14,
+        },
+        "agent" => EventExecution::Agent {
+            agent_id: row
+                .12
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| invalid_history("execution_agent_id", "NULL"))?,
+            surface: row.13,
+            host: row.14,
+        },
+        _ => return Err(invalid_history("execution_kind", row.11)),
+    };
+    let schema_version = u64::try_from(row.18)
+        .map_err(|_| invalid_history("event_schema_version", row.18.to_string()))?;
+    if schema_version != 1 {
+        return Err(invalid_history(
+            "event_schema_version",
+            schema_version.to_string(),
+        ));
+    }
+    Ok(ItemHistoryEvent {
+        operation_id: row.0,
+        event_id: row.1,
+        item_revision: revision,
+        event_index,
+        event_type,
+        before,
+        after,
+        actor: EventActor {
+            kind: actor_kind,
+            id: row.8,
+            surface: row.9,
+            host: row.10,
+        },
+        execution,
+        reason: row.15,
+        note: row.16,
+        occurred_at: Timestamp::new(row.17),
+        schema_version,
+    })
+}
+
+fn parse_history_event_type(
+    value: &str,
+) -> Result<EventType, ItemHistoryStoreError<ItemHistoryStorageError>> {
+    match value {
+        "captured" => Ok(EventType::Captured),
+        "approved" => Ok(EventType::Approved),
+        "rejected" => Ok(EventType::Rejected),
+        "started" => Ok(EventType::Started),
+        "blocked" => Ok(EventType::Blocked),
+        "resumed" => Ok(EventType::Resumed),
+        "finished" => Ok(EventType::Finished),
+        "priority_changed" => Ok(EventType::PriorityChanged),
+        "assignee_changed" => Ok(EventType::AssigneeChanged),
+        "note_added" => Ok(EventType::NoteAdded),
+        _ => Err(invalid_history("event_type", value)),
+    }
+}
+
+fn parse_history_value(
+    event_type: EventType,
+    field: &'static str,
+    value: Option<String>,
+) -> Result<Option<EventValue>, ItemHistoryStoreError<ItemHistoryStorageError>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let parsed = match event_type {
+        EventType::Captured => return Err(invalid_history(field, value)),
+        EventType::Approved
+        | EventType::Rejected
+        | EventType::Started
+        | EventType::Blocked
+        | EventType::Resumed
+        | EventType::Finished => EventValue::Status(
+            parse_history_status(&value).ok_or_else(|| invalid_history(field, &value))?,
+        ),
+        EventType::PriorityChanged => EventValue::Priority(if value == "null" {
+            None
+        } else {
+            Some(parse_history_priority(&value).ok_or_else(|| invalid_history(field, &value))?)
+        }),
+        EventType::AssigneeChanged => EventValue::Assignee(if value == "null" {
+            None
+        } else {
+            Some(AssigneeId::new(&value).map_err(|_| invalid_history(field, &value))?)
+        }),
+        EventType::NoteAdded => EventValue::Note(value),
+    };
+    Ok(Some(parsed))
+}
+
+fn parse_history_status(value: &str) -> Option<Status> {
+    match value {
+        "proposed" => Some(Status::Proposed),
+        "ready" => Some(Status::Ready),
+        "in_progress" => Some(Status::InProgress),
+        "blocked" => Some(Status::Blocked),
+        "done" => Some(Status::Done),
+        "rejected" => Some(Status::Rejected),
+        _ => None,
+    }
+}
+
+fn parse_history_priority(value: &str) -> Option<Priority> {
+    match value {
+        "P0" => Some(Priority::P0),
+        "P1" => Some(Priority::P1),
+        "P2" => Some(Priority::P2),
+        "P3" => Some(Priority::P3),
+        "P4" => Some(Priority::P4),
+        _ => None,
+    }
+}
+
 /// SQLite implementation of atomic item mutation persistence.
 pub struct MutationRepository<'connection> {
     connection: &'connection mut Connection,
@@ -376,8 +832,9 @@ impl MutationStore for MutationRepository<'_> {
             if stored_hash != payload_hash {
                 return Err(MutationStoreError::IdempotencyConflict);
             }
-            let item =
-                load_item(&transaction, &stored_item_id)?.ok_or(MutationStoreError::NotFound)?;
+            let item = load_item(&transaction, &stored_item_id)
+                .map_err(mutation_load_error)?
+                .ok_or(MutationStoreError::NotFound)?;
             return Ok(MutationResult {
                 item,
                 replayed: true,
@@ -386,8 +843,9 @@ impl MutationStore for MutationRepository<'_> {
         let item_id = &request.item_id;
         let expected_revision = request.expected_revision;
         let mutation = request.mutation;
-        let mut item =
-            load_item(&transaction, &item_id.to_string())?.ok_or(MutationStoreError::NotFound)?;
+        let mut item = load_item(&transaction, &item_id.to_string())
+            .map_err(mutation_load_error)?
+            .ok_or(MutationStoreError::NotFound)?;
         if item.revision() != expected_revision {
             return Err(MutationStoreError::VersionConflict);
         }
@@ -499,10 +957,7 @@ fn mutation_type(events: &[DomainEvent]) -> &'static str {
     }
 }
 
-fn load_item(
-    transaction: &rusqlite::Transaction<'_>,
-    item_id: &str,
-) -> Result<Option<Item>, MutationStoreError<rusqlite::Error>> {
+fn load_item(connection: &Connection, item_id: &str) -> Result<Option<Item>, ItemStorageError> {
     type ItemRow = (
         String,
         String,
@@ -524,7 +979,7 @@ fn load_item(
         Option<String>,
         Option<String>,
     );
-    let row: Option<ItemRow> = transaction
+    let row: Option<ItemRow> = connection
         .query_row(
             "SELECT i.requester, i.project_id, i.sequence, i.title, i.description,
                     i.status, i.priority, i.assignee, i.status_reason, i.revision,
@@ -558,11 +1013,11 @@ fn load_item(
             },
         )
         .optional()
-        .map_err(MutationStoreError::from)?;
+        .map_err(ItemStorageError::from)?;
     let Some(row) = row else {
         return Ok(None);
     };
-    let criteria = transaction
+    let criteria = connection
         .prepare(
             "SELECT criterion FROM item_acceptance_criteria
              WHERE item_id = ?1 ORDER BY criterion_index",
@@ -572,13 +1027,26 @@ fn load_item(
                 .query_map([item_id], |row| row.get::<_, String>(0))?
                 .collect::<rusqlite::Result<Vec<_>>>()
         })
-        .map_err(MutationStoreError::from)?;
-    let requester = RequesterId::new(&row.0).map_err(|_| corrupt())?;
-    let project = ProjectId::new(&row.1).map_err(|_| corrupt())?;
-    let id = ItemId::new(requester, project, row.2 as u64).map_err(|_| corrupt())?;
-    let content = ItemContent::new(row.3, row.4, criteria).map_err(|_| corrupt())?;
+        .map_err(ItemStorageError::from)?;
+    let invalid = |detail: &str| invalid_item(item_id, detail);
+    let requester =
+        RequesterId::new(&row.0).map_err(|_| invalid("requester is not a valid RequesterId"))?;
+    let project =
+        ProjectId::new(&row.1).map_err(|_| invalid("project_id is not a valid ProjectId"))?;
+    let sequence =
+        u64::try_from(row.2).map_err(|_| invalid("sequence is not a positive integer"))?;
+    let id = ItemId::new(requester, project, sequence)
+        .map_err(|_| invalid("identity components do not form a valid ItemId"))?;
+    if id.to_string() != item_id {
+        return Err(invalid("item_id does not match its identity components"));
+    }
+    let content = ItemContent::new(row.3, row.4, criteria)
+        .map_err(|_| invalid("content violates canonical item constraints"))?;
     let provenance = Provenance::new(
-        row.12.as_deref().map(parse_source_host).transpose()?,
+        row.12
+            .as_deref()
+            .map(|value| parse_source_host(value, item_id))
+            .transpose()?,
         row.13.map(ThreadId::new),
         row.14.map(MessageId::new),
         row.15.map(SourceUrl::new),
@@ -589,22 +1057,40 @@ fn load_item(
     Ok(Some(Item::new(
         id,
         content,
-        parse_status(&row.5)?,
-        row.6.as_deref().map(parse_priority).transpose()?,
+        parse_status(&row.5, item_id)?,
+        row.6
+            .as_deref()
+            .map(|value| parse_priority(value, item_id))
+            .transpose()?,
         row.7
             .map(AssigneeId::new)
             .transpose()
-            .map_err(|_| corrupt())?,
+            .map_err(|_| invalid("assignee is not a valid AssigneeId"))?,
         row.8,
-        Revision::new(row.9 as u64).map_err(|_| corrupt())?,
+        Revision::new(
+            u64::try_from(row.9).map_err(|_| invalid("revision is not a positive integer"))?,
+        )
+        .map_err(|_| invalid("revision is not a positive integer"))?,
         Timestamp::new(row.10),
         Timestamp::new(row.11),
         provenance,
     )))
 }
 
-fn corrupt() -> MutationStoreError<rusqlite::Error> {
-    MutationStoreError::Storage(rusqlite::Error::InvalidQuery)
+fn invalid_item(item_id: &str, detail: &str) -> ItemStorageError {
+    ItemStorageError::InvalidPersistedData {
+        item_id: item_id.to_owned(),
+        detail: detail.to_owned(),
+    }
+}
+
+fn mutation_load_error(error: ItemStorageError) -> MutationStoreError<rusqlite::Error> {
+    match error {
+        ItemStorageError::Sqlite(error) => MutationStoreError::from(error),
+        error @ ItemStorageError::InvalidPersistedData { .. } => {
+            MutationStoreError::Storage(rusqlite::Error::ToSqlConversionFailure(Box::new(error)))
+        }
+    }
 }
 
 fn mutation_reason(mutation: &ItemMutation) -> Option<&str> {
@@ -725,7 +1211,7 @@ fn priority(value: Priority) -> &'static str {
     }
 }
 
-fn parse_status(value: &str) -> Result<Status, MutationStoreError<rusqlite::Error>> {
+fn parse_status(value: &str, item_id: &str) -> Result<Status, ItemStorageError> {
     match value {
         "proposed" => Ok(Status::Proposed),
         "ready" => Ok(Status::Ready),
@@ -733,27 +1219,36 @@ fn parse_status(value: &str) -> Result<Status, MutationStoreError<rusqlite::Erro
         "blocked" => Ok(Status::Blocked),
         "done" => Ok(Status::Done),
         "rejected" => Ok(Status::Rejected),
-        _ => Err(corrupt()),
+        _ => Err(invalid_item(
+            item_id,
+            &format!("unknown status value {value:?}"),
+        )),
     }
 }
 
-fn parse_priority(value: &str) -> Result<Priority, MutationStoreError<rusqlite::Error>> {
+fn parse_priority(value: &str, item_id: &str) -> Result<Priority, ItemStorageError> {
     match value {
         "P0" => Ok(Priority::P0),
         "P1" => Ok(Priority::P1),
         "P2" => Ok(Priority::P2),
         "P3" => Ok(Priority::P3),
         "P4" => Ok(Priority::P4),
-        _ => Err(corrupt()),
+        _ => Err(invalid_item(
+            item_id,
+            &format!("unknown priority value {value:?}"),
+        )),
     }
 }
 
-fn parse_source_host(value: &str) -> Result<SourceHost, MutationStoreError<rusqlite::Error>> {
+fn parse_source_host(value: &str, item_id: &str) -> Result<SourceHost, ItemStorageError> {
     match value {
         "delta" => Ok(SourceHost::Delta),
         "codex" => Ok(SourceHost::Codex),
         "local" => Ok(SourceHost::Local),
-        _ => Err(corrupt()),
+        _ => Err(invalid_item(
+            item_id,
+            &format!("unknown source_host value {value:?}"),
+        )),
     }
 }
 

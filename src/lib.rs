@@ -6,12 +6,12 @@
 
 pub mod application;
 pub mod cli;
+mod cli_mutation;
+mod cli_read;
 pub mod config;
 pub mod domain;
+pub mod expose;
 pub mod rpc;
+pub mod rpc_mutation;
+pub mod rpc_read;
 pub mod storage;
-
-/// Runs the BIF command-line application.
-///
-/// Command handling will be added by later implementation tasks.
-pub fn run() {}

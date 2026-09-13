@@ -6,8 +6,8 @@
 use std::{error::Error, fmt};
 
 use crate::domain::{
-    Item, ItemContent, ItemId, ItemMutation, MutationError, ProjectId, Provenance, RequesterId,
-    Revision, Timestamp,
+    EventType, EventValue, Item, ItemContent, ItemId, ItemMutation, MutationError, NamedView,
+    ProjectId, Provenance, RequesterId, Revision, Timestamp,
 };
 
 /// The principal requesting an operation.
@@ -113,6 +113,501 @@ pub fn authorize(request: &AuthorizationRequest<'_>) -> Result<(), Unauthorized>
         Command::Read | Command::Capture => Ok(()),
         Command::Mutation { requested_changes } => authorize_mutation(request, requested_changes),
     }
+}
+
+/// Immutable attribution for the principal responsible for a persisted event.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EventActor {
+    pub kind: ActorKind,
+    pub id: String,
+    pub surface: String,
+    pub host: String,
+}
+
+/// Immutable attribution for how a persisted event was executed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum EventExecution {
+    Direct {
+        surface: String,
+        host: String,
+    },
+    Agent {
+        agent_id: String,
+        surface: String,
+        host: String,
+    },
+}
+
+/// One complete event record from an item's immutable history.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ItemHistoryEvent {
+    pub operation_id: String,
+    pub event_id: String,
+    pub item_revision: Revision,
+    pub event_index: u64,
+    pub event_type: EventType,
+    pub before: Option<EventValue>,
+    pub after: Option<EventValue>,
+    pub actor: EventActor,
+    pub execution: EventExecution,
+    pub reason: Option<String>,
+    pub note: Option<String>,
+    pub occurred_at: Timestamp,
+    pub schema_version: u64,
+}
+
+/// Persistence boundary required by the item-history read operation.
+pub trait ItemHistoryStore {
+    type Error;
+
+    fn item_history(
+        &self,
+        item_id: &ItemId,
+    ) -> Result<Vec<ItemHistoryEvent>, ItemHistoryStoreError<Self::Error>>;
+}
+
+/// Stable outcomes exposed by an item-history persistence adapter.
+#[derive(Debug)]
+pub enum ItemHistoryStoreError<StorageError> {
+    NotFound,
+    InvalidPersistedData(StorageError),
+    Storage(StorageError),
+}
+
+/// Failures from the authorized item-history use case.
+#[derive(Debug)]
+pub enum ItemHistoryError<StorageError> {
+    Unauthorized(Unauthorized),
+    NotFound,
+    InvalidPersistedData(StorageError),
+    Storage(StorageError),
+}
+
+impl<StorageError> ItemHistoryError<StorageError> {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Unauthorized(_) => "unauthorized",
+            Self::NotFound => "not_found",
+            Self::InvalidPersistedData(_) => "invalid_persisted_data",
+            Self::Storage(_) => "storage_error",
+        }
+    }
+}
+
+impl<StorageError: fmt::Display> fmt::Display for ItemHistoryError<StorageError> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unauthorized(error) => error.fmt(formatter),
+            Self::NotFound => formatter.write_str("item was not found"),
+            Self::InvalidPersistedData(error) => {
+                write!(formatter, "invalid persisted item history: {error}")
+            }
+            Self::Storage(error) => write!(formatter, "item history storage error: {error}"),
+        }
+    }
+}
+
+impl<StorageError: Error + 'static> Error for ItemHistoryError<StorageError> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Unauthorized(error) => Some(error),
+            Self::InvalidPersistedData(error) | Self::Storage(error) => Some(error),
+            Self::NotFound => None,
+        }
+    }
+}
+
+/// Authorizes and loads the complete immutable history for one item.
+pub fn read_item_history<S: ItemHistoryStore>(
+    store: &S,
+    authorization: &AuthorizationRequest<'_>,
+    item_id: &ItemId,
+) -> Result<Vec<ItemHistoryEvent>, ItemHistoryError<S::Error>> {
+    if authorization.command != Command::Read {
+        return Err(ItemHistoryError::Unauthorized(Unauthorized));
+    }
+    authorize(authorization).map_err(ItemHistoryError::Unauthorized)?;
+    store.item_history(item_id).map_err(|error| match error {
+        ItemHistoryStoreError::NotFound => ItemHistoryError::NotFound,
+        ItemHistoryStoreError::InvalidPersistedData(error) => {
+            ItemHistoryError::InvalidPersistedData(error)
+        }
+        ItemHistoryStoreError::Storage(error) => ItemHistoryError::Storage(error),
+    })
+}
+
+/// Persistence boundary required to read one canonical item.
+pub trait ItemStore {
+    type Error;
+
+    fn read_item(&self, item_id: &ItemId) -> Result<Option<Item>, Self::Error>;
+}
+
+/// Stable failures returned by the read-one-item use case.
+#[derive(Debug)]
+pub enum ReadItemError<StorageError> {
+    Unauthorized(Unauthorized),
+    NotFound,
+    Storage(StorageError),
+}
+
+impl<StorageError> ReadItemError<StorageError> {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Unauthorized(_) => "unauthorized",
+            Self::NotFound => "not_found",
+            Self::Storage(_) => "storage_error",
+        }
+    }
+}
+
+impl<StorageError: fmt::Display> fmt::Display for ReadItemError<StorageError> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unauthorized(error) => error.fmt(formatter),
+            Self::NotFound => formatter.write_str("item was not found"),
+            Self::Storage(error) => write!(formatter, "item storage error: {error}"),
+        }
+    }
+}
+
+impl<StorageError: Error + 'static> Error for ReadItemError<StorageError> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Unauthorized(error) => Some(error),
+            Self::Storage(error) => Some(error),
+            Self::NotFound => None,
+        }
+    }
+}
+
+/// Authorizes and loads one item with all canonical fields.
+pub fn read_item<S: ItemStore>(
+    store: &S,
+    authorization: &AuthorizationRequest<'_>,
+    item_id: &ItemId,
+) -> Result<Item, ReadItemError<S::Error>> {
+    if authorization.command != Command::Read {
+        return Err(ReadItemError::Unauthorized(Unauthorized));
+    }
+    authorize(authorization).map_err(ReadItemError::Unauthorized)?;
+    store
+        .read_item(item_id)
+        .map_err(ReadItemError::Storage)?
+        .ok_or(ReadItemError::NotFound)
+}
+
+/// Persistence boundary for selecting one canonical named view.
+pub trait NamedViewStore {
+    type Error;
+
+    fn select_items(
+        &self,
+        view: NamedView,
+        configured_requester: &RequesterId,
+        filters: &ItemListFilters,
+    ) -> Result<Vec<Item>, Self::Error>;
+
+    fn select_named_view(
+        &self,
+        view: NamedView,
+        configured_requester: &RequesterId,
+    ) -> Result<Vec<Item>, Self::Error> {
+        self.select_items(view, configured_requester, &ItemListFilters::default())
+    }
+
+    fn select_item_page(
+        &self,
+        view: NamedView,
+        configured_requester: &RequesterId,
+        filters: &ItemListFilters,
+        ordering: ItemListOrdering,
+        pagination: Pagination,
+    ) -> Result<ItemPage, Self::Error> {
+        let mut items = self.select_items(view, configured_requester, filters)?;
+        order_items(&mut items, ordering);
+
+        let offset = pagination.offset.get();
+        let limit = pagination.limit.get();
+        let mut items: Vec<_> = items.into_iter().skip(offset).take(limit + 1).collect();
+        let has_more = items.len() > limit;
+        items.truncate(limit);
+        let next_offset = has_more.then(|| PageOffset::new(offset + limit));
+
+        Ok(ItemPage { items, next_offset })
+    }
+}
+
+/// Maximum number of items that one list request may return.
+pub const MAX_PAGE_SIZE: usize = 100;
+
+/// A validated, non-zero item-list page size.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PageSize(usize);
+
+impl PageSize {
+    pub fn new(value: usize) -> Result<Self, InvalidPagination> {
+        if (1..=MAX_PAGE_SIZE).contains(&value) {
+            Ok(Self(value))
+        } else {
+            Err(InvalidPagination)
+        }
+    }
+
+    pub const fn get(self) -> usize {
+        self.0
+    }
+}
+
+/// A zero-based offset into a deterministically ordered item list.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct PageOffset(usize);
+
+impl PageOffset {
+    pub const fn new(value: usize) -> Self {
+        Self(value)
+    }
+
+    pub const fn get(self) -> usize {
+        self.0
+    }
+}
+
+/// Typed pagination input for an item list.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Pagination {
+    pub limit: PageSize,
+    pub offset: PageOffset,
+}
+
+impl Pagination {
+    pub const fn new(limit: PageSize, offset: PageOffset) -> Self {
+        Self { limit, offset }
+    }
+}
+
+/// Stable validation failure for an out-of-range page size.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct InvalidPagination;
+
+impl InvalidPagination {
+    pub const fn code(self) -> &'static str {
+        "invalid_pagination"
+    }
+}
+
+impl fmt::Display for InvalidPagination {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "page size must be between 1 and {MAX_PAGE_SIZE}")
+    }
+}
+
+impl Error for InvalidPagination {}
+
+/// The two canonical item-list orderings.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ItemListOrdering {
+    NewestFirst,
+    Next,
+}
+
+/// One bounded page and the offset to use for the following page, if any.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ItemPage {
+    pub items: Vec<Item>,
+    pub next_offset: Option<PageOffset>,
+}
+
+fn order_items(items: &mut [Item], ordering: ItemListOrdering) {
+    items.sort_by(|left, right| match ordering {
+        ItemListOrdering::NewestFirst => right
+            .captured_at()
+            .as_str()
+            .cmp(left.captured_at().as_str())
+            .then_with(|| left.id().cmp(right.id())),
+        ItemListOrdering::Next => priority_rank(left.priority())
+            .cmp(&priority_rank(right.priority()))
+            .then_with(|| {
+                left.captured_at()
+                    .as_str()
+                    .cmp(right.captured_at().as_str())
+            })
+            .then_with(|| left.id().cmp(right.id())),
+    });
+}
+
+fn priority_rank(priority: Option<crate::domain::Priority>) -> u8 {
+    match priority {
+        Some(crate::domain::Priority::P0) => 0,
+        Some(crate::domain::Priority::P1) => 1,
+        Some(crate::domain::Priority::P2) => 2,
+        Some(crate::domain::Priority::P3) => 3,
+        Some(crate::domain::Priority::P4) => 4,
+        None => 5,
+    }
+}
+
+/// Optional, composable restrictions applied after named-view membership.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ItemListFilters {
+    pub project: Option<ProjectId>,
+    pub requester: Option<RequesterId>,
+    pub assignee: Option<crate::domain::AssigneeId>,
+    pub status: Option<crate::domain::Status>,
+    pub priority: Option<crate::domain::Priority>,
+    pub unassigned: bool,
+    pub text: Option<ItemTextFilter>,
+}
+
+/// A non-empty case-insensitive query over an item's immutable text content.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ItemTextFilter(String);
+
+impl ItemTextFilter {
+    pub fn new(value: impl Into<String>) -> Result<Self, InvalidItemTextFilter> {
+        let value = value.into();
+        if value.trim().is_empty() {
+            Err(InvalidItemTextFilter)
+        } else {
+            Ok(Self(value))
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Stable validation failure for an empty item-list text filter.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct InvalidItemTextFilter;
+
+impl InvalidItemTextFilter {
+    pub const fn code(self) -> &'static str {
+        "invalid_filter"
+    }
+}
+
+impl fmt::Display for InvalidItemTextFilter {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("text filter must not be empty")
+    }
+}
+
+impl Error for InvalidItemTextFilter {}
+
+/// Stable failures returned by named-view selection.
+#[derive(Debug)]
+pub enum SelectNamedViewError<StorageError> {
+    Unauthorized(Unauthorized),
+    Storage(StorageError),
+}
+
+impl<StorageError> SelectNamedViewError<StorageError> {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Unauthorized(_) => "unauthorized",
+            Self::Storage(_) => "storage_error",
+        }
+    }
+}
+
+impl<StorageError: fmt::Display> fmt::Display for SelectNamedViewError<StorageError> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unauthorized(error) => error.fmt(formatter),
+            Self::Storage(error) => write!(formatter, "named view storage error: {error}"),
+        }
+    }
+}
+
+impl<StorageError: Error + 'static> Error for SelectNamedViewError<StorageError> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Unauthorized(error) => Some(error),
+            Self::Storage(error) => Some(error),
+        }
+    }
+}
+
+/// Authorizes and selects all items in one canonical named view.
+pub fn select_named_view<S: NamedViewStore>(
+    store: &S,
+    authorization: &AuthorizationRequest<'_>,
+    view: NamedView,
+    configured_requester: &RequesterId,
+) -> Result<Vec<Item>, SelectNamedViewError<S::Error>> {
+    if authorization.command != Command::Read {
+        return Err(SelectNamedViewError::Unauthorized(Unauthorized));
+    }
+    authorize(authorization).map_err(SelectNamedViewError::Unauthorized)?;
+    store
+        .select_named_view(view, configured_requester)
+        .map_err(SelectNamedViewError::Storage)
+}
+
+/// Authorizes an item list and intersects its typed filters with the named view.
+pub fn list_items<S: NamedViewStore>(
+    store: &S,
+    authorization: &AuthorizationRequest<'_>,
+    view: NamedView,
+    configured_requester: &RequesterId,
+    filters: &ItemListFilters,
+) -> Result<Vec<Item>, SelectNamedViewError<S::Error>> {
+    if authorization.command != Command::Read {
+        return Err(SelectNamedViewError::Unauthorized(Unauthorized));
+    }
+    authorize(authorization).map_err(SelectNamedViewError::Unauthorized)?;
+    store
+        .select_items(view, configured_requester, filters)
+        .map_err(SelectNamedViewError::Storage)
+}
+
+/// Authorizes and returns one bounded, deterministically ordered item page.
+pub fn list_item_page<S: NamedViewStore>(
+    store: &S,
+    authorization: &AuthorizationRequest<'_>,
+    view: NamedView,
+    configured_requester: &RequesterId,
+    filters: &ItemListFilters,
+    pagination: Pagination,
+) -> Result<ItemPage, SelectNamedViewError<S::Error>> {
+    if authorization.command != Command::Read {
+        return Err(SelectNamedViewError::Unauthorized(Unauthorized));
+    }
+    authorize(authorization).map_err(SelectNamedViewError::Unauthorized)?;
+    store
+        .select_item_page(
+            view,
+            configured_requester,
+            filters,
+            ItemListOrdering::NewestFirst,
+            pagination,
+        )
+        .map_err(SelectNamedViewError::Storage)
+}
+
+/// Selects ready work in priority, age, then ID order without mutating it.
+pub fn next_item_page<S: NamedViewStore>(
+    store: &S,
+    authorization: &AuthorizationRequest<'_>,
+    configured_requester: &RequesterId,
+    filters: &ItemListFilters,
+    pagination: Pagination,
+) -> Result<ItemPage, SelectNamedViewError<S::Error>> {
+    if authorization.command != Command::Read {
+        return Err(SelectNamedViewError::Unauthorized(Unauthorized));
+    }
+    authorize(authorization).map_err(SelectNamedViewError::Unauthorized)?;
+    store
+        .select_item_page(
+            NamedView::Ready,
+            configured_requester,
+            filters,
+            ItemListOrdering::Next,
+            pagination,
+        )
+        .map_err(SelectNamedViewError::Storage)
 }
 
 /// Validated domain data needed to capture one item.

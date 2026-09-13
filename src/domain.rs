@@ -241,6 +241,80 @@ pub enum Status {
     Rejected,
 }
 
+/// A canonical, user-selectable item view.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum NamedView {
+    Proposed,
+    Ready,
+    Active,
+    Blocked,
+    Done,
+    Rejected,
+    Mine,
+    All,
+}
+
+impl NamedView {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Proposed => "proposed",
+            Self::Ready => "ready",
+            Self::Active => "active",
+            Self::Blocked => "blocked",
+            Self::Done => "done",
+            Self::Rejected => "rejected",
+            Self::Mine => "mine",
+            Self::All => "all",
+        }
+    }
+}
+
+impl fmt::Display for NamedView {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+/// Returned when input does not name one of BIF's canonical views.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvalidNamedView(String);
+
+impl InvalidNamedView {
+    pub fn input(&self) -> &str {
+        &self.0
+    }
+
+    pub const fn code(&self) -> &'static str {
+        "invalid_view"
+    }
+}
+
+impl fmt::Display for InvalidNamedView {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "unknown named view: {}", self.0)
+    }
+}
+
+impl Error for InvalidNamedView {}
+
+impl FromStr for NamedView {
+    type Err = InvalidNamedView;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "proposed" => Ok(Self::Proposed),
+            "ready" => Ok(Self::Ready),
+            "active" => Ok(Self::Active),
+            "blocked" => Ok(Self::Blocked),
+            "done" => Ok(Self::Done),
+            "rejected" => Ok(Self::Rejected),
+            "mine" => Ok(Self::Mine),
+            "all" => Ok(Self::All),
+            _ => Err(InvalidNamedView(input.to_owned())),
+        }
+    }
+}
+
 /// Why a requested lifecycle operation could not be applied.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LifecycleError {
