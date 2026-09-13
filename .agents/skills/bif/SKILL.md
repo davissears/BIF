@@ -48,6 +48,8 @@ or Git worktree.
 Use filters the user supplies, including `--project`, `--requester`,
 `--assignee`, `--status`, `--priority`, and `--text`. Use `--limit` and
 `--offset` instead of silently truncating a large result.
+The `mine` view means items assigned to the configured requester; it does not
+include unassigned items merely because that requester captured them.
 
 If `/bif` has no request, ask what the user wants to capture, inspect, or
 change. Do not guess a mutation.
@@ -59,6 +61,14 @@ context in `--description`. Turn concrete definitions of done into repeated
 `--acceptance` arguments; do not fabricate acceptance criteria when the request
 does not establish them. Use `--project` only when the user names a project or
 automatic project resolution cannot identify the intended one.
+
+Before capturing, establish the intended assignee. If the user has not already
+specified one, ask whether the task should be assigned to the requester, to
+someone else (and obtain their exact assignee name), or left unassigned. Do not
+infer assignment from who requested or captured the task. Because `capture`
+creates an unassigned item, follow a successful capture with `assign` when the
+chosen assignee is not null, using the captured item's revision and a separate
+fresh idempotency key.
 
 For work originating in this conversation, pass `--source-host delta`. Include
 `--thread-id`, `--message-id`, or `--url` only when the actual value is
