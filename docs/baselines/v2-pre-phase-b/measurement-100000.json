@@ -1,33 +1,33 @@
 {
   "format": "bif-v2-measurement-v2",
   "provenance": {
-    "revision": "926b7631436d0e4afa9632ca494ced32097d879f",
+    "revision": "a3cc0873744eb88fd2b07adf6d6daefe7d0856b7",
     "dirty": true,
     "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)",
     "target": "aarch64-apple-darwin",
     "sqlite_version": "3.51.1",
     "profile": "release",
-    "unix_time_seconds": 1789329999,
+    "unix_time_seconds": 1789331545,
     "host_os": "Darwin Daviss-Mac-mini.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:11:03 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8132 arm64",
     "exact_command": [
       "target/release/bif-benchmark",
-      "target/bif-v2-006/100000.sqlite3",
+      "target/bif-v2-006-refresh/100000.sqlite3",
       "--samples",
       "1",
       "--output",
-      "target/bif-v2-006/measurement-100000.json"
+      "target/bif-v2-006-refresh/measurement-100000.json"
     ],
     "cache_procedure": "none; no OS cache eviction attempted",
-    "fixture_bytes": 289304576,
+    "fixture_bytes": 324333568,
     "fixture_seed": 2003,
-    "fixture_digest": "cfc9937b4e865f0d"
+    "fixture_digest": "87a07c0632977092"
   },
-  "source_database": "target/bif-v2-006/100000.sqlite3",
-  "measured_store": "/var/folders/y0/q3qv9t8n0p94lbs4msx02stm0000gn/T/delta-terminal-.delta-fs-06Fxrl/bif-measurement-46107-1789329993671804000-0/store.sqlite3",
+  "source_database": "target/bif-v2-006-refresh/100000.sqlite3",
+  "measured_store": "/var/folders/y0/q3qv9t8n0p94lbs4msx02stm0000gn/T/delta-terminal-.delta-fs-JbjUZg/bif-measurement-53431-1789331538994276000-0/store.sqlite3",
   "measured_store_sizes_before_writes": {
     "database": {
       "status": "present",
-      "bytes": 289304576
+      "bytes": 324333568
     },
     "wal": {
       "status": "present",
@@ -37,7 +37,7 @@
   "measured_store_sizes_after_writes": {
     "database": {
       "status": "present",
-      "bytes": 289304576
+      "bytes": 324333568
     },
     "wal": {
       "status": "missing"
@@ -51,10 +51,10 @@
   "percentile_definition": "nearest rank; overflow-safe quotient/remainder calculation",
   "startup_open": {
     "sample_count": 1,
-    "p50": 505042,
-    "p95": 505042,
+    "p50": 506917,
+    "p95": 506917,
     "samples": [
-      505042
+      506917
     ]
   },
   "persistence_verification": {
@@ -115,10 +115,10 @@
       },
       "wall_nanoseconds": {
         "sample_count": 1,
-        "p50": 50125,
-        "p95": 50125,
+        "p50": 50583,
+        "p95": 50583,
         "samples": [
-          50125
+          50583
         ]
       },
       "sqlite_profile_nanoseconds": {
@@ -131,10 +131,10 @@
       },
       "non_profiled_wall_residual_nanoseconds": {
         "sample_count": 1,
-        "p50": 50125,
-        "p95": 50125,
+        "p50": 50583,
+        "p95": 50583,
         "samples": [
-          50125
+          50583
         ]
       },
       "profile_exceeded_wall_samples": [],
@@ -143,10 +143,10 @@
       ],
       "serialization_nanoseconds": {
         "sample_count": 1,
-        "p50": 18208,
-        "p95": 18208,
+        "p50": 17958,
+        "p95": 17958,
         "samples": [
-          18208
+          17958
         ]
       },
       "response_bytes": {
@@ -203,10 +203,10 @@
       },
       "wall_nanoseconds": {
         "sample_count": 1,
-        "p50": 124458,
-        "p95": 124458,
+        "p50": 131666,
+        "p95": 131666,
         "samples": [
-          124458
+          131666
         ]
       },
       "sqlite_profile_nanoseconds": {
@@ -219,10 +219,10 @@
       },
       "non_profiled_wall_residual_nanoseconds": {
         "sample_count": 1,
-        "p50": 124458,
-        "p95": 124458,
+        "p50": 131666,
+        "p95": 131666,
         "samples": [
-          124458
+          131666
         ]
       },
       "profile_exceeded_wall_samples": [],
@@ -231,10 +231,10 @@
       ],
       "serialization_nanoseconds": {
         "sample_count": 1,
-        "p50": 10375,
-        "p95": 10375,
+        "p50": 10875,
+        "p95": 10875,
         "samples": [
-          10375
+          10875
         ]
       },
       "response_bytes": {
@@ -261,7 +261,7 @@
         {
           "lexical_data_statements": 200001,
           "sqlite_row_callbacks": 506795,
-          "profile_nanoseconds": 511000000,
+          "profile_nanoseconds": 528000000,
           "sqlite_work": {
             "fullscan_steps": 99999,
             "sorts": 0,
@@ -277,7 +277,7 @@
       "sql_totals": {
         "lexical_data_statements": 200001,
         "sqlite_row_callbacks": 506795,
-        "profile_nanoseconds": 511000000,
+        "profile_nanoseconds": 528000000,
         "sqlite_work": {
           "fullscan_steps": 99999,
           "sorts": 0,
@@ -291,36 +291,36 @@
       },
       "wall_nanoseconds": {
         "sample_count": 1,
-        "p50": 1499214625,
-        "p95": 1499214625,
+        "p50": 1467220333,
+        "p95": 1467220333,
         "samples": [
-          1499214625
+          1467220333
         ]
       },
       "sqlite_profile_nanoseconds": {
         "sample_count": 1,
-        "p50": 511000000,
-        "p95": 511000000,
+        "p50": 528000000,
+        "p95": 528000000,
         "samples": [
-          511000000
+          528000000
         ]
       },
       "non_profiled_wall_residual_nanoseconds": {
         "sample_count": 1,
-        "p50": 988214625,
-        "p95": 988214625,
+        "p50": 939220333,
+        "p95": 939220333,
         "samples": [
-          988214625
+          939220333
         ]
       },
       "profile_exceeded_wall_samples": [],
       "profile_zero_samples": [],
       "serialization_nanoseconds": {
         "sample_count": 1,
-        "p50": 66916,
-        "p95": 66916,
+        "p50": 71709,
+        "p95": 71709,
         "samples": [
-          66916
+          71709
         ]
       },
       "response_bytes": {
@@ -377,10 +377,10 @@
       },
       "wall_nanoseconds": {
         "sample_count": 1,
-        "p50": 744916,
-        "p95": 744916,
+        "p50": 486958,
+        "p95": 486958,
         "samples": [
-          744916
+          486958
         ]
       },
       "sqlite_profile_nanoseconds": {
@@ -405,10 +405,10 @@
       "profile_zero_samples": [],
       "serialization_nanoseconds": {
         "sample_count": 1,
-        "p50": 2292,
-        "p95": 2292,
+        "p50": 2750,
+        "p95": 2750,
         "samples": [
-          2292
+          2750
         ]
       },
       "response_bytes": {
