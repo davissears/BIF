@@ -23,6 +23,7 @@ use serde_json::Value;
 use std::{
     collections::BTreeMap,
     env, fs,
+    io::Write,
     path::{Path, PathBuf},
     process,
     sync::{LazyLock, Mutex},
@@ -240,6 +241,31 @@ fn snapshot(source: &Path, destination: &Path) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
+fn prepare_output(source: &Path, output: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    if output.exists() {
+        return Err(format!("refusing to overwrite existing output {}", output.display()).into());
+    }
+    let parent = output.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)?;
+    let output_name = output.file_name().ok_or("--output must name a file")?;
+    let resolved_output = fs::canonicalize(parent)?.join(output_name);
+    let resolved_source = fs::canonicalize(source)?;
+    let protected = [
+        resolved_source.clone(),
+        PathBuf::from(format!("{}-wal", resolved_source.display())),
+        PathBuf::from(format!("{}-shm", resolved_source.display())),
+        PathBuf::from(format!("{}.metadata.json", resolved_source.display())),
+    ];
+    if protected.iter().any(|path| path == &resolved_output) {
+        return Err(format!(
+            "refusing output path that aliases the source database or a sidecar: {}",
+            output.display()
+        )
+        .into());
+    }
+    Ok(())
+}
+
 fn main() {
     if let Err(e) = run() {
         eprintln!("benchmark failed: {e}");
@@ -266,6 +292,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     if !(1..=MAX_SAMPLES).contains(&samples) {
         return Err(format!("--samples must be between 1 and {MAX_SAMPLES}").into());
+    }
+    if let Some(path) = output.as_ref() {
+        prepare_output(&source, path)?;
     }
     let fixture_bytes = fs::metadata(&source)?.len();
     let metadata = fixture_metadata(&source, fixture_bytes)?;
@@ -436,10 +465,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     };
     let json = serde_json::to_vec_pretty(&report)?;
     if let Some(path) = output {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?
-        }
-        fs::write(path, json)?
+        fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)?
+            .write_all(&json)?
     } else {
         println!("{}", String::from_utf8(json)?)
     }

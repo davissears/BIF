@@ -202,6 +202,54 @@ fn stale_fixture_sidecar_is_rejected() {
 }
 
 #[test]
+fn report_output_cannot_overwrite_fixture_paths_or_existing_files() {
+    let directory = OwnedTestDirectory::new();
+    let database = directory.path().join("100.sqlite3");
+    assert!(
+        Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+            .args(["100", "--output"])
+            .arg(&database)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let existing = directory.path().join("existing.json");
+    fs::write(&existing, b"keep me").unwrap();
+    let protected = [
+        database.clone(),
+        database.with_file_name("100.sqlite3-wal"),
+        database.with_file_name("100.sqlite3-shm"),
+        database.with_file_name("100.sqlite3.metadata.json"),
+        existing.clone(),
+    ];
+    for path in protected {
+        let output = Command::new(env!("CARGO_BIN_EXE_bif-benchmark"))
+            .arg(&database)
+            .args(["--samples", "1", "--output"])
+            .arg(&path)
+            .output()
+            .unwrap();
+        assert!(
+            !output.status.success(),
+            "protected output unexpectedly succeeded: {}",
+            path.display()
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("refusing"),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    assert_eq!(fs::read(existing).unwrap(), b"keep me");
+    assert!(database.exists());
+    assert!(
+        database
+            .with_file_name("100.sqlite3.metadata.json")
+            .exists()
+    );
+}
+
+#[test]
 fn sample_count_is_bounded() {
     for invalid in ["0", "1001", "18446744073709551615"] {
         let output = Command::new(env!("CARGO_BIN_EXE_bif-benchmark"))
