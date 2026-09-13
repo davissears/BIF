@@ -1,6 +1,11 @@
 mod support;
 
-use std::{collections::BTreeSet, fs, path::Path, process::Command};
+use std::{
+    collections::BTreeSet,
+    fs,
+    path::Path,
+    process::{Command, Output},
+};
 
 use serde_json::Value;
 use support::OwnedTestDirectory;
@@ -106,25 +111,19 @@ fn generate_store(root: &Path) {
         String::from_utf8_lossy(&output.stderr)
     );
     let metadata: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(metadata["logical_digest"], "73701e6b7b09a5e1");
+    assert_eq!(metadata["logical_digest"], "b819125481255ec7");
 }
 
-fn execute_argv(root: &Path, request: &str) -> String {
+fn execute_argv(root: &Path, request: &str) -> Output {
     let request: Value = serde_json::from_str(request).unwrap();
     let argv = request["argv"].as_array().expect("request argv");
-    let output = Command::new(env!("CARGO_BIN_EXE_bif"))
+    Command::new(env!("CARGO_BIN_EXE_bif"))
         .args(argv.iter().map(|arg| arg.as_str().expect("string argv")))
         .args(["--root"])
         .arg(root)
         .args(["--requester", "BENCH"])
         .output()
-        .unwrap();
-    assert!(
-        output.status.success(),
-        "argv={argv:?}\n{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout).unwrap()
+        .unwrap()
 }
 
 #[test]
@@ -347,6 +346,95 @@ fn error_retry_plans_are_complete_and_contain_no_fabricated_evidence() {
             assert_eq!(specification["evidence"], Value::Array(vec![]));
         }
     }
+}
+
+#[test]
+fn error_plan_item_ids_are_canonical_and_missing_target_is_absent() {
+    let fixture = fixture();
+    let directory = OwnedTestDirectory::new();
+    generate_store(directory.path());
+
+    for specification in fixture["workflows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|workflow| workflow["error_retry_specifications"].as_array().unwrap())
+    {
+        let Some(item_id) = specification["request_shape"]["item_id"].as_str() else {
+            continue;
+        };
+        let output = Command::new(env!("CARGO_BIN_EXE_bif"))
+            .args(["get", item_id, "--root"])
+            .arg(directory.path())
+            .args(["--requester", "BENCH"])
+            .output()
+            .unwrap();
+        assert_ne!(
+            output.status.code(),
+            Some(2),
+            "error-plan item ID did not pass the CLI's identity parser: {item_id}"
+        );
+
+        if specification["expected_error"]["code"] == "not_found" {
+            assert_eq!(item_id, "DELTA:core:999");
+            assert_eq!(output.status.code(), Some(3));
+            assert!(output.stdout.is_empty());
+            assert!(String::from_utf8_lossy(&output.stderr).contains("item was not found"));
+        }
+    }
+}
+
+#[test]
+fn v2_next_first_page_requires_an_opaque_non_null_continuation() {
+    let fixture = fixture();
+    let workflow = fixture["workflows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|workflow| workflow["id"] == "select_and_execute")
+        .unwrap();
+    let call = &workflow["variants"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|variant| variant["id"] == "v2_contract")
+        .unwrap()["calls"][0];
+    let response: Value = serde_json::from_str(call["response_content"].as_str().unwrap()).unwrap();
+    assert!(response["next_cursor"].is_string());
+    assert_eq!(call["response_content_accounting"], "illustrative_estimate");
+    assert_eq!(
+        call["expected_response_semantics"]["next_cursor"],
+        "non_null_opaque_continuation"
+    );
+
+    let directory = OwnedTestDirectory::new();
+    generate_store(directory.path());
+    let output = Command::new(env!("CARGO_BIN_EXE_bif"))
+        .args([
+            "next",
+            "--project",
+            "agent-tools",
+            "--limit",
+            "2",
+            "--json",
+            "--root",
+        ])
+        .arg(directory.path())
+        .args(["--requester", "BENCH"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let implemented_page: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let items = implemented_page["items"].as_array().unwrap();
+    assert_eq!(items[0]["id"], response["items"][0]["id"]);
+    assert!(
+        items.len() > 1,
+        "limit-one V2 page must expose continuation because the deterministic store has another eligible item"
+    );
 }
 
 #[test]
@@ -647,7 +735,7 @@ fn full_json_read_responses_are_complete_existing_v1_shapes() {
     assert_eq!(fixture["benchmark_store"]["seed"], 2003);
     assert_eq!(
         fixture["benchmark_store"]["logical_digest"],
-        "73701e6b7b09a5e1"
+        "b819125481255ec7"
     );
     for workflow in fixture["workflows"].as_array().unwrap() {
         let variant = workflow["variants"]
@@ -724,10 +812,29 @@ fn all_v1_calls_replay_and_follow_ups_match_the_next_call() {
                     assert!(request.contains("--expected-revision"));
                     assert!(request.contains("--idempotency-key"));
                 }
+                let output = execute_argv(directory.path(), request);
+                let envelope: Value =
+                    serde_json::from_str(call["response_envelope"].as_str().unwrap()).unwrap();
                 assert_eq!(
-                    execute_argv(directory.path(), request),
+                    output.status.code(),
+                    envelope["exit_code"].as_i64().map(|code| code as i32),
+                    "{} / {} / {} exit status",
+                    workflow["id"],
+                    variant["id"],
+                    call["operation"]
+                );
+                assert_eq!(
+                    String::from_utf8(output.stdout).unwrap(),
                     call["response_content"],
-                    "{} / {} / {}",
+                    "{} / {} / {} stdout",
+                    workflow["id"],
+                    variant["id"],
+                    call["operation"]
+                );
+                assert_eq!(
+                    String::from_utf8(output.stderr).unwrap(),
+                    envelope["stderr_content"].as_str().unwrap_or(""),
+                    "{} / {} / {} stderr",
                     workflow["id"],
                     variant["id"],
                     call["operation"]

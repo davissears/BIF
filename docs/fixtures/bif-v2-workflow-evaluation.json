@@ -4,7 +4,7 @@
   "benchmark_store": {
     "size": 100,
     "seed": 2003,
-    "logical_digest": "73701e6b7b09a5e1"
+    "logical_digest": "b819125481255ec7"
   },
   "measurement_states": [
     "measured",
@@ -68,17 +68,17 @@
               "cache": "cold",
               "tool_schema": "bif list ready --json",
               "request_envelope": "{\"argv\":[\"list\",\"ready\",\"--project\",\"core\",\"--limit\",\"2\",\"--json\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "{\"items\":[{\"acceptance_criteria\":[],\"assignee\":null,\"captured_at\":\"2025-01-01T00:00:12.000Z\",\"description\":\"Investigate scenario 7920 and preserve supported behavior across local developer workflows.\",\"id\":\"BENCH:core:025\",\"priority\":null,\"project\":\"core\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-96\",\"repository_reference\":\"bif\",\"revision_reference\":\"f3a20a1edad2a3f5\",\"source_host\":\"codex\",\"thread_id\":\"benchmark-thread-4\",\"url\":null},\"requester\":\"BENCH\",\"revision\":2,\"sequence\":25,\"status\":\"ready\",\"status_reason\":null,\"title\":\"Improve core workflow component 96\",\"updated_at\":\"2025-01-01T00:00:12.000Z\"},{\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 2192\",\"Criterion 2 verifies deterministic behavior for scenario 2192\"],\"assignee\":\"bob\",\"captured_at\":\"2025-01-01T00:00:11.000Z\",\"description\":\"Investigate scenario 9120 and preserve supported behavior across local developer workflows.\",\"id\":\"BENCH:core:022\",\"priority\":\"P3\",\"project\":\"core\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-92\",\"repository_reference\":\"bif\",\"revision_reference\":\"1439cd8cf91871ca\",\"source_host\":\"delta\",\"thread_id\":\"benchmark-thread-4\",\"url\":null},\"requester\":\"BENCH\",\"revision\":4,\"sequence\":22,\"status\":\"ready\",\"status_reason\":null,\"title\":\"Improve core workflow component 92\",\"updated_at\":\"2025-01-01T00:00:12.000Z\"}],\"next_offset\":2}\n",
               "follow_up": "{\"plan\":{\"ids\":[\"BENCH:core:025\",\"BENCH:core:022\"]}}",
               "proxy_utf8_bytes": {
                 "tool_schema": 21,
                 "request_envelope": 67,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 1388,
                 "follow_up": 52
               },
-              "total_proxy_utf8_bytes": 1557,
+              "total_proxy_utf8_bytes": 1592,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -99,7 +99,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 1557,
+            "proxy_utf8_bytes": 1592,
             "tokens": {
               "state": "unknown"
             },
@@ -123,17 +123,17 @@
               "cache": "cold",
               "tool_schema": "bif list ready",
               "request_envelope": "{\"argv\":[\"list\",\"ready\",\"--project\",\"core\",\"--limit\",\"2\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "BENCH:core:025\tready\t-\t-\tImprove core workflow component 96\nBENCH:core:022\tready\tP3\tbob\tImprove core workflow component 92\nNext offset: 2\n",
               "follow_up": "{\"plan\":{\"ids\":[\"BENCH:core:025\",\"BENCH:core:022\"]}}",
               "proxy_utf8_bytes": {
                 "tool_schema": 14,
                 "request_envelope": 58,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 138,
                 "follow_up": 52
               },
-              "total_proxy_utf8_bytes": 291,
+              "total_proxy_utf8_bytes": 326,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -154,7 +154,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 291,
+            "proxy_utf8_bytes": 326,
             "tokens": {
               "state": "unknown"
             },
@@ -227,8 +227,22 @@
           "id": "reject-mutually-exclusive-list-filters",
           "trigger_precondition": "The list request sets both an assignee and unassigned true, which V2-001 declares mutually exclusive.",
           "operation": "list",
-          "request_shape": {"view": "ready", "project": "core", "assignee": "alice", "unassigned": true, "projection": "summary", "limit": 2},
-          "expected_error": {"code": "invalid_input", "assertions": ["ok is false", "error.code is invalid_input", "storage is not accessed"]},
+          "request_shape": {
+            "view": "ready",
+            "project": "core",
+            "assignee": "alice",
+            "unassigned": true,
+            "projection": "summary",
+            "limit": 2
+          },
+          "expected_error": {
+            "code": "invalid_input",
+            "assertions": [
+              "ok is false",
+              "error.code is invalid_input",
+              "storage is not accessed"
+            ]
+          },
           "retryability": "not_retryable",
           "retry_or_termination_policy": "Terminate; correct the request before a new attempt.",
           "expected_subsequent_request_behavior": "No cursor is accepted or advanced; a corrected request starts without a cursor.",
@@ -241,7 +255,7 @@
         "method": "regenerate_benchmark_store",
         "size": 100,
         "seed": 2003,
-        "logical_digest": "73701e6b7b09a5e1"
+        "logical_digest": "b819125481255ec7"
       }
     },
     {
@@ -276,17 +290,17 @@
               "cache": "cold",
               "tool_schema": "bif next --json",
               "request_envelope": "{\"argv\":[\"next\",\"--project\",\"agent-tools\",\"--json\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "{\"items\":[{\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 3940\",\"Criterion 2 verifies deterministic behavior for scenario 3940\",\"Criterion 3 verifies deterministic behavior for scenario 3940\"],\"assignee\":\"alice\",\"captured_at\":\"2025-01-01T00:00:00.000Z\",\"description\":\"Investigate scenario 5252 and preserve supported behavior across local developer workflows.\",\"id\":\"BENCH:agent-tools:001\",\"priority\":\"P1\",\"project\":\"agent-tools\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-1\",\"repository_reference\":\"bif\",\"revision_reference\":\"93913106939ebcb9\",\"source_host\":\"local\",\"thread_id\":\"benchmark-thread-0\",\"url\":null},\"requester\":\"BENCH\",\"revision\":4,\"sequence\":1,\"status\":\"ready\",\"status_reason\":null,\"title\":\"Improve agent-tools workflow component 1\",\"updated_at\":\"2025-01-01T00:00:01.000Z\"},{\"acceptance_criteria\":[],\"assignee\":\"alice\",\"captured_at\":\"2025-01-01T00:00:01.000Z\",\"description\":null,\"id\":\"BENCH:agent-tools:002\",\"priority\":\"P4\",\"project\":\"agent-tools\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-14\",\"repository_reference\":\"bif\",\"revision_reference\":\"bbf3fc88715c766e\",\"source_host\":\"codex\",\"thread_id\":\"benchmark-thread-0\",\"url\":null},\"requester\":\"BENCH\",\"revision\":4,\"sequence\":2,\"status\":\"ready\",\"status_reason\":null,\"title\":\"Improve agent-tools workflow component 14\",\"updated_at\":\"2025-01-01T00:00:02.000Z\"}],\"next_offset\":null}\n",
               "follow_up": "bif start BENCH:agent-tools:001 --expected-revision 4 --idempotency-key fixture-v1_full_json-start",
               "proxy_utf8_bytes": {
                 "tool_schema": 15,
                 "request_envelope": 52,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 1409,
                 "follow_up": 98
               },
-              "total_proxy_utf8_bytes": 1603,
+              "total_proxy_utf8_bytes": 1638,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -312,17 +326,17 @@
               "cache": "warm",
               "tool_schema": "bif start ITEM",
               "request_envelope": "{\"argv\":[\"start\",\"BENCH:agent-tools:001\",\"--expected-revision\",\"4\",\"--idempotency-key\",\"fixture-v1_full_json-start\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "Updated BENCH:agent-tools:001\nstatus: in_progress\npriority: P1\nassignee: alice\nrevision: 5\nreplayed: false\n",
               "follow_up": "bif finish BENCH:agent-tools:001 --expected-revision 5 --idempotency-key fixture-v1_full_json-finish",
               "proxy_utf8_bytes": {
                 "tool_schema": 14,
                 "request_envelope": 117,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 107,
                 "follow_up": 100
               },
-              "total_proxy_utf8_bytes": 367,
+              "total_proxy_utf8_bytes": 402,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -348,17 +362,17 @@
               "cache": "warm",
               "tool_schema": "bif finish ITEM",
               "request_envelope": "{\"argv\":[\"finish\",\"BENCH:agent-tools:001\",\"--expected-revision\",\"5\",\"--idempotency-key\",\"fixture-v1_full_json-finish\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "Updated BENCH:agent-tools:001\nstatus: done\npriority: P1\nassignee: alice\nrevision: 6\nreplayed: false\n",
               "follow_up": "{\"result\":\"executed\"}",
               "proxy_utf8_bytes": {
                 "tool_schema": 15,
                 "request_envelope": 119,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 100,
                 "follow_up": 21
               },
-              "total_proxy_utf8_bytes": 284,
+              "total_proxy_utf8_bytes": 319,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -379,7 +393,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 2254,
+            "proxy_utf8_bytes": 2359,
             "tokens": {
               "state": "unknown"
             },
@@ -403,17 +417,17 @@
               "cache": "cold",
               "tool_schema": "bif next",
               "request_envelope": "{\"argv\":[\"next\",\"--project\",\"agent-tools\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "BENCH:agent-tools:001\tready\tP1\talice\tImprove agent-tools workflow component 1\nBENCH:agent-tools:002\tready\tP4\talice\tImprove agent-tools workflow component 14\n",
               "follow_up": "bif start BENCH:agent-tools:001 --expected-revision 4 --idempotency-key fixture-v1_compact_human-start",
               "proxy_utf8_bytes": {
                 "tool_schema": 8,
                 "request_envelope": 43,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 157,
                 "follow_up": 102
               },
-              "total_proxy_utf8_bytes": 339,
+              "total_proxy_utf8_bytes": 374,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -439,17 +453,17 @@
               "cache": "warm",
               "tool_schema": "bif start ITEM",
               "request_envelope": "{\"argv\":[\"start\",\"BENCH:agent-tools:001\",\"--expected-revision\",\"4\",\"--idempotency-key\",\"fixture-v1_compact_human-start\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "Updated BENCH:agent-tools:001\nstatus: in_progress\npriority: P1\nassignee: alice\nrevision: 5\nreplayed: false\n",
               "follow_up": "bif finish BENCH:agent-tools:001 --expected-revision 5 --idempotency-key fixture-v1_compact_human-finish",
               "proxy_utf8_bytes": {
                 "tool_schema": 14,
                 "request_envelope": 121,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 107,
                 "follow_up": 104
               },
-              "total_proxy_utf8_bytes": 375,
+              "total_proxy_utf8_bytes": 410,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -475,17 +489,17 @@
               "cache": "warm",
               "tool_schema": "bif finish ITEM",
               "request_envelope": "{\"argv\":[\"finish\",\"BENCH:agent-tools:001\",\"--expected-revision\",\"5\",\"--idempotency-key\",\"fixture-v1_compact_human-finish\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "Updated BENCH:agent-tools:001\nstatus: done\npriority: P1\nassignee: alice\nrevision: 6\nreplayed: false\n",
               "follow_up": "{\"result\":\"executed\"}",
               "proxy_utf8_bytes": {
                 "tool_schema": 15,
                 "request_envelope": 123,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 100,
                 "follow_up": 21
               },
-              "total_proxy_utf8_bytes": 288,
+              "total_proxy_utf8_bytes": 323,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -506,7 +520,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 1002,
+            "proxy_utf8_bytes": 1107,
             "tokens": {
               "state": "unknown"
             },
@@ -531,16 +545,16 @@
               "tool_schema": "bif --api-version 2 next --project agent-tools --projection work --limit 1 --json; mutation unavailable",
               "request_envelope": "{\"project\":\"agent-tools\",\"projection\":\"work\",\"limit\":1}",
               "response_envelope": "{\"api_version\":2,\"schema_version\":1,\"ok\":true}",
-              "response_content": "{\"items\":[{\"id\":\"BENCH:agent-tools:001\",\"title\":\"Improve agent-tools workflow component 1\",\"status\":\"ready\",\"priority\":\"P1\",\"assignee\":\"alice\",\"revision\":4,\"description\":\"Investigate scenario 5252 and preserve supported behavior across local developer workflows.\",\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 3940\",\"Criterion 2 verifies deterministic behavior for scenario 3940\",\"Criterion 3 verifies deterministic behavior for scenario 3940\"],\"status_reason\":null}],\"next_cursor\":null}\n",
+              "response_content": "{\"items\":[{\"id\":\"BENCH:agent-tools:001\",\"title\":\"Improve agent-tools workflow component 1\",\"status\":\"ready\",\"priority\":\"P1\",\"assignee\":\"alice\",\"revision\":4,\"description\":\"Investigate scenario 5252 and preserve supported behavior across local developer workflows.\",\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 3940\",\"Criterion 2 verifies deterministic behavior for scenario 3940\",\"Criterion 3 verifies deterministic behavior for scenario 3940\"],\"status_reason\":null}],\"next_cursor\":\"illustrative-opaque-cursor\"}\n",
               "follow_up": "{\"stop\":\"v2 mutation not specified\"}",
               "proxy_utf8_bytes": {
                 "tool_schema": 103,
                 "request_envelope": 55,
                 "response_envelope": 46,
-                "response_content": 523,
+                "response_content": 547,
                 "follow_up": 36
               },
-              "total_proxy_utf8_bytes": 763,
+              "total_proxy_utf8_bytes": 787,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -557,11 +571,15 @@
               },
               "completion_time_ms": {
                 "state": "not_measured"
+              },
+              "response_content_accounting": "illustrative_estimate",
+              "expected_response_semantics": {
+                "next_cursor": "non_null_opaque_continuation"
               }
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 763,
+            "proxy_utf8_bytes": 787,
             "tokens": {
               "state": "unknown"
             },
@@ -580,8 +598,19 @@
           "id": "retry-busy-next",
           "trigger_precondition": "The store reports a transient busy condition before servicing the selection read.",
           "operation": "next",
-          "request_shape": {"project": "agent-tools", "projection": "work", "limit": 1},
-          "expected_error": {"code": "storage_busy", "assertions": ["ok is false", "error.code is storage_busy", "no item result is returned"]},
+          "request_shape": {
+            "project": "agent-tools",
+            "projection": "work",
+            "limit": 1
+          },
+          "expected_error": {
+            "code": "storage_busy",
+            "assertions": [
+              "ok is false",
+              "error.code is storage_busy",
+              "no item result is returned"
+            ]
+          },
           "retryability": "retryable",
           "retry_or_termination_policy": "Retry the identical read only after the busy condition clears; terminate after the host retry limit.",
           "expected_subsequent_request_behavior": "The retry preserves project, projection, and limit; no cursor or idempotency key is introduced.",
@@ -594,7 +623,7 @@
         "method": "regenerate_benchmark_store",
         "size": 100,
         "seed": 2003,
-        "logical_digest": "73701e6b7b09a5e1"
+        "logical_digest": "b819125481255ec7"
       }
     },
     {
@@ -636,17 +665,17 @@
               "cache": "cold",
               "tool_schema": "bif get ITEM --json",
               "request_envelope": "{\"argv\":[\"get\",\"DELTA:core:014\",\"--json\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "{\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 1125\",\"Criterion 2 verifies deterministic behavior for scenario 1125\"],\"assignee\":\"bob\",\"captured_at\":\"2025-01-01T00:00:08.000Z\",\"description\":null,\"id\":\"DELTA:core:014\",\"priority\":\"P1\",\"project\":\"core\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-70\",\"repository_reference\":\"bif\",\"revision_reference\":\"772bd04d04e9c4ec\",\"source_host\":\"delta\",\"thread_id\":\"benchmark-thread-3\",\"url\":\"https://example.invalid/benchmark/70\"},\"requester\":\"DELTA\",\"revision\":3,\"sequence\":14,\"status\":\"proposed\",\"status_reason\":null,\"title\":\"Improve core workflow component 70\",\"updated_at\":\"2025-01-01T00:00:09.000Z\"}\n",
               "follow_up": "bif triage DELTA:core:014 --action approve --priority P1 --assignee agent-a --expected-revision 3 --idempotency-key fixture-v1_full_json-triage",
               "proxy_utf8_bytes": {
                 "tool_schema": 19,
                 "request_envelope": 42,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 692,
                 "follow_up": 143
               },
-              "total_proxy_utf8_bytes": 925,
+              "total_proxy_utf8_bytes": 960,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -672,17 +701,17 @@
               "cache": "warm",
               "tool_schema": "bif triage ITEM",
               "request_envelope": "{\"argv\":[\"triage\",\"DELTA:core:014\",\"--action\",\"approve\",\"--priority\",\"P1\",\"--assignee\",\"agent-a\",\"--expected-revision\",\"3\",\"--idempotency-key\",\"fixture-v1_full_json-triage\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "Updated DELTA:core:014\nstatus: ready\npriority: P1\nassignee: agent-a\nrevision: 4\nreplayed: false\n",
               "follow_up": "{\"result\":\"triaged\"}",
               "proxy_utf8_bytes": {
                 "tool_schema": 15,
                 "request_envelope": 174,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 96,
                 "follow_up": 20
               },
-              "total_proxy_utf8_bytes": 334,
+              "total_proxy_utf8_bytes": 369,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -703,7 +732,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 1259,
+            "proxy_utf8_bytes": 1329,
             "tokens": {
               "state": "unknown"
             },
@@ -727,17 +756,17 @@
               "cache": "cold",
               "tool_schema": "bif get ITEM",
               "request_envelope": "{\"argv\":[\"get\",\"DELTA:core:014\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "DELTA:core:014\tproposed\tP1\tbob\tImprove core workflow component 70\n-\n",
               "follow_up": "bif triage DELTA:core:014 --action approve --priority P1 --assignee agent-a --expected-revision 3 --idempotency-key fixture-v1_compact_human-triage",
               "proxy_utf8_bytes": {
                 "tool_schema": 12,
                 "request_envelope": 33,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 68,
                 "follow_up": 147
               },
-              "total_proxy_utf8_bytes": 289,
+              "total_proxy_utf8_bytes": 324,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -763,17 +792,17 @@
               "cache": "warm",
               "tool_schema": "bif triage ITEM",
               "request_envelope": "{\"argv\":[\"triage\",\"DELTA:core:014\",\"--action\",\"approve\",\"--priority\",\"P1\",\"--assignee\",\"agent-a\",\"--expected-revision\",\"3\",\"--idempotency-key\",\"fixture-v1_compact_human-triage\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "Updated DELTA:core:014\nstatus: ready\npriority: P1\nassignee: agent-a\nrevision: 4\nreplayed: false\n",
               "follow_up": "{\"result\":\"triaged\"}",
               "proxy_utf8_bytes": {
                 "tool_schema": 15,
                 "request_envelope": 178,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 96,
                 "follow_up": 20
               },
-              "total_proxy_utf8_bytes": 338,
+              "total_proxy_utf8_bytes": 373,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -794,7 +823,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 627,
+            "proxy_utf8_bytes": 697,
             "tokens": {
               "state": "unknown"
             },
@@ -812,8 +841,18 @@
           "id": "terminate-missing-triage-item",
           "trigger_precondition": "The guarded triage target does not exist in the selected store.",
           "operation": "get",
-          "request_shape": {"item_id": "DELTA:core:missing", "projection": "work"},
-          "expected_error": {"code": "not_found", "assertions": ["ok is false", "error.code is not_found", "no triage mutation is attempted"]},
+          "request_shape": {
+            "item_id": "DELTA:core:999",
+            "projection": "work"
+          },
+          "expected_error": {
+            "code": "not_found",
+            "assertions": [
+              "ok is false",
+              "error.code is not_found",
+              "no triage mutation is attempted"
+            ]
+          },
           "retryability": "not_retryable",
           "retry_or_termination_policy": "Terminate and reselect an existing item; do not retry the missing ID.",
           "expected_subsequent_request_behavior": "Any later triage begins with a fresh get and uses that item's returned revision and a fresh idempotency key.",
@@ -826,7 +865,7 @@
         "method": "regenerate_benchmark_store",
         "size": 100,
         "seed": 2003,
-        "logical_digest": "73701e6b7b09a5e1"
+        "logical_digest": "b819125481255ec7"
       }
     },
     {
@@ -866,17 +905,17 @@
               "cache": "warm",
               "tool_schema": "bif list active --offset 1 --json",
               "request_envelope": "{\"argv\":[\"list\",\"active\",\"--project\",\"core\",\"--offset\",\"1\",\"--limit\",\"1\",\"--json\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "{\"items\":[{\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 3072\",\"Criterion 2 verifies deterministic behavior for scenario 3072\",\"Criterion 3 verifies deterministic behavior for scenario 3072\",\"Criterion 4 verifies deterministic behavior for scenario 3072\"],\"assignee\":\"bob\",\"captured_at\":\"2025-01-01T00:00:07.000Z\",\"description\":null,\"id\":\"BENCH:core:014\",\"priority\":\"P2\",\"project\":\"core\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-63\",\"repository_reference\":\"bif\",\"revision_reference\":\"3acbe816bc17734d\",\"source_host\":\"codex\",\"thread_id\":\"benchmark-thread-3\",\"url\":null},\"requester\":\"BENCH\",\"revision\":5,\"sequence\":14,\"status\":\"in_progress\",\"status_reason\":null,\"title\":\"Improve core workflow component 63\",\"updated_at\":\"2025-01-01T00:00:08.000Z\"}],\"next_offset\":null}\n",
               "follow_up": "{\"duplicates\":0}",
               "proxy_utf8_bytes": {
                 "tool_schema": 33,
                 "request_envelope": 83,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 820,
                 "follow_up": 16
               },
-              "total_proxy_utf8_bytes": 981,
+              "total_proxy_utf8_bytes": 1016,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -897,7 +936,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 981,
+            "proxy_utf8_bytes": 1016,
             "tokens": {
               "state": "unknown"
             },
@@ -921,17 +960,17 @@
               "cache": "warm",
               "tool_schema": "bif list active --offset 1",
               "request_envelope": "{\"argv\":[\"list\",\"active\",\"--project\",\"core\",\"--offset\",\"1\",\"--limit\",\"1\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "BENCH:core:014\tin_progress\tP2\tbob\tImprove core workflow component 63\n",
               "follow_up": "{\"duplicates\":0}",
               "proxy_utf8_bytes": {
                 "tool_schema": 26,
                 "request_envelope": 74,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 69,
                 "follow_up": 16
               },
-              "total_proxy_utf8_bytes": 214,
+              "total_proxy_utf8_bytes": 249,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -952,7 +991,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 214,
+            "proxy_utf8_bytes": 249,
             "tokens": {
               "state": "unknown"
             },
@@ -1025,8 +1064,21 @@
           "id": "restart-invalid-refresh-cursor",
           "trigger_precondition": "The refresh cursor is malformed, expired, or bound to different filters.",
           "operation": "list",
-          "request_shape": {"view": "active", "project": "core", "projection": "work", "limit": 1, "cursor": "<invalid-or-mismatched-cursor>"},
-          "expected_error": {"code": "invalid_cursor", "assertions": ["ok is false", "error.code is invalid_cursor", "error.details contains reason and restart_required"]},
+          "request_shape": {
+            "view": "active",
+            "project": "core",
+            "projection": "work",
+            "limit": 1,
+            "cursor": "<invalid-or-mismatched-cursor>"
+          },
+          "expected_error": {
+            "code": "invalid_cursor",
+            "assertions": [
+              "ok is false",
+              "error.code is invalid_cursor",
+              "error.details contains reason and restart_required"
+            ]
+          },
           "retryability": "not_retryable",
           "retry_or_termination_policy": "Do not retry the rejected cursor; restart pagination only when restart_required is true.",
           "expected_subsequent_request_behavior": "The restart repeats view active, project core, projection work, and limit 1 without a cursor; subsequent pages preserve those fields and use only the newly returned cursor.",
@@ -1039,7 +1091,7 @@
         "method": "regenerate_benchmark_store",
         "size": 100,
         "seed": 2003,
-        "logical_digest": "73701e6b7b09a5e1"
+        "logical_digest": "b819125481255ec7"
       }
     },
     {
@@ -1073,17 +1125,17 @@
               "cache": "cold",
               "tool_schema": "bif get ITEM --json",
               "request_envelope": "{\"argv\":[\"get\",\"CODEX:agent-tools:001\",\"--json\"]}",
-              "response_envelope": "{\"exit_code\":9,\"stderr\":true}",
-              "response_content": "{\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 840\",\"Criterion 2 verifies deterministic behavior for scenario 840\",\"Criterion 3 verifies deterministic behavior for scenario 840\",\"Criterion 4 verifies deterministic behavior for scenario 840\"],\"assignee\":\"alice\",\"captured_at\":\"2025-01-01T00:00:01.000Z\",\"description\":\"Investigate scenario 7368 and preserve supported behavior across local developer workflows.\",\"id\":\"CODEX:agent-tools:001\",\"priority\":null,\"project\":\"agent-tools\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-9\",\"repository_reference\":\"bif\",\"revision_reference\":\"710253a6fb91ff5d\",\"source_host\":\"local\",\"thread_id\":\"benchmark-thread-0\",\"url\":null},\"requester\":\"CODEX\",\"revision\":5,\"sequence\":1,\"status\":\"blocked\",\"status_reason\":\"Waiting for a reproducible upstream result\",\"title\":\"Improve agent-tools workflow component 9\",\"updated_at\":\"2025-01-01T00:00:02.000Z\"}\n",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
+              "response_content": "{\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 840\",\"Criterion 2 verifies deterministic behavior for scenario 840\",\"Criterion 3 verifies deterministic behavior for scenario 840\",\"Criterion 4 verifies deterministic behavior for scenario 840\"],\"assignee\":\"alice\",\"captured_at\":\"2025-01-01T00:00:01.000Z\",\"description\":\"Investigate scenario 7368 and preserve supported behavior across local developer workflows.\",\"id\":\"CODEX:agent-tools:001\",\"priority\":null,\"project\":\"agent-tools\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-9\",\"repository_reference\":\"bif\",\"revision_reference\":\"710253a6fb91ff5d\",\"source_host\":\"local\",\"thread_id\":\"benchmark-thread-0\",\"url\":null},\"requester\":\"CODEX\",\"revision\":7,\"sequence\":1,\"status\":\"blocked\",\"status_reason\":\"Waiting for a reproducible upstream result\",\"title\":\"Improve agent-tools workflow component 9\",\"updated_at\":\"2025-01-01T00:00:03.000Z\"}\n",
               "follow_up": "bif get CODEX:agent-tools:001 --json",
               "proxy_utf8_bytes": {
                 "tool_schema": 19,
                 "request_envelope": 49,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 930,
                 "follow_up": 36
               },
-              "total_proxy_utf8_bytes": 1063,
+              "total_proxy_utf8_bytes": 1098,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -1109,17 +1161,17 @@
               "cache": "warm",
               "tool_schema": "bif get ITEM --json",
               "request_envelope": "{\"argv\":[\"get\",\"CODEX:agent-tools:001\",\"--json\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
-              "response_content": "{\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 840\",\"Criterion 2 verifies deterministic behavior for scenario 840\",\"Criterion 3 verifies deterministic behavior for scenario 840\",\"Criterion 4 verifies deterministic behavior for scenario 840\"],\"assignee\":\"alice\",\"captured_at\":\"2025-01-01T00:00:01.000Z\",\"description\":\"Investigate scenario 7368 and preserve supported behavior across local developer workflows.\",\"id\":\"CODEX:agent-tools:001\",\"priority\":null,\"project\":\"agent-tools\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-9\",\"repository_reference\":\"bif\",\"revision_reference\":\"710253a6fb91ff5d\",\"source_host\":\"local\",\"thread_id\":\"benchmark-thread-0\",\"url\":null},\"requester\":\"CODEX\",\"revision\":5,\"sequence\":1,\"status\":\"blocked\",\"status_reason\":\"Waiting for a reproducible upstream result\",\"title\":\"Improve agent-tools workflow component 9\",\"updated_at\":\"2025-01-01T00:00:02.000Z\"}\n",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
+              "response_content": "{\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 840\",\"Criterion 2 verifies deterministic behavior for scenario 840\",\"Criterion 3 verifies deterministic behavior for scenario 840\",\"Criterion 4 verifies deterministic behavior for scenario 840\"],\"assignee\":\"alice\",\"captured_at\":\"2025-01-01T00:00:01.000Z\",\"description\":\"Investigate scenario 7368 and preserve supported behavior across local developer workflows.\",\"id\":\"CODEX:agent-tools:001\",\"priority\":null,\"project\":\"agent-tools\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-9\",\"repository_reference\":\"bif\",\"revision_reference\":\"710253a6fb91ff5d\",\"source_host\":\"local\",\"thread_id\":\"benchmark-thread-0\",\"url\":null},\"requester\":\"CODEX\",\"revision\":7,\"sequence\":1,\"status\":\"blocked\",\"status_reason\":\"Waiting for a reproducible upstream result\",\"title\":\"Improve agent-tools workflow component 9\",\"updated_at\":\"2025-01-01T00:00:03.000Z\"}\n",
               "follow_up": "{\"stop\":true}",
               "proxy_utf8_bytes": {
                 "tool_schema": 19,
                 "request_envelope": 49,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 930,
                 "follow_up": 13
               },
-              "total_proxy_utf8_bytes": 1040,
+              "total_proxy_utf8_bytes": 1075,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -1140,7 +1192,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 2103,
+            "proxy_utf8_bytes": 2173,
             "tokens": {
               "state": "unknown"
             },
@@ -1164,17 +1216,17 @@
               "cache": "cold",
               "tool_schema": "bif get ITEM",
               "request_envelope": "{\"argv\":[\"get\",\"CODEX:agent-tools:001\"]}",
-              "response_envelope": "{\"exit_code\":9,\"stderr\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "CODEX:agent-tools:001\tblocked\t-\talice\tImprove agent-tools workflow component 9\nInvestigate scenario 7368 and preserve supported behavior across local developer workflows.\n",
               "follow_up": "bif get CODEX:agent-tools:001",
               "proxy_utf8_bytes": {
                 "tool_schema": 12,
                 "request_envelope": 40,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 171,
                 "follow_up": 29
               },
-              "total_proxy_utf8_bytes": 281,
+              "total_proxy_utf8_bytes": 316,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -1200,17 +1252,17 @@
               "cache": "warm",
               "tool_schema": "bif get ITEM",
               "request_envelope": "{\"argv\":[\"get\",\"CODEX:agent-tools:001\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "CODEX:agent-tools:001\tblocked\t-\talice\tImprove agent-tools workflow component 9\nInvestigate scenario 7368 and preserve supported behavior across local developer workflows.\n",
               "follow_up": "{\"stop\":true}",
               "proxy_utf8_bytes": {
                 "tool_schema": 12,
                 "request_envelope": 40,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 171,
                 "follow_up": 13
               },
-              "total_proxy_utf8_bytes": 265,
+              "total_proxy_utf8_bytes": 300,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -1231,7 +1283,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 546,
+            "proxy_utf8_bytes": 616,
             "tokens": {
               "state": "unknown"
             },
@@ -1249,8 +1301,18 @@
           "id": "retry-busy-get",
           "trigger_precondition": "The store reports a transient busy condition before servicing get.",
           "operation": "get",
-          "request_shape": {"item_id": "CODEX:agent-tools:001", "projection": "work"},
-          "expected_error": {"code": "storage_busy", "assertions": ["ok is false", "error.code is storage_busy", "no item result is returned"]},
+          "request_shape": {
+            "item_id": "CODEX:agent-tools:001",
+            "projection": "work"
+          },
+          "expected_error": {
+            "code": "storage_busy",
+            "assertions": [
+              "ok is false",
+              "error.code is storage_busy",
+              "no item result is returned"
+            ]
+          },
           "retryability": "retryable",
           "retry_or_termination_policy": "Retry the identical read after the busy condition clears; terminate after the host retry limit.",
           "expected_subsequent_request_behavior": "The retry preserves item ID and projection; get has no cursor or idempotency key.",
@@ -1263,7 +1325,7 @@
         "method": "regenerate_benchmark_store",
         "size": 100,
         "seed": 2003,
-        "logical_digest": "73701e6b7b09a5e1"
+        "logical_digest": "b819125481255ec7"
       }
     },
     {
@@ -1302,17 +1364,17 @@
               "cache": "cold",
               "tool_schema": "bif get ITEM --json",
               "request_envelope": "{\"argv\":[\"get\",\"CODEX:agent-tools:003\",\"--json\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "{\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 3081\"],\"assignee\":null,\"captured_at\":\"2025-01-01T00:00:04.000Z\",\"description\":\"Investigate scenario 8873 and preserve supported behavior across local developer workflows.\",\"id\":\"CODEX:agent-tools:003\",\"priority\":null,\"project\":\"agent-tools\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-32\",\"repository_reference\":\"bif\",\"revision_reference\":\"0359f4384295711b\",\"source_host\":\"codex\",\"thread_id\":\"benchmark-thread-1\",\"url\":null},\"requester\":\"CODEX\",\"revision\":3,\"sequence\":3,\"status\":\"in_progress\",\"status_reason\":null,\"title\":\"Improve agent-tools workflow component 32\",\"updated_at\":\"2025-01-01T00:00:05.000Z\"}\n",
               "follow_up": "{\"handoff\":{\"item_id\":\"CODEX:agent-tools:003\",\"revision\":3,\"next_action\":\"verify deterministic behavior for scenario 3081\"}}",
               "proxy_utf8_bytes": {
                 "tool_schema": 19,
                 "request_envelope": 49,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 705,
                 "follow_up": 124
               },
-              "total_proxy_utf8_bytes": 926,
+              "total_proxy_utf8_bytes": 961,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -1333,7 +1395,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 926,
+            "proxy_utf8_bytes": 961,
             "tokens": {
               "state": "unknown"
             },
@@ -1357,17 +1419,17 @@
               "cache": "cold",
               "tool_schema": "bif get ITEM",
               "request_envelope": "{\"argv\":[\"get\",\"CODEX:agent-tools:003\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "CODEX:agent-tools:003\tin_progress\t-\t-\tImprove agent-tools workflow component 32\nInvestigate scenario 8873 and preserve supported behavior across local developer workflows.\n",
               "follow_up": "bif get CODEX:agent-tools:003 --json",
               "proxy_utf8_bytes": {
                 "tool_schema": 12,
                 "request_envelope": 40,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 172,
                 "follow_up": 36
               },
-              "total_proxy_utf8_bytes": 289,
+              "total_proxy_utf8_bytes": 324,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -1393,22 +1455,30 @@
               "cache": "cold",
               "tool_schema": "bif get ITEM --json",
               "request_envelope": "{\"argv\":[\"get\",\"CODEX:agent-tools:003\",\"--json\"]}",
-              "response_envelope": "{\"exit_code\":0,\"stdout\":true}",
+              "response_envelope": "{\"exit_code\":0,\"stdout\":true,\"stderr\":false,\"stderr_content\":\"\"}",
               "response_content": "{\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 3081\"],\"assignee\":null,\"captured_at\":\"2025-01-01T00:00:04.000Z\",\"description\":\"Investigate scenario 8873 and preserve supported behavior across local developer workflows.\",\"id\":\"CODEX:agent-tools:003\",\"priority\":null,\"project\":\"agent-tools\",\"provenance\":{\"context_excerpt\":null,\"message_id\":\"message-32\",\"repository_reference\":\"bif\",\"revision_reference\":\"0359f4384295711b\",\"source_host\":\"codex\",\"thread_id\":\"benchmark-thread-1\",\"url\":null},\"requester\":\"CODEX\",\"revision\":3,\"sequence\":3,\"status\":\"in_progress\",\"status_reason\":null,\"title\":\"Improve agent-tools workflow component 32\",\"updated_at\":\"2025-01-01T00:00:05.000Z\"}\n",
               "follow_up": "{\"handoff\":{\"item_id\":\"CODEX:agent-tools:003\",\"revision\":3,\"next_action\":\"verify deterministic behavior for scenario 3081\"}}",
               "proxy_utf8_bytes": {
                 "tool_schema": 19,
                 "request_envelope": 49,
-                "response_envelope": 29,
+                "response_envelope": 64,
                 "response_content": 705,
                 "follow_up": 124
               },
-              "total_proxy_utf8_bytes": 926,
+              "total_proxy_utf8_bytes": 961,
               "tokens": {
-                "prompt": {"state": "unknown"},
-                "completion": {"state": "unknown"},
-                "cached": {"state": "unknown"},
-                "uncached": {"state": "unknown"}
+                "prompt": {
+                  "state": "unknown"
+                },
+                "completion": {
+                  "state": "unknown"
+                },
+                "cached": {
+                  "state": "unknown"
+                },
+                "uncached": {
+                  "state": "unknown"
+                }
               },
               "completion_time_ms": {
                 "state": "not_measured"
@@ -1416,7 +1486,7 @@
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 1215,
+            "proxy_utf8_bytes": 1285,
             "tokens": {
               "state": "unknown"
             },
@@ -1489,8 +1559,19 @@
           "id": "terminate-oversized-handoff-item",
           "trigger_precondition": "The complete work projection for the handoff item exceeds the frozen maximum response size.",
           "operation": "get",
-          "request_shape": {"item_id": "CODEX:agent-tools:003", "projection": "work"},
-          "expected_error": {"code": "payload_too_large", "assertions": ["ok is false", "error.code is payload_too_large", "error.details identifies record and byte bounds", "no partial item is returned"]},
+          "request_shape": {
+            "item_id": "CODEX:agent-tools:003",
+            "projection": "work"
+          },
+          "expected_error": {
+            "code": "payload_too_large",
+            "assertions": [
+              "ok is false",
+              "error.code is payload_too_large",
+              "error.details identifies record and byte bounds",
+              "no partial item is returned"
+            ]
+          },
           "retryability": "not_retryable",
           "retry_or_termination_policy": "Terminate the handoff; do not retry an unchanged oversized record.",
           "expected_subsequent_request_behavior": "No cursor advances and no handoff artifact is emitted; a later request requires changed source data or projection policy.",
@@ -1503,7 +1584,7 @@
         "method": "regenerate_benchmark_store",
         "size": 100,
         "seed": 2003,
-        "logical_digest": "73701e6b7b09a5e1"
+        "logical_digest": "b819125481255ec7"
       }
     }
   ]

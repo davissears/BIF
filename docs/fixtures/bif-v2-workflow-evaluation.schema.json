@@ -41,7 +41,13 @@
         "follow_up": {"type": "string", "minLength": 1}, "proxy_utf8_bytes": {"$ref": "#/$defs/bytes"},
         "total_proxy_utf8_bytes": {"type": "integer", "minimum": 0}, "tokens": {"$ref": "#/$defs/tokens"},
         "completion_time_ms": {"$ref": "#/$defs/state"}, "outcome": {"$ref": "#/$defs/state"},
-        "phase": {"enum": ["failure", "recovery", "backoff", "retry_success", "termination"]}
+        "phase": {"enum": ["failure", "recovery", "backoff", "retry_success", "termination"]},
+        "response_content_accounting": {"enum": ["measured", "illustrative_estimate"]},
+        "expected_response_semantics": {
+          "type": "object", "additionalProperties": false,
+          "required": ["next_cursor"],
+          "properties": {"next_cursor": {"const": "non_null_opaque_continuation"}}
+        }
       }
     },
     "errorSpecification": {"type": "object", "additionalProperties": false,

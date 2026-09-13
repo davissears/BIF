@@ -24,7 +24,10 @@ Every workflow has two recorded v1 scenario baselines:
 
 A `v2_contract` variant appears only for `get`, `list`, `next`, or `history`
 shapes frozen by V2-001. It is marked `not_implemented`; fixture response
-content is contract-derived expected content, not runtime evidence. Workflows
+content is contract-derived expected content, not runtime evidence. The
+illustrative opaque cursor used for response-size accounting is explicitly
+marked `illustrative_estimate`; its separately validated semantic expectation
+requires a non-null cursor while preserving the frozen string-or-null type. Workflows
 that require mutations mark the mutation call `not_implemented` because the
 frozen v2 contract specifies reads only. Refresh measurements are
 `not_measured` because Phase A has no live cursor implementation.
@@ -34,7 +37,7 @@ and machine-checkable success assertions. The agent-handoff outcome is a
 read-derived artifact containing the item ID, revision, and next acceptance
 criterion; BIF has no handoff mutation, and this fixture claims none. Item IDs
 and revisions are records in the deterministic V2-003
-100-item fixture (seed 2003, logical digest `73701e6b7b09a5e1`); no database
+100-item fixture (seed 2003, logical digest `b819125481255ec7`); no database
 binary is checked in. Reset by regenerating that store before each variant.
 For executable CLI trials, generate it as `<root>/.bif/bif.sqlite`, pass
 `--root <root> --requester BENCH`, and preserve each request envelope's explicit
