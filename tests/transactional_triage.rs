@@ -1,12 +1,9 @@
+mod support;
+
 use std::{
-    fs,
-    path::PathBuf,
-    sync::{
-        Arc, Barrier,
-        atomic::{AtomicU64, Ordering},
-    },
+    sync::{Arc, Barrier},
     thread,
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant},
 };
 
 use bif::{
@@ -21,31 +18,7 @@ use bif::{
     },
     storage::{self, MutationRepository},
 };
-
-struct TempDirectory(PathBuf);
-
-impl TempDirectory {
-    fn new() -> Self {
-        static NEXT: AtomicU64 = AtomicU64::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "bif-transactional-triage-{}-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos(),
-            NEXT.fetch_add(1, Ordering::Relaxed),
-        ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
-    }
-}
-
-impl Drop for TempDirectory {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
+use support::OwnedTestDirectory as TempDirectory;
 
 struct FixedClock;
 impl Clock for FixedClock {
@@ -132,7 +105,7 @@ fn compound() -> ItemMutation {
 #[test]
 fn compound_mutation_updates_once_and_persists_ordered_complete_history() {
     let temp = TempDirectory::new();
-    let mut connection = storage::open(temp.0.join("bif.sqlite")).unwrap();
+    let mut connection = storage::open(temp.path().join("bif.sqlite")).unwrap();
     let id = seed(&connection);
     let item = mutate_item(
         &mut MutationRepository::new(&mut connection),
@@ -207,7 +180,7 @@ fn compound_mutation_updates_once_and_persists_ordered_complete_history() {
 #[test]
 fn invalid_component_and_event_insert_failure_roll_back_item_and_history() {
     let temp = TempDirectory::new();
-    let mut connection = storage::open(temp.0.join("bif.sqlite")).unwrap();
+    let mut connection = storage::open(temp.path().join("bif.sqlite")).unwrap();
     let id = seed(&connection);
     let invalid = ItemMutation {
         lifecycle: Some(LifecycleMutation::Approve),
@@ -273,7 +246,7 @@ fn invalid_component_and_event_insert_failure_roll_back_item_and_history() {
 #[test]
 fn concurrent_expected_revision_allows_one_winner_and_stale_requests_write_nothing() {
     let temp = TempDirectory::new();
-    let database_path = temp.0.join("bif.sqlite");
+    let database_path = temp.path().join("bif.sqlite");
     let connection = storage::open(&database_path).unwrap();
     let id = seed(&connection);
     drop(connection);
@@ -342,7 +315,7 @@ fn concurrent_expected_revision_allows_one_winner_and_stale_requests_write_nothi
 #[test]
 fn committed_mutation_replays_before_stale_revision_and_changed_payload_conflicts() {
     let temp = TempDirectory::new();
-    let mut connection = storage::open(temp.0.join("bif.sqlite")).unwrap();
+    let mut connection = storage::open(temp.path().join("bif.sqlite")).unwrap();
     let id = seed(&connection);
     let request = MutationRequest {
         idempotency_key: "caller-stable-mutation-key".to_owned(),
@@ -412,7 +385,7 @@ fn committed_mutation_replays_before_stale_revision_and_changed_payload_conflict
 #[test]
 fn writer_lock_maps_mutation_timeout_to_storage_busy() {
     let temp = TempDirectory::new();
-    let database = temp.0.join("bif.sqlite");
+    let database = temp.path().join("bif.sqlite");
     let writer = storage::open(&database).unwrap();
     let id = seed(&writer);
     let mut contender = storage::open(&database).unwrap();

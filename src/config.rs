@@ -726,46 +726,26 @@ mod tests {
         resolve_store_root,
     };
     use crate::domain::ProjectId;
+    use crate::test_support::OwnedTestDirectory as TestDirectory;
     use std::{
         collections::HashMap,
         fs,
         path::{Path, PathBuf},
-        sync::atomic::{AtomicU64, Ordering},
     };
 
-    static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+    trait TestDirectoryConfig {
+        fn config(&self, name: &str, root: &str, requester: &str) -> PathBuf;
+    }
 
-    struct TestDirectory(PathBuf);
-
-    impl TestDirectory {
-        fn new() -> Self {
-            Self::in_directory(&std::env::temp_dir())
-        }
-
-        fn in_directory(parent: &Path) -> Self {
-            let path = parent.join(format!(
-                "bif-config-test-{}-{}",
-                std::process::id(),
-                NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed)
-            ));
-            fs::create_dir_all(&path).unwrap();
-            Self(path)
-        }
-
+    impl TestDirectoryConfig for TestDirectory {
         fn config(&self, name: &str, root: &str, requester: &str) -> PathBuf {
-            let path = self.0.join(name);
+            let path = self.path().join(name);
             fs::write(
                 &path,
                 format!("root = \"{root}\"\nrequester = \"{requester}\"\n"),
             )
             .unwrap();
             path
-        }
-    }
-
-    impl Drop for TestDirectory {
-        fn drop(&mut self) {
-            fs::remove_dir_all(&self.0).unwrap();
         }
     }
 
@@ -779,14 +759,14 @@ mod tests {
     fn default_config(directory: &TestDirectory) -> (HashMap<String, String>, PathBuf) {
         if cfg!(target_os = "windows") {
             (
-                environment(&[("APPDATA", &directory.0)]),
-                directory.0.join("BIF").join("config.toml"),
+                environment(&[("APPDATA", directory.path())]),
+                directory.path().join("BIF").join("config.toml"),
             )
         } else if cfg!(target_os = "macos") {
             (
-                environment(&[("HOME", &directory.0)]),
+                environment(&[("HOME", directory.path())]),
                 directory
-                    .0
+                    .path()
                     .join("Library")
                     .join("Application Support")
                     .join("BIF")
@@ -794,8 +774,8 @@ mod tests {
             )
         } else {
             (
-                environment(&[("XDG_CONFIG_HOME", &directory.0)]),
-                directory.0.join("bif").join("config.toml"),
+                environment(&[("XDG_CONFIG_HOME", directory.path())]),
+                directory.path().join("bif").join("config.toml"),
             )
         }
     }
@@ -917,7 +897,7 @@ mod tests {
     fn equivalent_relative_and_absolute_roots_resolve_to_one_database_path() {
         let current = std::env::current_dir().unwrap();
         let directory = TestDirectory::in_directory(&current);
-        let root = directory.0.join("root");
+        let root = directory.path().join("root");
         fs::create_dir(&root).unwrap();
 
         let absolute = resolve_store_root(&root).unwrap();
@@ -936,7 +916,7 @@ mod tests {
     #[test]
     fn missing_root_is_rejected_without_creating_a_store() {
         let directory = TestDirectory::new();
-        let missing = directory.0.join("missing");
+        let missing = directory.path().join("missing");
 
         let error = resolve_store_root(&missing).unwrap_err();
 
@@ -948,7 +928,7 @@ mod tests {
     #[test]
     fn root_must_be_a_directory() {
         let directory = TestDirectory::new();
-        let file = directory.0.join("not-a-directory");
+        let file = directory.path().join("not-a-directory");
         fs::write(&file, "").unwrap();
 
         let error = resolve_store_root(&file).unwrap_err();
@@ -964,7 +944,7 @@ mod tests {
     #[test]
     fn nested_mapping_uses_the_longest_canonical_ancestor() {
         let directory = TestDirectory::new();
-        let repository = directory.0.join("repository");
+        let repository = directory.path().join("repository");
         let nested = repository.join("packages").join("api");
         let working = nested.join("src");
         fs::create_dir_all(&working).unwrap();
@@ -980,8 +960,8 @@ mod tests {
     #[test]
     fn unrelated_path_has_no_registered_project() {
         let directory = TestDirectory::new();
-        let registered = directory.0.join("registered");
-        let unrelated = directory.0.join("unrelated");
+        let registered = directory.path().join("registered");
+        let unrelated = directory.path().join("unrelated");
         fs::create_dir(&registered).unwrap();
         fs::create_dir(&unrelated).unwrap();
         let mappings = ProjectPathMappings::new([mapping("registered", &registered)]).unwrap();
@@ -992,7 +972,7 @@ mod tests {
     #[test]
     fn equivalent_canonical_paths_for_the_same_project_are_one_mapping() {
         let directory = TestDirectory::new();
-        let repository = directory.0.join("repository");
+        let repository = directory.path().join("repository");
         let child = repository.join("child");
         fs::create_dir_all(&child).unwrap();
         let equivalent = repository.join(".");
@@ -1012,7 +992,7 @@ mod tests {
     #[test]
     fn equivalent_canonical_paths_for_different_projects_are_ambiguous() {
         let directory = TestDirectory::new();
-        let repository = directory.0.join("repository");
+        let repository = directory.path().join("repository");
         fs::create_dir(&repository).unwrap();
         let equivalent = repository.join(".");
 
@@ -1054,9 +1034,9 @@ mod tests {
     #[test]
     fn two_delta_checkouts_with_the_same_local_target_resolve_identically() {
         let directory = TestDirectory::new();
-        let registered = directory.0.join("primary-checkout");
-        let delta_one = directory.0.join("delta-one");
-        let delta_two = directory.0.join("elsewhere").join("delta-two");
+        let registered = directory.path().join("primary-checkout");
+        let delta_one = directory.path().join("delta-one");
+        let delta_two = directory.path().join("elsewhere").join("delta-two");
         fs::create_dir_all(&registered).unwrap();
         fs::create_dir_all(&delta_one).unwrap();
         fs::create_dir_all(&delta_two).unwrap();
@@ -1091,7 +1071,7 @@ mod tests {
     #[test]
     fn hosted_remote_match_takes_precedence_over_delta_local_remote() {
         let directory = TestDirectory::new();
-        let local = directory.0.join("local");
+        let local = directory.path().join("local");
         fs::create_dir(&local).unwrap();
         let paths = ProjectPathMappings::new([mapping("local-project", &local)]).unwrap();
         let remotes = ProjectRemoteMappings::new([remote_mapping(
@@ -1100,7 +1080,7 @@ mod tests {
         )])
         .unwrap();
         let metadata = GitMetadata {
-            repository_root: directory.0.clone(),
+            repository_root: directory.path().to_owned(),
             remotes: vec![
                 remote("origin", "git@github.com:ACME/WIDGETS"),
                 remote("local", local.to_string_lossy()),
@@ -1186,9 +1166,9 @@ mod tests {
     #[test]
     fn full_resolution_uses_each_tier_in_documented_order() {
         let directory = TestDirectory::new();
-        let registered = directory.0.join("registered");
+        let registered = directory.path().join("registered");
         let working = registered.join("src");
-        let local = directory.0.join("local");
+        let local = directory.path().join("local");
         fs::create_dir_all(&working).unwrap();
         fs::create_dir(&local).unwrap();
         let paths = ProjectPathMappings::new([
@@ -1202,7 +1182,7 @@ mod tests {
         )])
         .unwrap();
         let git = metadata(
-            directory.0.join("Fallback Repository"),
+            directory.path().join("Fallback Repository"),
             vec![
                 remote("origin", "git@example.com:acme/project.git"),
                 remote("local", local.to_string_lossy()),
@@ -1229,7 +1209,7 @@ mod tests {
             "path-tier"
         );
 
-        let unrelated = directory.0.join("unrelated");
+        let unrelated = directory.path().join("unrelated");
         fs::create_dir(&unrelated).unwrap();
         assert_eq!(
             resolve_project(None, &unrelated, Some(&git), &paths, &remotes)
@@ -1239,7 +1219,7 @@ mod tests {
         );
 
         let no_hosted_match = metadata(
-            directory.0.join("Fallback Repository"),
+            directory.path().join("Fallback Repository"),
             vec![remote("local", local.to_string_lossy())],
         );
         assert_eq!(
@@ -1253,8 +1233,14 @@ mod tests {
     #[test]
     fn recreated_checkouts_and_changed_working_directories_use_repository_name() {
         let directory = TestDirectory::new();
-        let first = directory.0.join("first").join("My Recreated_Project.git");
-        let second = directory.0.join("second").join("My Recreated_Project.git");
+        let first = directory
+            .path()
+            .join("first")
+            .join("My Recreated_Project.git");
+        let second = directory
+            .path()
+            .join("second")
+            .join("My Recreated_Project.git");
         let first_working = first.join("packages").join("one");
         let second_working = second.join("somewhere").join("else");
         fs::create_dir_all(&first_working).unwrap();
@@ -1284,7 +1270,7 @@ mod tests {
     #[test]
     fn outside_git_uses_normalized_current_directory_name() {
         let directory = TestDirectory::new();
-        let working = directory.0.join("Current DIRECTORY_name");
+        let working = directory.path().join("Current DIRECTORY_name");
         fs::create_dir(&working).unwrap();
 
         let project = resolve_project(
@@ -1302,7 +1288,7 @@ mod tests {
     #[test]
     fn fallback_rejects_names_with_empty_normalization() {
         let directory = TestDirectory::new();
-        let working = directory.0.join("___");
+        let working = directory.path().join("___");
         fs::create_dir(&working).unwrap();
 
         let error = resolve_project(
@@ -1323,7 +1309,7 @@ mod tests {
     #[test]
     fn git_ambiguity_is_not_hidden_by_repository_fallback() {
         let directory = TestDirectory::new();
-        let working = directory.0.join("working");
+        let working = directory.path().join("working");
         fs::create_dir(&working).unwrap();
         let remotes = ProjectRemoteMappings::new([
             remote_mapping("first", "https://example.com/acme/first"),
@@ -1331,7 +1317,7 @@ mod tests {
         ])
         .unwrap();
         let git = metadata(
-            directory.0.join("fallback"),
+            directory.path().join("fallback"),
             vec![
                 remote("one", "git@example.com:acme/first"),
                 remote("two", "git@example.com:acme/second"),

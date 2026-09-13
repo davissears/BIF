@@ -1,33 +1,13 @@
+mod support;
+
 use rusqlite::{Connection, params};
 use serde_json::Value;
 use std::{
     fs,
     path::{Path, PathBuf},
     process::{Command, Output},
-    sync::atomic::{AtomicU64, Ordering},
 };
-
-static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
-
-struct TestDirectory(PathBuf);
-
-impl TestDirectory {
-    fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "bif-read-cli-{}-{}",
-            std::process::id(),
-            NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir_all(&path).unwrap();
-        Self(path)
-    }
-}
-
-impl Drop for TestDirectory {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
+use support::OwnedTestDirectory as TestDirectory;
 
 fn bif(directory: &Path, arguments: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_bif"))
@@ -52,11 +32,11 @@ fn json(output: Output) -> Value {
 
 fn fixture() -> (TestDirectory, PathBuf) {
     let directory = TestDirectory::new();
-    let root = directory.0.join("root");
+    let root = directory.path().join("root");
     fs::create_dir(&root).unwrap();
-    let config = directory.0.join("config.toml");
+    let config = directory.path().join("config.toml");
     let initialized = bif(
-        &directory.0,
+        directory.path(),
         &[
             "init",
             "--root",
@@ -159,7 +139,7 @@ fn list(directory: &Path, config: &Path, extra: &[&str]) -> Value {
 fn get_history_and_every_named_view_have_canonical_machine_output() {
     let (directory, config) = fixture();
     let item = json(bif(
-        &directory.0,
+        directory.path(),
         &[
             "get",
             "DAVIS:alpha:001",
@@ -172,7 +152,7 @@ fn get_history_and_every_named_view_have_canonical_machine_output() {
     assert_eq!(item["title"], "one");
 
     let history = json(bif(
-        &directory.0,
+        directory.path(),
         &[
             "history",
             "DAVIS:alpha:001",
@@ -195,7 +175,7 @@ fn get_history_and_every_named_view_have_canonical_machine_output() {
         ("all", 7),
     ] {
         assert_eq!(
-            list(&directory.0, &config, &["--view", view])["items"]
+            list(directory.path(), &config, &["--view", view])["items"]
                 .as_array()
                 .unwrap()
                 .len(),
@@ -208,7 +188,7 @@ fn get_history_and_every_named_view_have_canonical_machine_output() {
 fn filters_next_order_and_pagination_compose_end_to_end() {
     let (directory, config) = fixture();
     let filtered = list(
-        &directory.0,
+        directory.path(),
         &config,
         &[
             "--view",
@@ -226,18 +206,22 @@ fn filters_next_order_and_pagination_compose_end_to_end() {
     );
     assert_eq!(filtered["items"][0]["id"], "DAVIS:alpha:002");
 
-    let first = list(&directory.0, &config, &["--view", "all", "--limit", "2"]);
+    let first = list(
+        directory.path(),
+        &config,
+        &["--view", "all", "--limit", "2"],
+    );
     assert_eq!(first["items"][0]["id"], "DAVIS:alpha:007");
     assert_eq!(first["next_offset"], 2);
     let second = list(
-        &directory.0,
+        directory.path(),
         &config,
         &["--view", "all", "--limit", "2", "--offset", "2"],
     );
     assert_eq!(second["items"][0]["id"], "DAVIS:alpha:005");
 
     let next = json(bif(
-        &directory.0,
+        directory.path(),
         &[
             "next",
             "--project",
@@ -256,7 +240,7 @@ fn usage_not_found_and_not_initialized_have_stable_exit_codes() {
     let (directory, config) = fixture();
     assert_eq!(
         bif(
-            &directory.0,
+            directory.path(),
             &[
                 "get",
                 "DAVIS:alpha:099",
@@ -269,11 +253,15 @@ fn usage_not_found_and_not_initialized_have_stable_exit_codes() {
         Some(3)
     );
     assert_eq!(
-        bif(&directory.0, &["list", "--limit", "0"]).status.code(),
+        bif(directory.path(), &["list", "--limit", "0"])
+            .status
+            .code(),
         Some(2)
     );
     assert_eq!(
-        bif(&directory.0, &["get", "DAVIS:alpha:001"]).status.code(),
+        bif(directory.path(), &["get", "DAVIS:alpha:001"])
+            .status
+            .code(),
         Some(9)
     );
 }

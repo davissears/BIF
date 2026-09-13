@@ -1,21 +1,19 @@
+mod support;
+
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use bif::storage::open;
+use support::OwnedTestDirectory;
 
-static NEXT_DATABASE: AtomicU64 = AtomicU64::new(0);
-
-fn temporary_database() -> PathBuf {
-    let sequence = NEXT_DATABASE.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!(
-        "bif-connection-test-{}-{sequence}.sqlite",
-        std::process::id()
-    ))
+fn temporary_database() -> (OwnedTestDirectory, PathBuf) {
+    let directory = OwnedTestDirectory::new();
+    let path = directory.path().join("bif.sqlite");
+    (directory, path)
 }
 
 #[test]
 fn connection_factory_applies_all_sqlite_settings() {
-    let path = temporary_database();
+    let (_directory, path) = temporary_database();
     let connection = open(&path).unwrap();
 
     let foreign_keys: i64 = connection
@@ -37,5 +35,4 @@ fn connection_factory_applies_all_sqlite_settings() {
     assert_eq!(busy_timeout_ms, 5_000);
 
     drop(connection);
-    std::fs::remove_file(path).unwrap();
 }

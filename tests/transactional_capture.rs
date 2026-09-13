@@ -1,9 +1,9 @@
+mod support;
+
 use std::{
-    fs,
-    path::PathBuf,
     sync::{Arc, Barrier},
     thread,
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant},
 };
 
 use bif::{
@@ -17,29 +17,7 @@ use bif::{
     },
     storage::{self, CaptureRepository},
 };
-
-struct TempDirectory(PathBuf);
-
-impl TempDirectory {
-    fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "bif-transactional-capture-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
-    }
-}
-
-impl Drop for TempDirectory {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
+use support::OwnedTestDirectory as TempDirectory;
 
 struct FixedClock(&'static str);
 
@@ -117,7 +95,7 @@ fn request(key: impl Into<String>, title: String) -> CaptureRequest {
 fn concurrent_captures_have_gap_free_ids_and_complete_history() {
     const CAPTURES: usize = 12;
     let temp = TempDirectory::new();
-    let database = temp.0.join("bif.sqlite");
+    let database = temp.path().join("bif.sqlite");
     storage::open(&database).unwrap();
     let barrier = Arc::new(Barrier::new(CAPTURES));
 
@@ -188,7 +166,7 @@ fn concurrent_captures_have_gap_free_ids_and_complete_history() {
 #[test]
 fn failed_capture_rolls_back_allocated_sequence_and_all_rows() {
     let temp = TempDirectory::new();
-    let database = temp.0.join("bif.sqlite");
+    let database = temp.path().join("bif.sqlite");
     let mut connection = storage::open(&database).unwrap();
     let mut clock = FixedClock("2025-02-03T04:05:06Z");
 
@@ -256,7 +234,7 @@ fn failed_capture_rolls_back_allocated_sequence_and_all_rows() {
 #[test]
 fn capture_persists_canonical_content_provenance_and_attribution() {
     let temp = TempDirectory::new();
-    let database = temp.0.join("bif.sqlite");
+    let database = temp.path().join("bif.sqlite");
     let mut connection = storage::open(&database).unwrap();
     let item = {
         let mut repository = CaptureRepository::new(&mut connection);
@@ -321,7 +299,7 @@ fn capture_persists_canonical_content_provenance_and_attribution() {
 #[test]
 fn writer_lock_maps_capture_timeout_to_storage_busy() {
     let temp = TempDirectory::new();
-    let database = temp.0.join("bif.sqlite");
+    let database = temp.path().join("bif.sqlite");
     let writer = storage::open(&database).unwrap();
     let mut contender = storage::open(&database).unwrap();
     writer.execute_batch("BEGIN IMMEDIATE").unwrap();

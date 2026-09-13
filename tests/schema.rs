@@ -1,5 +1,8 @@
+mod support;
+
 use bif::storage::open;
 use rusqlite::{Result, params};
+use support::OwnedTestDirectory;
 
 const REQUIRED_TABLES: &[&str] = &[
     "store_metadata",
@@ -18,14 +21,8 @@ const REQUIRED_TABLES: &[&str] = &[
 #[test]
 fn fresh_database_has_complete_constrained_schema_and_persistent_store_id()
 -> std::result::Result<(), Box<dyn std::error::Error>> {
-    let temporary = std::env::temp_dir().join(format!(
-        "bif-schema-{}-{}.sqlite",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock must follow Unix epoch")
-            .as_nanos()
-    ));
+    let directory = OwnedTestDirectory::new();
+    let temporary = directory.path().join("bif.sqlite");
 
     let store_id: String;
     {
@@ -162,6 +159,5 @@ fn fresh_database_has_complete_constrained_schema_and_persistent_store_id()
         reopened.query_row("SELECT store_id FROM store_metadata", [], |row| row.get(0))?;
     assert_eq!(persisted_id, store_id);
     drop(reopened);
-    std::fs::remove_file(temporary).expect("temporary schema database should be removable");
     Ok(())
 }
