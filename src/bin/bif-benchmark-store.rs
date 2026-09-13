@@ -18,7 +18,10 @@ use std::{
 use bif::{
     application::{ItemHistoryStore, ItemStore},
     benchmark_fixture,
-    domain::{ItemId, ProjectId, RequesterId},
+    domain::{
+        EventType, EventValue, Item, ItemId, ItemMutation, LifecycleMutation, ProjectId,
+        RequesterId, Triage, TriageField,
+    },
     storage::{self, ItemHistoryRepository, ItemRepository},
 };
 use rusqlite::{Connection, params};
@@ -131,6 +134,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     generate(&mut connection, size, seed)?;
     connection.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
     let summary = benchmark_fixture::summarize(&connection)?;
+    verify_replays(&connection, size.min(100))?;
     let samples_verified = verify_samples(&connection, size)?;
     let integrity_check: String =
         connection.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
@@ -383,11 +387,17 @@ fn insert_item(
     };
     let bucket = index / 8; // Deliberately equal timestamps within each bucket.
     let captured_at = timestamp(bucket);
-    let mut events = lifecycle(desired);
+    let mut events = vec![Event {
+        kind: "captured",
+        before: None,
+        after: None,
+        reason: None,
+        note: None,
+    }];
     if let Some(priority) = priority {
         events.push(Event {
             kind: "priority_changed",
-            before: None,
+            before: Some("null".to_owned()),
             after: Some(priority.to_owned()),
             reason: None,
             note: None,
@@ -396,12 +406,13 @@ fn insert_item(
     if let Some(assignee) = assignee {
         events.push(Event {
             kind: "assignee_changed",
-            before: None,
+            before: Some("null".to_owned()),
             after: Some(assignee.to_owned()),
             reason: None,
             note: None,
         });
     }
+    events.extend(lifecycle(desired));
     if index % 13 == 0 {
         events.push(Event {
             kind: "note_added",
@@ -538,13 +549,7 @@ fn insert_item(
 }
 
 fn lifecycle(status: &str) -> Vec<Event> {
-    let mut events = vec![Event {
-        kind: "captured",
-        before: None,
-        after: None,
-        reason: None,
-        note: None,
-    }];
+    let mut events = Vec::new();
     let mut push = |kind, before: &str, after: &str, reason| {
         events.push(Event {
             kind,
@@ -575,9 +580,23 @@ fn lifecycle(status: &str) -> Vec<Event> {
                         "blocked",
                         Some("Waiting for a reproducible upstream result"),
                     );
+                    push("resumed", "blocked", "in_progress", None);
+                    push(
+                        "blocked",
+                        "in_progress",
+                        "blocked",
+                        Some("Waiting for a reproducible upstream result"),
+                    );
                 }
                 "done" => {
                     push("started", "ready", "in_progress", None);
+                    push(
+                        "blocked",
+                        "in_progress",
+                        "blocked",
+                        Some("Waiting for a reproducible upstream result"),
+                    );
+                    push("resumed", "blocked", "in_progress", None);
                     push("finished", "in_progress", "done", None);
                 }
                 _ => unreachable!(),
@@ -659,6 +678,110 @@ fn verify_samples(
     Ok(samples)
 }
 
+fn verify_replays(connection: &Connection, count: usize) -> Result<(), Box<dyn std::error::Error>> {
+    let mut item_ids = connection.prepare("SELECT item_id FROM items ORDER BY rowid LIMIT ?")?;
+    let item_ids = item_ids
+        .query_map([count as i64], |row| row.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    for item_id in item_ids {
+        let parsed = parse_item_id(&item_id)?;
+        let stored = ItemRepository::new(connection)
+            .read_item(&parsed)?
+            .ok_or("generated replay item was not canonically loadable")?;
+        let history = ItemHistoryRepository::new(connection)
+            .item_history(&parsed)
+            .map_err(|error| format!("canonical history load failed: {error:?}"))?;
+        let captured = history.first().ok_or("generated history was empty")?;
+        if captured.event_type != EventType::Captured
+            || captured.item_revision.get() != 1
+            || captured.before.is_some()
+            || captured.after.is_some()
+        {
+            return Err(format!("item {item_id} has an invalid capture event").into());
+        }
+
+        let mut replayed = Item::capture(
+            stored.id().clone(),
+            stored.content().clone(),
+            stored.provenance().clone(),
+            stored.captured_at().clone(),
+            stored.updated_at().clone(),
+        );
+        for event in history.iter().skip(1) {
+            let mutation = mutation_for(event)?;
+            let produced = replayed
+                .apply_mutation(mutation)
+                .map_err(|error| format!("item {item_id} replay rejected: {error}"))?;
+            if produced.len() != 1 {
+                return Err(format!("item {item_id} replay produced compound events").into());
+            }
+            let produced = &produced[0];
+            if produced.event_type != event.event_type
+                || produced.item_revision != event.item_revision
+                || produced.before != event.before
+                || produced.after != replay_after(event)
+            {
+                return Err(format!(
+                    "item {item_id} replay diverged at revision {}: produced {produced:?}, stored {event:?}",
+                    event.item_revision.get(),
+                )
+                .into());
+            }
+        }
+        if replayed != stored {
+            return Err(format!("item {item_id} replayed state differs from stored item").into());
+        }
+    }
+    Ok(())
+}
+
+fn mutation_for(
+    event: &bif::application::ItemHistoryEvent,
+) -> Result<ItemMutation, Box<dyn std::error::Error>> {
+    let lifecycle = match event.event_type {
+        EventType::Approved => Some(LifecycleMutation::Approve),
+        EventType::Rejected => Some(LifecycleMutation::Reject {
+            reason: event.reason.clone().ok_or("rejection reason missing")?,
+        }),
+        EventType::Started => Some(LifecycleMutation::Start),
+        EventType::Blocked => Some(LifecycleMutation::Block {
+            reason: event.reason.clone().ok_or("blocking reason missing")?,
+        }),
+        EventType::Resumed => Some(LifecycleMutation::Resume),
+        EventType::Finished => Some(LifecycleMutation::Finish),
+        _ => None,
+    };
+    let triage = match (&event.event_type, &event.after) {
+        (EventType::PriorityChanged, Some(EventValue::Priority(priority))) => Some(Triage {
+            priority: priority.map_or(TriageField::Clear, TriageField::Set),
+            ..Triage::default()
+        }),
+        (EventType::AssigneeChanged, Some(EventValue::Assignee(assignee))) => Some(Triage {
+            assignee: assignee
+                .clone()
+                .map_or(TriageField::Clear, TriageField::Set),
+            ..Triage::default()
+        }),
+        (EventType::NoteAdded, _) => Some(Triage {
+            note: Some(event.note.clone().ok_or("note text missing")?),
+            ..Triage::default()
+        }),
+        _ => None,
+    };
+    if lifecycle.is_none() && triage.is_none() {
+        return Err(format!("cannot replay event {:?}", event.event_type).into());
+    }
+    Ok(ItemMutation { lifecycle, triage })
+}
+
+fn replay_after(event: &bif::application::ItemHistoryEvent) -> Option<EventValue> {
+    match event.event_type {
+        EventType::NoteAdded => event.note.clone().map(EventValue::Note),
+        _ => event.after.clone(),
+    }
+}
+
 fn parse_item_id(value: &str) -> Result<ItemId, Box<dyn std::error::Error>> {
     let mut parts = value.split(':');
     let requester = RequesterId::new(parts.next().ok_or("missing requester")?)?;
@@ -700,5 +823,48 @@ mod tests {
             metadata_changed,
             benchmark_fixture::summarize(&connection).unwrap().digest
         );
+    }
+
+    #[test]
+    fn all_small_fixture_histories_replay_through_domain_rules() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        storage::migrate(&mut connection).unwrap();
+        generate(&mut connection, 100, 2003).unwrap();
+
+        verify_replays(&connection, 100).unwrap();
+
+        let mut kinds = connection
+            .prepare("SELECT DISTINCT event_type FROM events")
+            .unwrap();
+        let kinds = kinds
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        for expected in [
+            "captured",
+            "approved",
+            "rejected",
+            "started",
+            "blocked",
+            "resumed",
+            "finished",
+            "priority_changed",
+            "assignee_changed",
+            "note_added",
+        ] {
+            assert!(kinds.iter().any(|kind| kind == expected), "{expected}");
+        }
+
+        for terminal in ["done", "rejected"] {
+            let count: i64 = connection
+                .query_row(
+                    "SELECT count(*) FROM items WHERE status = ?",
+                    [terminal],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(count > 0, "{terminal}");
+        }
     }
 }
