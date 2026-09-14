@@ -105,6 +105,16 @@ fn report_uses_snapshot_and_contains_review_evidence() {
         "measurement must not change the source fixture's logical content"
     );
     let value: Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
+    let measured_store = Path::new(value["measured_store"].as_str().unwrap());
+    assert_eq!(
+        fs::metadata(measured_store).unwrap().len(),
+        0,
+        "completed harness cleanup truncates the exact retained snapshot file"
+    );
+    assert!(
+        measured_store.parent().unwrap().is_dir(),
+        "the owned temporary directory remains for external cleanup"
+    );
     assert_eq!(value["format"], "bif-v2-measurement-v2");
     assert_ne!(value["source_database"], value["measured_store"]);
     assert_eq!(value["durability"]["journal_mode"], "wal");

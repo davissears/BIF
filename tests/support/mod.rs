@@ -6,7 +6,15 @@ use std::{
 
 static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
-/// A test directory that owns exactly the path it atomically created.
+/// A test directory that atomically creates a path and never adopts an existing
+/// filesystem object.
+///
+/// Dropping this guard intentionally leaves the directory behind. Portable
+/// recursive directory removal APIs accept a pathname, not the originally
+/// created directory as a capability. Removing `path` here could therefore
+/// delete an unowned replacement if another actor renamed the test directory
+/// and recreated its old name. Owned test artifacts are preferable to risking
+/// deletion of a real ledger.
 pub struct OwnedTestDirectory {
     path: PathBuf,
 }
@@ -37,11 +45,5 @@ impl OwnedTestDirectory {
 
     pub fn path(&self) -> &Path {
         &self.path
-    }
-}
-
-impl Drop for OwnedTestDirectory {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
     }
 }

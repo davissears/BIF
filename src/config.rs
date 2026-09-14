@@ -896,12 +896,9 @@ mod tests {
     #[test]
     fn equivalent_relative_and_absolute_roots_resolve_to_one_database_path() {
         let current = std::env::current_dir().unwrap();
-        let directory = TestDirectory::in_directory(&current);
-        let root = directory.path().join("root");
-        fs::create_dir(&root).unwrap();
 
-        let absolute = resolve_store_root(&root).unwrap();
-        let relative = resolve_store_root(root.strip_prefix(&current).unwrap()).unwrap();
+        let absolute = resolve_store_root(&current).unwrap();
+        let relative = resolve_store_root(Path::new(".")).unwrap();
 
         assert_eq!(relative, absolute);
         assert!(absolute.root.is_absolute());

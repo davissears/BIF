@@ -5,6 +5,28 @@ use std::{fs, process::Command};
 use serde_json::Value;
 use support::OwnedTestDirectory;
 
+#[cfg(unix)]
+fn wait_for_marker_path(
+    marker: &std::path::Path,
+    ready: impl Fn(&std::path::Path) -> bool,
+) -> std::path::PathBuf {
+    for _ in 0..1_000 {
+        if let Ok(bytes) = fs::read(marker)
+            && let Ok(text) = String::from_utf8(bytes)
+        {
+            let path = std::path::PathBuf::from(text);
+            if ready(&path) {
+                return path;
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    panic!(
+        "generator did not publish a ready marker path at {}",
+        marker.display()
+    );
+}
+
 #[test]
 fn small_benchmark_store_is_deterministic_and_verified() {
     let directory = OwnedTestDirectory::new();
@@ -181,6 +203,118 @@ fn replacement_after_claim_is_preserved_and_prevents_success() {
     }
 }
 
+#[cfg(unix)]
+#[test]
+fn replaced_staging_path_cannot_redirect_sqlite_or_cleanup() {
+    use std::os::unix::fs::symlink;
+
+    let directory = OwnedTestDirectory::new();
+    let database = directory.path().join("store.sqlite3");
+    let metadata = format!("{}.metadata.json", database.display());
+    let wal = format!("{}-wal", database.display());
+    let shm = format!("{}-shm", database.display());
+    let marker = directory.path().join("staging-ready.marker");
+    fs::write(&wal, b"final wal sentinel").unwrap();
+    fs::write(&shm, b"final shm sentinel").unwrap();
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+        .args(["100", "--output"])
+        .arg(&database)
+        .env("BIF_BENCHMARK_STORE_TEST_CLAIM_MARKER", &marker)
+        .spawn()
+        .unwrap();
+    let staging = wait_for_marker_path(&marker, std::path::Path::is_dir);
+    let renamed_staging = directory.path().join("renamed-owned-staging");
+    fs::rename(&staging, &renamed_staging).unwrap();
+    symlink(directory.path(), &staging).unwrap();
+    assert!(
+        staging.is_dir(),
+        "the staging pathname now resolves through the replacement symlink"
+    );
+    fs::remove_file(&marker).unwrap();
+
+    let status = child.wait().unwrap();
+    assert!(
+        !status.success(),
+        "staging replacement cannot report success"
+    );
+    assert_eq!(fs::read(&wal).unwrap(), b"final wal sentinel");
+    assert_eq!(fs::read(&shm).unwrap(), b"final shm sentinel");
+    assert!(
+        fs::symlink_metadata(&staging)
+            .unwrap()
+            .file_type()
+            .is_symlink(),
+        "capability cleanup must preserve the unowned pathname replacement"
+    );
+    assert!(
+        renamed_staging.is_dir(),
+        "the renamed owned directory is orphaned rather than recursively deleted"
+    );
+    assert_eq!(
+        fs::metadata(&database).unwrap().len(),
+        0,
+        "the already claimed final database is never opened by SQLite"
+    );
+    assert_eq!(
+        fs::metadata(&metadata).unwrap().len(),
+        0,
+        "the already claimed metadata file remains unpublished"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn replaced_staged_file_cannot_substitute_publication_input() {
+    use std::os::unix::fs::symlink;
+
+    let directory = OwnedTestDirectory::new();
+    let database = directory.path().join("store.sqlite3");
+    let metadata = format!("{}.metadata.json", database.display());
+    let marker = directory.path().join("staged-database-ready.marker");
+    let substitute = directory.path().join("unowned-substitute");
+    fs::write(&substitute, b"not a SQLite database").unwrap();
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+        .args(["100", "--output"])
+        .arg(&database)
+        .env("BIF_BENCHMARK_STORE_TEST_STAGED_MARKER", &marker)
+        .spawn()
+        .unwrap();
+    let staged = wait_for_marker_path(&marker, std::path::Path::is_file);
+    assert!(
+        fs::metadata(&staged).unwrap().len() > 0,
+        "SQLite completed a nonempty staged database"
+    );
+    let retained_staged = staged.with_extension("retained-owned-database");
+    fs::rename(&staged, &retained_staged).unwrap();
+    symlink(&substitute, &staged).unwrap();
+    fs::remove_file(&marker).unwrap();
+
+    assert!(
+        !child.wait().unwrap().success(),
+        "staged-file replacement cannot report publication success"
+    );
+    assert_eq!(
+        fs::metadata(&database).unwrap().len(),
+        0,
+        "the substitute was not copied into the claimed final database"
+    );
+    assert_eq!(fs::metadata(&metadata).unwrap().len(), 0);
+    assert_eq!(fs::read(&substitute).unwrap(), b"not a SQLite database");
+    assert!(
+        fs::symlink_metadata(&staged)
+            .unwrap()
+            .file_type()
+            .is_symlink(),
+        "the replacement staged entry is preserved"
+    );
+    assert!(
+        fs::metadata(&retained_staged).unwrap().len() > 0,
+        "the retained owned staged file is preserved on failure"
+    );
+}
+
 #[test]
 fn explicit_output_never_opens_final_sqlite_basename() {
     let directory = OwnedTestDirectory::new();
@@ -219,6 +353,47 @@ fn explicit_output_never_opens_final_sqlite_basename() {
 }
 
 #[test]
+fn successful_generation_leaves_only_a_truncated_staging_orphan() {
+    let directory = OwnedTestDirectory::new();
+    let database = directory.path().join("store.sqlite3");
+    let generated = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+        .args(["100", "--output"])
+        .arg(&database)
+        .output()
+        .unwrap();
+    assert!(
+        generated.status.success(),
+        "{}",
+        String::from_utf8_lossy(&generated.stderr)
+    );
+
+    let staging = fs::read_dir(directory.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with(".bif-benchmark-stage-")
+        })
+        .expect("successful generation preserves its staging directory");
+    let staged_entries = fs::read_dir(&staging)
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(
+        staged_entries.len(),
+        1,
+        "checkpoint and close leave only the staged main file"
+    );
+    assert_eq!(
+        staged_entries[0].metadata().unwrap().len(),
+        0,
+        "successful publication truncates only through the retained staged handle"
+    );
+}
+
+#[test]
 fn omitted_output_allocates_distinct_private_destinations() {
     let generate = || {
         let generated = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
@@ -240,13 +415,10 @@ fn omitted_output_allocates_distinct_private_destinations() {
     assert_ne!(first_database, second_database);
     assert!(std::path::Path::new(first_database).is_file());
     assert!(std::path::Path::new(second_database).is_file());
-
-    fs::remove_dir_all(std::path::Path::new(first_database).parent().unwrap()).unwrap();
-    fs::remove_dir_all(std::path::Path::new(second_database).parent().unwrap()).unwrap();
 }
 
 #[test]
-fn omitted_output_failure_removes_the_invocation_owned_directory() {
+fn omitted_output_failure_leaves_only_owned_orphans() {
     let temporary_root = OwnedTestDirectory::new();
     let failed = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
         .arg("100")
@@ -256,11 +428,32 @@ fn omitted_output_failure_removes_the_invocation_owned_directory() {
         .unwrap();
 
     assert!(!failed.status.success());
+    let entries = fs::read_dir(temporary_root.path())
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(
+        entries.len(),
+        1,
+        "one invocation-owned outer orphan remains"
+    );
+    let orphan = entries[0].path();
     assert!(
-        fs::read_dir(temporary_root.path())
+        orphan
+            .file_name()
             .unwrap()
-            .next()
-            .is_none(),
-        "the disposable outer directory and all claimed/staged files are removed"
+            .to_string_lossy()
+            .starts_with("bif-benchmark-"),
+        "the orphan is clearly identified for manual removal"
+    );
+    assert!(orphan.join("store.sqlite3").is_file());
+    assert!(orphan.join("store.sqlite3.metadata.json").is_file());
+    assert!(
+        fs::read_dir(&orphan).unwrap().any(|entry| entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".bif-benchmark-stage-")),
+        "the owned staging orphan remains inside the owned outer orphan"
     );
 }

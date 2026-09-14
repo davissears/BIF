@@ -31,6 +31,13 @@ Reference environment:
 
 From the repository root, reproduce the inputs and measurements:
 
+Each generated database is a disposable benchmark input. From generator
+completion through the corresponding harness exit, keep its logical state and
+metadata immutable: do not open a concurrent writer, replace either path, or
+measure through a hard-link alias. The harness takes separate backups for
+startup samples and measured operations; it does not anchor them to one source
+snapshot.
+
 ```sh
 rm -rf target/bif-v2-006-refresh
 mkdir -p target/bif-v2-006-refresh docs/baselines/v2-pre-phase-b
@@ -117,7 +124,8 @@ reopening, the harness verified the expected revision and note-event count,
 | 100,000 | 29 / 29 | 1 | 324,333,568 → 324,333,568 bytes | present, 0 bytes → missing |
 
 This is persistence/write-path evidence, not proof of crash-proof durability.
-Sizes are disposable measured snapshots; source fixtures were not mutated.
+Sizes are disposable measured snapshots; harness writes were confined to those
+snapshots, and the source fixtures were treated as immutable inputs.
 
 ## V2-005 workflow dry run
 
@@ -152,6 +160,10 @@ measured improvement.
   filesystem-cold runs were performed.
 - Results are one Apple arm64 machine and should compare only with same-host,
   same-cache-procedure runs regenerated from matching logical fixtures.
+- Startup samples and the final measured store came from separate source
+  backups. Only the final measured snapshot was digest-validated; the artifacts
+  do not prove that the source stayed unchanged across the run. Trustworthy
+  reproduction depends on the immutable/disposable-source procedure above.
 - Allocator-wide allocation counts are unavailable.
 - Response bytes exclude transport envelopes and are not tokens.
 - Persistence checks do not simulate power loss or process crashes.

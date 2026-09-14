@@ -114,7 +114,27 @@ impl From<rusqlite::Error> for MigrationError {
 /// configured before migrations run, and is returned only after the embedded
 /// schema is current and validated.
 pub fn open(path: impl AsRef<Path>) -> Result<Connection, MigrationError> {
-    let mut connection = Connection::open(path)?;
+    open_with_flags(path, rusqlite::OpenFlags::default())
+}
+
+/// Opens and prepares a SQLite database without following symbolic links in
+/// any component of its filename.
+///
+/// This is used when a database must temporarily be addressed through an
+/// ambient path but the caller separately owns the containing directory by
+/// capability.
+pub fn open_nofollow(path: impl AsRef<Path>) -> Result<Connection, MigrationError> {
+    open_with_flags(
+        path,
+        rusqlite::OpenFlags::default() | rusqlite::OpenFlags::SQLITE_OPEN_NOFOLLOW,
+    )
+}
+
+fn open_with_flags(
+    path: impl AsRef<Path>,
+    flags: rusqlite::OpenFlags,
+) -> Result<Connection, MigrationError> {
+    let mut connection = Connection::open_with_flags(path, flags)?;
     configure(&connection)?;
     migrate(&mut connection)?;
     Ok(connection)

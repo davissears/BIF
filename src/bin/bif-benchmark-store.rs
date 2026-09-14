@@ -9,7 +9,7 @@ use std::{
     collections::BTreeMap,
     env, fs,
     fs::{File, OpenOptions},
-    io::{Seek, Write},
+    io::{Read, Seek, Write},
     path::{Path, PathBuf},
     process,
     time::{Instant, SystemTime, UNIX_EPOCH},
@@ -23,6 +23,10 @@ use bif::{
         RequesterId, Triage, TriageField,
     },
     storage::{self, ItemHistoryRepository, ItemRepository},
+};
+use cap_std::{
+    ambient_authority,
+    fs::{Dir, OpenOptions as CapOpenOptions},
 };
 use rusqlite::{Connection, params};
 use same_file::Handle;
@@ -96,12 +100,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let (database, mut owned_parent) = match output {
         Some(path) => (path, None),
         None => {
-            let path = disposable_path(size, seed)?;
-            let parent = path
-                .parent()
-                .expect("disposable database always has a parent")
-                .to_path_buf();
-            (path, Some(OwnedDirectory::new(parent)))
+            let directory = disposable_directory(size, seed)?;
+            let path = directory.path().join("store.sqlite3");
+            (path, Some(directory))
         }
     };
     if let Some(parent) = database.parent() {
@@ -109,8 +110,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     let metadata_path = PathBuf::from(format!("{}.metadata.json", database.display()));
     // Claim both public names before doing expensive work. SQLite is never
-    // given either public name: its database and sidecars live under a private,
-    // invocation-owned staging directory.
+    // given either public name: its database and sidecars use a distinct random
+    // basename under a private, invocation-owned staging directory.
     let database_file = OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -135,17 +136,31 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut owned_metadata = OwnedOutput::new(metadata_path, metadata_file);
 
     let parent = database.parent().unwrap_or_else(|| Path::new("."));
-    let staging = Builder::new()
+    // SQLite's NOFOLLOW checks every path component. Resolve any pre-existing
+    // benign aliases (for example macOS `/var` -> `/private/var`) before
+    // creating the staging directory; a later replacement remains detectable.
+    let staging_parent = fs::canonicalize(parent)?;
+    // Disarm tempfile's pathname-based Drop immediately. No later code
+    // recursively deletes this directory: portable directory removal APIs
+    // cannot guarantee that a concurrent rename will not retarget cleanup.
+    let staging_path = Builder::new()
         .prefix(".bif-benchmark-stage-")
-        .tempdir_in(parent)?;
-    let staged_database = staging.path().join("store.sqlite3");
+        .tempdir_in(staging_parent)?
+        .keep();
+    let staging = OwnedDirectory::open_created(staging_path)?;
+    let staged_basename = staging_basename(&staging, &database);
+    let staged_database = staging.path().join(&staged_basename);
+    let staged_file = staging.create_new(&staged_basename)?;
+    let mut owned_staged = OwnedOutput::new(staged_database.clone(), staged_file);
     if env::var_os("BIF_BENCHMARK_STORE_TEST_FAIL_AFTER_CLAIMS").is_some() {
         return Err("injected failure after output claims".into());
     }
-    wait_at_test_claim_boundary()?;
+    wait_at_test_claim_boundary(staging.path())?;
 
     let started = Instant::now();
-    let mut connection = storage::open(&staged_database)?;
+    // NOFOLLOW makes replacement resistance part of SQLite's atomic open,
+    // rather than a check-then-open pathname approximation.
+    let mut connection = storage::open_nofollow(&staged_database)?;
     generate(&mut connection, size, seed)?;
     connection.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
     let summary = benchmark_fixture::summarize(&connection)?;
@@ -164,6 +179,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Err(format!("foreign_key_check found {foreign_key_violations} violations").into());
     }
     drop(connection);
+    wait_at_test_staged_boundary(&staged_database)?;
+    owned_staged.verify_path_ownership()?;
 
     let metadata = Metadata {
         format: benchmark_fixture::FORMAT,
@@ -178,16 +195,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         samples_verified,
         integrity_check,
     };
-    // Publish through the already atomically claimed file handles. No path is
-    // reopened, so a third party replacing a public pathname cannot redirect
-    // these writes. The staged connection is closed and checkpointed first.
-    publish_file(&staged_database, owned_database.file_mut())?;
+    // Publish directly from the staged handle claimed before SQLite opened the
+    // path. A replaced staged entry therefore cannot substitute publication
+    // input, and no public pathname is reopened for writing.
+    publish_file(owned_staged.file_mut(), owned_database.file_mut())?;
     owned_metadata
         .file_mut()
         .write_all(&serde_json::to_vec_pretty(&metadata)?)?;
     owned_metadata.file_mut().sync_all()?;
+    staging.verify_path_ownership()?;
+    owned_staged.verify_path_ownership()?;
     owned_database.verify_path_ownership()?;
     owned_metadata.verify_path_ownership()?;
+    // Reduce the successful staging orphan through the exact file handle that
+    // supplied publication. Never reopen or unlink a remembered staging path.
+    owned_staged.file_mut().set_len(0)?;
+    owned_staged.file_mut().sync_all()?;
     if let Some(directory) = &mut owned_parent {
         directory.keep();
     }
@@ -197,24 +220,69 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
 struct OwnedDirectory {
     path: PathBuf,
-    keep: bool,
+    directory: Option<Dir>,
 }
 
 impl OwnedDirectory {
-    fn new(path: PathBuf) -> Self {
-        Self { path, keep: false }
+    fn open_created(path: PathBuf) -> Result<Self, std::io::Error> {
+        // Opening can lose a race with a same-user rename. The caller has
+        // already disabled all directory cleanup, so failure safely leaves the
+        // newly created directory as a clearly named orphan.
+        let directory = Dir::open_ambient_dir(&path, ambient_authority())?;
+        Ok(Self {
+            path,
+            directory: Some(directory),
+        })
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
+    }
+
+    fn create_new(&self, path: &Path) -> Result<File, std::io::Error> {
+        let mut options = CapOpenOptions::new();
+        options.read(true).write(true).create_new(true);
+        self.directory
+            .as_ref()
+            .expect("kept directory has its capability")
+            .open_with(path, &options)
+            .map(cap_std::fs::File::into_std)
+    }
+
+    fn verify_path_ownership(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let directory = self
+            .directory
+            .as_ref()
+            .expect("kept directory has its capability");
+        let claimed = Handle::from_file(directory.try_clone()?.into_std_file())?;
+        let current = Handle::from_path(&self.path).map_err(|error| {
+            format!(
+                "owned directory pathname {} is no longer available: {error}",
+                self.path.display()
+            )
+        })?;
+        if claimed != current {
+            return Err(format!(
+                "owned directory pathname {} was replaced during generation",
+                self.path.display()
+            )
+            .into());
+        }
+        Ok(())
     }
 
     fn keep(&mut self) {
-        self.keep = true;
+        self.directory.take();
     }
 }
 
 impl Drop for OwnedDirectory {
     fn drop(&mut self) {
-        if !self.keep {
-            let _ = fs::remove_dir_all(&self.path);
-        }
+        // Intentionally close only. Even handle-oriented recursive removal is
+        // documented as non-atomic with a concurrent directory rename on some
+        // platforms, so a failed or completed run leaves an owned orphan
+        // rather than risking deletion of a pathname replacement.
+        self.directory.take();
     }
 }
 
@@ -251,26 +319,37 @@ impl OwnedOutput {
     }
 }
 
-fn wait_at_test_claim_boundary() -> Result<(), Box<dyn std::error::Error>> {
+fn wait_at_test_claim_boundary(staging: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let Some(marker) = env::var_os("BIF_BENCHMARK_STORE_TEST_CLAIM_MARKER") else {
         return Ok(());
     };
     let marker = PathBuf::from(marker);
-    fs::write(&marker, b"claimed")?;
+    fs::write(&marker, staging.as_os_str().as_encoded_bytes())?;
     while marker.exists() {
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
     Ok(())
 }
 
-fn publish_file(source: &Path, destination: &mut File) -> Result<(), std::io::Error> {
-    let mut source = File::open(source)?;
+fn wait_at_test_staged_boundary(staged_database: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(marker) = env::var_os("BIF_BENCHMARK_STORE_TEST_STAGED_MARKER") else {
+        return Ok(());
+    };
+    let marker = PathBuf::from(marker);
+    fs::write(&marker, staged_database.as_os_str().as_encoded_bytes())?;
+    while marker.exists() {
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    Ok(())
+}
+
+fn publish_file(source: &mut impl Read, destination: &mut File) -> Result<(), std::io::Error> {
     destination.rewind()?;
-    std::io::copy(&mut source, destination)?;
+    std::io::copy(source, destination)?;
     destination.sync_all()
 }
 
-fn disposable_path(size: usize, seed: u64) -> Result<PathBuf, std::io::Error> {
+fn disposable_directory(size: usize, seed: u64) -> Result<OwnedDirectory, std::io::Error> {
     let root = env::temp_dir();
     for attempt in 0..1_000 {
         let nonce = SystemTime::now()
@@ -282,7 +361,7 @@ fn disposable_path(size: usize, seed: u64) -> Result<PathBuf, std::io::Error> {
             process::id()
         ));
         match fs::create_dir(&directory) {
-            Ok(()) => return Ok(directory.join("store.sqlite3")),
+            Ok(()) => return OwnedDirectory::open_created(directory),
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
             Err(error) => return Err(error),
         }
@@ -291,6 +370,30 @@ fn disposable_path(size: usize, seed: u64) -> Result<PathBuf, std::io::Error> {
         std::io::ErrorKind::AlreadyExists,
         "could not allocate disposable benchmark directory",
     ))
+}
+
+fn staging_basename(staging: &OwnedDirectory, database: &Path) -> PathBuf {
+    let nonce = staging
+        .path()
+        .file_name()
+        .expect("temporary staging directory has a basename")
+        .to_string_lossy();
+    let final_basename = database
+        .file_name()
+        .unwrap_or_else(|| database.as_os_str())
+        .to_string_lossy();
+    for attempt in 0_u64.. {
+        let candidate = format!(".bif-staged-db-{nonce}-{attempt}.sqlite3");
+        if candidate != final_basename
+            && format!("{candidate}-wal") != final_basename
+            && format!("{candidate}-shm") != final_basename
+            && candidate != format!("{final_basename}-wal")
+            && candidate != format!("{final_basename}-shm")
+        {
+            return PathBuf::from(candidate);
+        }
+    }
+    unreachable!("an unbounded suffix always yields a distinct staging basename")
 }
 
 fn generate(connection: &mut Connection, size: usize, seed: u64) -> rusqlite::Result<()> {

@@ -262,13 +262,24 @@ P4, large numeric IDs, empty results, unknown fields, and oversized records.
 **Depends on:** None.
 
 **Scope:** Replace collision-prone temporary-directory construction with a
-shared, safely unique test helper. Keep cleanup confined to owned test paths.
+shared, safely unique test helper. Never recursively clean up a remembered
+pathname: portable APIs cannot conditionally remove the originally created
+directory after its name is replaced, so dropped test directories remain as
+owned orphans rather than risking deletion of an unowned replacement.
 
 **Outcome:** Parallel baseline and integration runs do not fail because two
-tests selected the same timestamp-derived directory.
+tests selected the same timestamp-derived directory. Test artifacts can remain
+in the platform temporary directory until its normal external cleanup.
 
 **Verification:** Repeated parallel `cargo test --locked` runs pass without
-`AlreadyExists` fixture failures; cleanup cannot target a real ledger.
+`AlreadyExists` fixture failures; synchronized rename/recreate/drop coverage
+proves a replacement ledger and the renamed owned orphan both survive. The
+benchmark harness applies the same rule to its `bif-measurement-*` directories:
+it retains the create-new snapshot handle and truncates only that exact file on
+Drop, leaving the directory and any SQLite sidecars for external temporary-file
+cleanup. Normal completion therefore leaves an empty main file rather than a
+full 100k snapshot; crashes and SQLite sidecar-cleanup failures can still leave
+larger owned orphans.
 
 #### V2-003 — Generate representative benchmark stores
 
@@ -287,14 +298,28 @@ seed gives the same logical contents. Large fixtures stay out of ordinary CI.
 
 The generator atomically claims the explicit database and adjacent
 `<database>.metadata.json` paths with create-new semantics. SQLite generation
-uses a distinct basename in an invocation-owned private staging directory; the
-checkpointed, verified database is closed before being published through the
-claimed final handle. Both final pathnames are checked against their claimed
-open files before success is reported. SQLite therefore never opens the final basename or
-touches unowned adjacent WAL/SHM paths. Private staging directories are removed
-on failure, and omitted-output failures recursively remove their
-invocation-owned outer directory. Pre-existing database, metadata, WAL, and SHM
-paths are preserved byte-for-byte. Explicit-output failure cleanup never
+uses a random basename distinct from the final database/WAL/SHM basenames in a
+private staging directory. SQLite opens that ambient path with
+`SQLITE_OPEN_NOFOLLOW`, so replacing any staging pathname component with a
+symlink fails atomically rather than redirecting SQLite. The checkpointed,
+verified database is published through the staged file handle claimed with
+create-new semantics before SQLite opened it and through the claimed final
+handle. The staged entry, both final pathnames, and the staging pathname are
+checked against their claimed open handles before success is reported. SQLite
+therefore never opens the final basename or touches unowned adjacent WAL/SHM
+paths, and a substituted staged entry cannot become publication input.
+
+Directory cleanup never recursively removes either staging or omitted-output
+directories. Path-based `remove_dir_all` is vulnerable to pathname replacement,
+and `cap-std` documents that even its open-directory recursive removal is not
+guaranteed atomic with a concurrent rename. The generator therefore closes its
+directory capabilities and preserves clearly named `.bif-benchmark-stage-*` or
+`bif-benchmark-*` owned orphans for manual removal. After successful
+publication, it truncates the staged main database only through the exact open
+file handle used as the publication source; failures can leave a partial or
+complete staged database. There is no pathname cleanup fallback. Pre-existing
+database, metadata, WAL, and SHM paths are preserved byte-for-byte.
+Explicit-output failure cleanup never
 unlinks claimed final database or metadata names,
 because a concurrently replaced pathname cannot be conditionally unlinked
 portably; a failed run can leave an owned empty or partial claim for manual

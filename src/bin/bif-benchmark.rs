@@ -205,8 +205,8 @@ fn trace(event: TraceEvent<'_>) {
 }
 
 struct Temp {
-    directory: PathBuf,
     database: PathBuf,
+    database_file: fs::File,
 }
 impl Temp {
     fn new() -> Result<Self, Box<dyn std::error::Error>> {
@@ -219,9 +219,13 @@ impl Temp {
             match fs::create_dir(&directory) {
                 Ok(()) => {
                     let database = directory.join("store.sqlite3");
+                    let database_file = fs::OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .open(&database)?;
                     return Ok(Self {
-                        directory,
                         database,
+                        database_file,
                     });
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
@@ -233,7 +237,13 @@ impl Temp {
 }
 impl Drop for Temp {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.directory);
+        // SQLite connections are declared after this guard and therefore close
+        // first. Reduce a potentially large snapshot through the exact file
+        // handle claimed at creation, never through a pathname that may now
+        // identify a replacement database. The owned directory and any
+        // remaining SQLite sidecars intentionally stay for external temp
+        // cleanup because portable recursive deletion is not rename-safe.
+        let _ = self.database_file.set_len(0);
     }
 }
 fn snapshot(source: &Path, destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -817,6 +827,54 @@ fn output(
         .into());
     }
     Ok(String::from_utf8(out.stdout)?.trim().into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Temp;
+    use std::{fs, io::Write, sync::mpsc, thread};
+
+    #[test]
+    fn temp_drop_preserves_renamed_owner_and_replacement_and_truncates_exact_file() {
+        let mut temp = Temp::new().unwrap();
+        temp.database_file.write_all(b"owned snapshot").unwrap();
+        temp.database_file.flush().unwrap();
+        let original_directory = temp.database.parent().unwrap().to_owned();
+        let renamed_directory = original_directory.with_file_name(format!(
+            "{}-renamed",
+            original_directory.file_name().unwrap().to_string_lossy()
+        ));
+        let renamed_database = renamed_directory.join("store.sqlite3");
+
+        let (replacement_ready_tx, replacement_ready_rx) = mpsc::sync_channel(0);
+        let actor_original = original_directory.clone();
+        let actor_renamed = renamed_directory.clone();
+        let actor = thread::spawn(move || {
+            fs::rename(&actor_original, &actor_renamed).unwrap();
+            fs::create_dir(&actor_original).unwrap();
+            fs::write(actor_original.join("store.sqlite3"), b"real ledger").unwrap();
+            fs::write(actor_original.join("sentinel"), b"must survive").unwrap();
+            replacement_ready_tx.send(()).unwrap();
+        });
+
+        replacement_ready_rx.recv().unwrap();
+        drop(temp);
+        actor.join().unwrap();
+
+        assert_eq!(
+            fs::read(original_directory.join("store.sqlite3")).unwrap(),
+            b"real ledger"
+        );
+        assert_eq!(
+            fs::read(original_directory.join("sentinel")).unwrap(),
+            b"must survive"
+        );
+        assert_eq!(
+            fs::metadata(renamed_database).unwrap().len(),
+            0,
+            "only the exact retained snapshot inode is truncated"
+        );
+    }
 }
 
 #[cfg(test)]
