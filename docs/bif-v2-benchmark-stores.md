@@ -48,7 +48,8 @@ benchmarking.
 
 Build and run the measurement harness in release mode. Raw reports are JSON and
 should normally be written below `target/` (machine-specific results are not
-source artifacts):
+source artifacts). The report's parent directory must already exist; the
+harness never creates output directories:
 
 ```console
 cargo run --release --locked --bin bif-benchmark -- target/bif-bench/100.sqlite3 --samples 20 --output target/bif-bench/100.$(git rev-parse --short HEAD).json

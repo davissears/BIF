@@ -159,4 +159,3 @@ measured improvement.
   canonical logical digest matches.
 - No Phase B runtime, host workflow, token, cache, or completion measurement is
   included.
-

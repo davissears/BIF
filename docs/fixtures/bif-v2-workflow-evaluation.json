@@ -205,6 +205,10 @@
               },
               "completion_time_ms": {
                 "state": "not_measured"
+              },
+              "response_content_accounting": "illustrative_estimate",
+              "expected_response_semantics": {
+                "next_cursor": "non_null_opaque_continuation"
               }
             }
           ],
@@ -1099,7 +1103,7 @@
       "initial_state": {
         "item": "CODEX:agent-tools:001",
         "status": "blocked",
-        "revision": 5
+        "revision": 7
       },
       "stopping_condition": "Two recorded baseline reads return the same blocked item; busy recovery remains an unexecuted specification.",
       "success_assertions": [

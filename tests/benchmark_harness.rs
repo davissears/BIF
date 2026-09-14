@@ -222,6 +222,18 @@ fn report_output_cannot_overwrite_fixture_paths_or_existing_files() {
         database.with_file_name("100.sqlite3.metadata.json"),
         existing.clone(),
     ];
+    let wal = database.with_file_name("100.sqlite3-wal");
+    let shm = database.with_file_name("100.sqlite3-shm");
+    let metadata = database.with_file_name("100.sqlite3.metadata.json");
+    let logical_before = {
+        let reader =
+            Connection::open_with_flags(&database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .unwrap();
+        let summary = benchmark_fixture::summarize(&reader).unwrap();
+        (summary.digest, summary.row_counts, summary.distributions)
+    };
+    let durable_before = [state(&database), state(&wal), state(&metadata)];
+    let shm_existed_before = shm.exists();
     for path in protected {
         let output = Command::new(env!("CARGO_BIN_EXE_bif-benchmark"))
             .arg(&database)
@@ -247,6 +259,100 @@ fn report_output_cannot_overwrite_fixture_paths_or_existing_files() {
             .with_file_name("100.sqlite3.metadata.json")
             .exists()
     );
+
+    for sidecar in [
+        "100.sqlite3",
+        "100.sqlite3-wal",
+        "100.sqlite3-shm",
+        "100.sqlite3.metadata.json",
+    ] {
+        let child = directory.path().join(sidecar).join("child.json");
+        let output = Command::new(env!("CARGO_BIN_EXE_bif-benchmark"))
+            .arg(&database)
+            .args(["--samples", "1", "--output"])
+            .arg(&child)
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        assert!(!child.parent().unwrap().is_dir());
+    }
+
+    let missing_parent = directory.path().join("missing").join("report.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_bif-benchmark"))
+        .arg(&database)
+        .args(["--samples", "1", "--output"])
+        .arg(&missing_parent)
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("output parent directory must already exist")
+    );
+    assert!(!missing_parent.parent().unwrap().exists());
+
+    assert_eq!(
+        durable_before,
+        [state(&database), state(&wal), state(&metadata)],
+        "rejected outputs must not change source database, WAL, or metadata"
+    );
+    assert_eq!(
+        shm_existed_before,
+        shm.exists(),
+        "rejected outputs must neither create nor remove the source SHM path"
+    );
+    let reader =
+        Connection::open_with_flags(&database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+    let summary = benchmark_fixture::summarize(&reader).unwrap();
+    assert_eq!(
+        logical_before,
+        (summary.digest, summary.row_counts, summary.distributions),
+        "rejected outputs must leave the source readable and logically unchanged"
+    );
+}
+
+#[test]
+fn report_accepts_bare_and_dot_relative_filenames_without_overwriting() {
+    let directory = OwnedTestDirectory::new();
+    let database = directory.path().join("100.sqlite3");
+    assert!(
+        Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+            .args(["100", "--output"])
+            .arg(&database)
+            .status()
+            .unwrap()
+            .success()
+    );
+
+    for report in ["report.json", "./dot-report.json"] {
+        let measured = Command::new(env!("CARGO_BIN_EXE_bif-benchmark"))
+            .current_dir(directory.path())
+            .arg(&database)
+            .args(["--samples", "1", "--output", report])
+            .output()
+            .unwrap();
+        assert!(
+            measured.status.success(),
+            "{}",
+            String::from_utf8_lossy(&measured.stderr)
+        );
+        let report_path = directory.path().join(report);
+        let value: Value = serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+        assert_eq!(value["format"], "bif-v2-measurement-v2");
+
+        let second = Command::new(env!("CARGO_BIN_EXE_bif-benchmark"))
+            .current_dir(directory.path())
+            .arg(&database)
+            .args(["--samples", "1", "--output", report])
+            .output()
+            .unwrap();
+        assert!(!second.status.success());
+        assert!(String::from_utf8_lossy(&second.stderr).contains("refusing to overwrite"));
+        assert_eq!(
+            serde_json::from_slice::<Value>(&fs::read(report_path).unwrap()).unwrap(),
+            value
+        );
+    }
 }
 
 #[test]

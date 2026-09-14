@@ -1,12 +1,22 @@
 mod support;
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     fs,
     path::Path,
     process::{Command, Output},
 };
 
+use bif::{
+    application::{
+        Actor, ActorKind, AuthorizationRequest, Command as ApplicationCommand, Execution,
+        HumanAuthorization, ItemListFilters, ObservedExecution, PageOffset, PageSize, Pagination,
+        list_item_page, list_items, next_item_page,
+    },
+    domain::{NamedView, ProjectId, RequesterId},
+    rpc_read::get_result_json,
+    storage::{self, ItemRepository},
+};
 use serde_json::Value;
 use support::OwnedTestDirectory;
 
@@ -114,6 +124,38 @@ fn generate_store(root: &Path) {
     assert_eq!(metadata["logical_digest"], "b819125481255ec7");
 }
 
+fn authorization() -> AuthorizationRequest<'static> {
+    AuthorizationRequest {
+        actor: Actor {
+            kind: ActorKind::Human,
+            id: "BENCH",
+            surface: "test",
+            host: "local",
+        },
+        execution: Execution::Direct {
+            surface: "test",
+            host: "local",
+        },
+        observed_execution: ObservedExecution::Direct,
+        command: ApplicationCommand::Read,
+        human_authorization: Some(HumanAuthorization::Direct { trusted: true }),
+    }
+}
+
+fn named_view(value: &Value) -> NamedView {
+    match value.as_str().expect("view must be a string") {
+        "proposed" => NamedView::Proposed,
+        "ready" => NamedView::Ready,
+        "active" => NamedView::Active,
+        "blocked" => NamedView::Blocked,
+        "done" => NamedView::Done,
+        "rejected" => NamedView::Rejected,
+        "mine" => NamedView::Mine,
+        "all" => NamedView::All,
+        view => panic!("unknown named view {view}"),
+    }
+}
+
 fn execute_argv(root: &Path, request: &str) -> Output {
     let request: Value = serde_json::from_str(request).unwrap();
     let argv = request["argv"].as_array().expect("request argv");
@@ -124,6 +166,52 @@ fn execute_argv(root: &Path, request: &str) -> Output {
         .args(["--requester", "BENCH"])
         .output()
         .unwrap()
+}
+
+#[test]
+fn singular_initial_items_match_the_canonical_store() {
+    let fixture = fixture();
+    let directory = OwnedTestDirectory::new();
+    generate_store(directory.path());
+    let connection = storage::open(directory.path().join(".bif/bif.sqlite")).unwrap();
+    let repository = ItemRepository::new(&connection);
+    let canonical = list_items(
+        &repository,
+        &authorization(),
+        NamedView::All,
+        &RequesterId::new("BENCH").unwrap(),
+        &ItemListFilters::default(),
+    )
+    .unwrap()
+    .iter()
+    .map(|item| (item.id().to_string(), get_result_json(item)["item"].clone()))
+    .collect::<BTreeMap<_, _>>();
+
+    for workflow in fixture["workflows"].as_array().expect("workflows") {
+        let initial = &workflow["initial_state"];
+        let Some(item_id) = initial.get("item").or_else(|| initial.get("selected")) else {
+            continue;
+        };
+        let item_id = item_id.as_str().expect("initial item reference");
+        let item = canonical
+            .get(item_id)
+            .unwrap_or_else(|| panic!("{} / {item_id}: item is absent", workflow["id"]));
+        assert_eq!(
+            item["id"], item_id,
+            "{} / {item_id}: initial identity differs from canonical item",
+            workflow["id"]
+        );
+
+        for field in ["status", "revision", "assignee", "project", "requester"] {
+            if let Some(declared) = initial.get(field) {
+                assert_eq!(
+                    declared, &item[field],
+                    "{} / {item_id}: initial {field} differs from canonical item",
+                    workflow["id"]
+                );
+            }
+        }
+    }
 }
 
 #[test]
@@ -385,56 +473,95 @@ fn error_plan_item_ids_are_canonical_and_missing_target_is_absent() {
 }
 
 #[test]
-fn v2_next_first_page_requires_an_opaque_non_null_continuation() {
+fn unimplemented_v2_non_null_cursors_describe_canonical_continuations() {
     let fixture = fixture();
-    let workflow = fixture["workflows"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|workflow| workflow["id"] == "select_and_execute")
-        .unwrap();
-    let call = &workflow["variants"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|variant| variant["id"] == "v2_contract")
-        .unwrap()["calls"][0];
-    let response: Value = serde_json::from_str(call["response_content"].as_str().unwrap()).unwrap();
-    assert!(response["next_cursor"].is_string());
-    assert_eq!(call["response_content_accounting"], "illustrative_estimate");
-    assert_eq!(
-        call["expected_response_semantics"]["next_cursor"],
-        "non_null_opaque_continuation"
-    );
-
     let directory = OwnedTestDirectory::new();
     generate_store(directory.path());
-    let output = Command::new(env!("CARGO_BIN_EXE_bif"))
-        .args([
-            "next",
-            "--project",
-            "agent-tools",
-            "--limit",
-            "2",
-            "--json",
-            "--root",
-        ])
-        .arg(directory.path())
-        .args(["--requester", "BENCH"])
-        .output()
-        .unwrap();
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let implemented_page: Value = serde_json::from_slice(&output.stdout).unwrap();
-    let items = implemented_page["items"].as_array().unwrap();
-    assert_eq!(items[0]["id"], response["items"][0]["id"]);
-    assert!(
-        items.len() > 1,
-        "limit-one V2 page must expose continuation because the deterministic store has another eligible item"
-    );
+    let connection = storage::open(directory.path().join(".bif/bif.sqlite")).unwrap();
+    let repository = ItemRepository::new(&connection);
+    let requester = RequesterId::new("BENCH").unwrap();
+    let mut checked = 0;
+
+    for workflow in fixture["workflows"].as_array().expect("workflows") {
+        for variant in workflow["variants"].as_array().expect("variants") {
+            if variant["implementation"]
+                .as_str()
+                .is_some_and(|implementation| !implementation.contains("not_implemented"))
+            {
+                continue;
+            }
+            for call in variant["calls"].as_array().expect("calls") {
+                let response: Value =
+                    serde_json::from_str(call["response_content"].as_str().unwrap()).unwrap();
+                if !response
+                    .get("next_cursor")
+                    .is_some_and(|cursor| !cursor.is_null())
+                {
+                    continue;
+                }
+                checked += 1;
+                let context = format!("{} / {}", workflow["id"], variant["id"]);
+                assert_eq!(
+                    call["response_content_accounting"], "illustrative_estimate",
+                    "{context}"
+                );
+                assert_eq!(
+                    call["expected_response_semantics"]["next_cursor"],
+                    "non_null_opaque_continuation",
+                    "{context}"
+                );
+
+                let request: Value =
+                    serde_json::from_str(call["request_envelope"].as_str().unwrap()).unwrap();
+                let limit = request["limit"].as_u64().expect("bounded V2 page") as usize;
+                let offset = workflow["initial_state"]["offset"].as_u64().unwrap_or(0) as usize;
+                let filters = ItemListFilters {
+                    project: request
+                        .get("project")
+                        .map(|project| ProjectId::new(project.as_str().unwrap()).unwrap()),
+                    ..ItemListFilters::default()
+                };
+                let pagination =
+                    Pagination::new(PageSize::new(limit).unwrap(), PageOffset::new(offset));
+                let page = if let Some(view) = request.get("view") {
+                    list_item_page(
+                        &repository,
+                        &authorization(),
+                        named_view(view),
+                        &requester,
+                        &filters,
+                        pagination,
+                    )
+                } else {
+                    next_item_page(
+                        &repository,
+                        &authorization(),
+                        &requester,
+                        &filters,
+                        pagination,
+                    )
+                }
+                .unwrap();
+                let canonical_ids = page
+                    .items
+                    .iter()
+                    .map(|item| Value::String(item.id().to_string()))
+                    .collect::<Vec<_>>();
+                let declared_ids = response["items"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|item| item["id"].clone())
+                    .collect::<Vec<_>>();
+                assert_eq!(declared_ids, canonical_ids, "{context}: page items/order");
+                assert!(
+                    page.next_offset.is_some(),
+                    "{context}: non-null cursor has no canonical continuation"
+                );
+            }
+        }
+    }
+    assert!(checked > 0, "fixture must exercise non-null V2 cursors");
 }
 
 #[test]

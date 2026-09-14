@@ -29,6 +29,7 @@ use std::{
     sync::{LazyLock, Mutex},
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
+use tempfile::NamedTempFile;
 
 const MAX_SAMPLES: usize = 1_000;
 static TRACE: LazyLock<Mutex<Option<Trace>>> = LazyLock::new(|| Mutex::new(None));
@@ -241,14 +242,30 @@ fn snapshot(source: &Path, destination: &Path) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-fn prepare_output(source: &Path, output: &Path) -> Result<(), Box<dyn std::error::Error>> {
+struct PreparedOutput {
+    path: PathBuf,
+    parent: PathBuf,
+}
+
+fn prepare_output(
+    source: &Path,
+    output: &Path,
+) -> Result<PreparedOutput, Box<dyn std::error::Error>> {
     if output.exists() {
         return Err(format!("refusing to overwrite existing output {}", output.display()).into());
     }
-    let parent = output.parent().unwrap_or_else(|| Path::new("."));
-    fs::create_dir_all(parent)?;
+    let parent = output
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
     let output_name = output.file_name().ok_or("--output must name a file")?;
-    let resolved_output = fs::canonicalize(parent)?.join(output_name);
+    let resolved_parent = fs::canonicalize(parent).map_err(|error| {
+        format!(
+            "output parent directory must already exist ({}): {error}",
+            parent.display()
+        )
+    })?;
+    let resolved_output = resolved_parent.join(output_name);
     let resolved_source = fs::canonicalize(source)?;
     let protected = [
         resolved_source.clone(),
@@ -256,13 +273,43 @@ fn prepare_output(source: &Path, output: &Path) -> Result<(), Box<dyn std::error
         PathBuf::from(format!("{}-shm", resolved_source.display())),
         PathBuf::from(format!("{}.metadata.json", resolved_source.display())),
     ];
-    if protected.iter().any(|path| path == &resolved_output) {
+    if protected
+        .iter()
+        .any(|path| resolved_output.starts_with(path))
+    {
         return Err(format!(
-            "refusing output path that aliases the source database or a sidecar: {}",
+            "refusing output path equal to or beneath the source database or a sidecar: {}",
             output.display()
         )
         .into());
     }
+    if !resolved_parent.is_dir() {
+        return Err(format!("output parent is not a directory: {}", parent.display()).into());
+    }
+    Ok(PreparedOutput {
+        path: resolved_output,
+        parent: resolved_parent,
+    })
+}
+
+fn publish_report(output: &PreparedOutput, json: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    publish_report_with(output, |file| file.write_all(json))
+}
+
+fn publish_report_with(
+    output: &PreparedOutput,
+    write: impl FnOnce(&mut fs::File) -> std::io::Result<()>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut temporary = NamedTempFile::new_in(&output.parent)?;
+    write(temporary.as_file_mut())?;
+    temporary.as_file_mut().sync_all()?;
+    temporary.persist_noclobber(&output.path).map_err(|error| {
+        format!(
+            "refusing to overwrite existing output {}: {}",
+            output.path.display(),
+            error.error
+        )
+    })?;
     Ok(())
 }
 
@@ -293,9 +340,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if !(1..=MAX_SAMPLES).contains(&samples) {
         return Err(format!("--samples must be between 1 and {MAX_SAMPLES}").into());
     }
-    if let Some(path) = output.as_ref() {
-        prepare_output(&source, path)?;
-    }
+    let output = output
+        .as_ref()
+        .map(|path| prepare_output(&source, path))
+        .transpose()?;
     let fixture_bytes = fs::metadata(&source)?.len();
     let metadata = fixture_metadata(&source, fixture_bytes)?;
 
@@ -464,12 +512,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         operations,
     };
     let json = serde_json::to_vec_pretty(&report)?;
-    if let Some(path) = output {
-        fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(path)?
-            .write_all(&json)?
+    if let Some(output) = output {
+        publish_report(&output, &json)?
     } else {
         println!("{}", String::from_utf8(json)?)
     }
@@ -729,6 +773,58 @@ fn output(
     }
     Ok(String::from_utf8(out.stdout)?.trim().into())
 }
+
+#[cfg(test)]
+mod report_output_tests {
+    use super::*;
+    use std::io::{Error, ErrorKind};
+
+    fn prepared(directory: &Path, name: &str) -> PreparedOutput {
+        PreparedOutput {
+            path: directory.join(name),
+            parent: directory.to_path_buf(),
+        }
+    }
+
+    #[test]
+    fn partial_write_removes_only_owned_temporary_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let unrelated = directory.path().join("unrelated");
+        fs::write(&unrelated, b"keep").unwrap();
+        let output = prepared(directory.path(), "report.json");
+
+        let error = publish_report_with(&output, |file| {
+            file.write_all(br#"{"partial":"#)?;
+            Err(Error::new(ErrorKind::Other, "simulated write failure"))
+        })
+        .unwrap_err();
+
+        assert!(error.to_string().contains("simulated write failure"));
+        assert!(!output.path.exists());
+        assert_eq!(fs::read(&unrelated).unwrap(), b"keep");
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn competing_destination_is_not_clobbered() {
+        let directory = tempfile::tempdir().unwrap();
+        let unrelated = directory.path().join("unrelated");
+        fs::write(&unrelated, b"keep").unwrap();
+        let output = prepared(directory.path(), "report.json");
+
+        let error = publish_report_with(&output, |file| {
+            file.write_all(br#"{"complete":true}"#)?;
+            fs::write(&output.path, b"competitor")
+        })
+        .unwrap_err();
+
+        assert!(error.to_string().contains("refusing to overwrite"));
+        assert_eq!(fs::read(&output.path).unwrap(), b"competitor");
+        assert_eq!(fs::read(&unrelated).unwrap(), b"keep");
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 2);
+    }
+}
+
 fn provenance(
     command: Vec<String>,
     bytes: u64,
