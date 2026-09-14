@@ -36,3 +36,24 @@ fn connection_factory_applies_all_sqlite_settings() {
 
     drop(connection);
 }
+
+#[cfg(unix)]
+#[test]
+fn nofollow_factory_rejects_an_intermediate_symbolic_component() {
+    use std::{fs, os::unix::fs::symlink};
+
+    use bif::storage::open_nofollow;
+
+    let directory = OwnedTestDirectory::new();
+    let canonical_root = fs::canonicalize(directory.path()).unwrap();
+    let real = canonical_root.join("real");
+    let alias = canonical_root.join("alias");
+    fs::create_dir(&real).unwrap();
+    symlink(&real, &alias).unwrap();
+
+    assert!(open_nofollow(alias.join("bif.sqlite")).is_err());
+    assert!(
+        !real.join("bif.sqlite").exists(),
+        "the Unix VFS must not follow the intermediate symbolic component"
+    );
+}

@@ -75,6 +75,7 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
+    ensure_supported_platform()?;
     let mut args = env::args().skip(1);
     let size = args
         .next()
@@ -136,9 +137,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut owned_metadata = OwnedOutput::new(metadata_path, metadata_file);
 
     let parent = database.parent().unwrap_or_else(|| Path::new("."));
-    // SQLite's NOFOLLOW checks every path component. Resolve any pre-existing
-    // benign aliases (for example macOS `/var` -> `/private/var`) before
-    // creating the staging directory; a later replacement remains detectable.
+    // On the supported Unix boundary, the bundled SQLite VFS's NOFOLLOW checks
+    // every path component. Resolve any pre-existing benign aliases (for
+    // example macOS `/var` -> `/private/var`) before creating the staging
+    // directory; a later replacement remains detectable.
     let staging_parent = fs::canonicalize(parent)?;
     // Disarm tempfile's pathname-based Drop immediately. No later code
     // recursively deletes this directory: portable directory removal APIs
@@ -158,8 +160,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     wait_at_test_claim_boundary(staging.path())?;
 
     let started = Instant::now();
-    // NOFOLLOW makes replacement resistance part of SQLite's atomic open,
-    // rather than a check-then-open pathname approximation.
+    // Reject replacement at the synchronized post-claim boundary before
+    // SQLite can mutate the pathname target. A same-user actor can still race
+    // this check and SQLite's open; excluding that actor is Phase A's explicit
+    // private-staging trust boundary.
+    owned_staged.verify_path_ownership()?;
     let mut connection = storage::open_nofollow(&staged_database)?;
     generate(&mut connection, size, seed)?;
     connection.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
@@ -216,6 +221,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     println!("{}", serde_json::to_string(&metadata)?);
     Ok(())
+}
+
+#[cfg(unix)]
+fn ensure_supported_platform() -> Result<(), Box<dyn std::error::Error>> {
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn ensure_supported_platform() -> Result<(), Box<dyn std::error::Error>> {
+    Err("bif-benchmark-store requires Unix NOFOLLOW and stable same-file identity semantics".into())
 }
 
 struct OwnedDirectory {

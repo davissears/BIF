@@ -167,6 +167,12 @@ measured improvement.
 - Allocator-wide allocation counts are unavailable.
 - Response bytes exclude transport envelopes and are not tokens.
 - Persistence checks do not simulate power loss or process crashes.
+- Before report publication, the harness completed and synced a temporary file
+  in the destination directory, and it never overwrote an existing destination.
+  Publication atomicity is platform/filesystem dependent: a hard-link/unlink
+  fallback can leave the original owned temporary link after interruption or
+  unlink failure. The parent directory was not synced, so report publication
+  has no crash-durability guarantee.
 - Physical DB/WAL size can vary across SQLite/platform versions even when the
   canonical logical digest matches.
 - No Phase B runtime, host workflow, token, cache, or completion measurement is

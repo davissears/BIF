@@ -63,6 +63,8 @@ struct Migration {
 pub enum MigrationError {
     /// SQLite could not inspect or update the schema.
     Sqlite(rusqlite::Error),
+    /// The platform cannot enforce the requested no-symbolic-link open.
+    NoFollowUnsupportedPlatform,
     /// The database was created by a newer version of BIF.
     NewerSchema { found: i64, supported: i64 },
     /// An applied migration no longer matches the embedded migration.
@@ -77,6 +79,10 @@ impl fmt::Display for MigrationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Sqlite(error) => write!(formatter, "SQLite migration error: {error}"),
+            Self::NoFollowUnsupportedPlatform => write!(
+                formatter,
+                "SQLITE_OPEN_NOFOLLOW is supported by BIF only with SQLite's Unix VFS"
+            ),
             Self::NewerSchema { found, supported } => write!(
                 formatter,
                 "database schema version {found} is newer than supported version {supported}"
@@ -97,7 +103,9 @@ impl std::error::Error for MigrationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Sqlite(error) => Some(error),
-            Self::NewerSchema { .. } | Self::ChecksumMismatch { .. } => None,
+            Self::NoFollowUnsupportedPlatform
+            | Self::NewerSchema { .. }
+            | Self::ChecksumMismatch { .. } => None,
         }
     }
 }
@@ -117,17 +125,25 @@ pub fn open(path: impl AsRef<Path>) -> Result<Connection, MigrationError> {
     open_with_flags(path, rusqlite::OpenFlags::default())
 }
 
-/// Opens and prepares a SQLite database without following symbolic links in
-/// any component of its filename.
+/// Opens and prepares a SQLite database while requesting no symbolic links in
+/// any filename component.
 ///
-/// This is used when a database must temporarily be addressed through an
-/// ambient path but the caller separately owns the containing directory by
-/// capability.
+/// BIF provides this operation only on Unix, where the bundled SQLite Unix VFS
+/// implements `SQLITE_OPEN_NOFOLLOW` by rejecting a symbolic component. It
+/// fails closed on other targets; in particular, this makes no claim about
+/// Windows reparse points.
+#[cfg(unix)]
 pub fn open_nofollow(path: impl AsRef<Path>) -> Result<Connection, MigrationError> {
     open_with_flags(
         path,
         rusqlite::OpenFlags::default() | rusqlite::OpenFlags::SQLITE_OPEN_NOFOLLOW,
     )
+}
+
+/// Fails closed where BIF has not verified `SQLITE_OPEN_NOFOLLOW` semantics.
+#[cfg(not(unix))]
+pub fn open_nofollow(_path: impl AsRef<Path>) -> Result<Connection, MigrationError> {
+    Err(MigrationError::NoFollowUnsupportedPlatform)
 }
 
 fn open_with_flags(

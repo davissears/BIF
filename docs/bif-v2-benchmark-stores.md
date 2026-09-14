@@ -27,21 +27,37 @@ distributions, elapsed time, integrity result, and canonically loaded samples.
 The main database and metadata path are claimed with atomic create-new opens.
 SQLite generation uses a random basename that cannot equal the final database,
 WAL, or SHM basename inside a private staging directory in the output
-directory. It opens the staging path with SQLite's `SQLITE_OPEN_NOFOLLOW` flag:
-if the staging directory or another pathname component is replaced with a
-symlink, SQLite's open fails rather than following it. After checkpointing,
-verification, and closing that connection, the generator publishes from the
-staged file handle it claimed with create-new semantics before SQLite opened
-the staged path. It copies through the already claimed final file handle and
-syncs it; metadata is then written and synced through its claimed handle.
-Before reporting success, the generator verifies that the staging directory,
-staged entry, and both final pathnames still identify their claimed open
-handles. A replaced staged entry cannot substitute publication bytes. SQLite
-is therefore never asked to open the requested final basename and never
-inspects, creates, truncates, or removes adjacent final-name `-wal` or `-shm`
-paths. Existing database, metadata, WAL, and SHM paths are never adopted or
-replaced. For an explicit output, failure cleanup deliberately does not unlink
-either claimed final name:
+directory. Immediately before opening SQLite, it compares the staged pathname
+with the retained create-new file handle. The bundled SQLite Unix VFS then opens
+the staging path with `SQLITE_OPEN_NOFOLLOW`, rejecting a symbolic pathname
+component. The generator fails before claiming outputs on non-Unix targets and
+does not claim Windows reparse-point protection. Same-file checks are supported
+on Unix filesystems that provide stable device/inode identity through
+`stat`/`fstat`; other filesystems receive only best-effort identity checks and
+are unsupported.
+
+The identity check and SQLite's ambient-path open cannot be atomic. This Phase A
+developer tool supports accidental concurrency and no-clobber behavior for
+public outputs, but assumes no same-user actor changes its random private
+staging directory or entry while it runs. A regular-file or hard-link
+replacement in the check/open interval can redirect SQLite. Eliminating that
+residual risk requires a handle-bound custom SQLite VFS and is outside Phase A;
+the generator does not promise safety against arbitrary hostile or concurrent
+private-staging mutation.
+
+After checkpointing, verification, and closing that connection, the generator
+checks the staged identity again and publishes from the retained handle. It
+copies through the already claimed final file handle and syncs it; metadata is
+then written and synced through its claimed handle. Before reporting success,
+the generator verifies that the staging directory, staged entry, and both final
+pathnames still identify their claimed open handles. A replaced staged entry
+cannot substitute publication bytes. Under the private-staging trust assumption
+above, SQLite is therefore never asked to open the requested final basename and
+never inspects, creates, truncates, or removes adjacent final-name `-wal` or
+`-shm` paths. Existing database, metadata, WAL, and SHM paths are never adopted
+or replaced by the generator outside the documented check/open residual risk.
+For an explicit output, failure cleanup deliberately does not unlink either
+claimed final name:
 portable filesystems cannot conditionally unlink a pathname only if it still
 identifies a particular open file, so unlinking could delete a third-party
 replacement. A failed explicit invocation can consequently leave an
@@ -56,7 +72,8 @@ deliberately exposes no ambient path for SQLite's default VFS, so it cannot
 provide both required guarantees here. The generator uses `tempfile` only for
 collision-safe staging allocation, immediately disarms its pathname-based
 destructor, and retains a `cap-std` directory solely to claim the staged entry
-relative to the directory capability and perform same-file completion checks.
+relative to the directory capability and perform the pre-open and completion
+same-file checks.
 
 Every run can leave a clearly named owned `.bif-benchmark-stage-*` directory.
 After success, the staged main database is truncated through the exact open
@@ -186,8 +203,14 @@ protect unenumerated hard-link names or companion paths derived from them. Do
 not invoke the source through a hard-link alias or place a report at a companion
 path derived from any database alias; invoke the generated database pathname
 directly, or use a symlink when an alias is required. The harness does not impose
-a brittle inode link-count restriction. Output parents must still exist, and
-publication remains an atomic no-clobber operation.
+a brittle inode link-count restriction. Output parents must still exist. Before
+publication, the harness writes the complete report to a `NamedTempFile` in the
+destination directory and syncs that file. `persist_noclobber` never overwrites
+an existing destination, but publication atomicity depends on the platform and
+filesystem. Its fallback may create the destination as a hard link and then
+unlink the original temporary name; interruption or failure to unlink that name
+can leave an extra owned temporary link. The harness does not sync the parent
+directory, so report publication makes no crash-durability claim.
 
 `startup_open` measures opening, configuring, and migrating a fresh snapshot in
 the harness process. `warm_connection_and_os_cache` reuses one connection and

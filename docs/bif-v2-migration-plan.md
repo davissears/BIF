@@ -299,15 +299,32 @@ seed gives the same logical contents. Large fixtures stay out of ordinary CI.
 The generator atomically claims the explicit database and adjacent
 `<database>.metadata.json` paths with create-new semantics. SQLite generation
 uses a random basename distinct from the final database/WAL/SHM basenames in a
-private staging directory. SQLite opens that ambient path with
-`SQLITE_OPEN_NOFOLLOW`, so replacing any staging pathname component with a
-symlink fails atomically rather than redirecting SQLite. The checkpointed,
-verified database is published through the staged file handle claimed with
-create-new semantics before SQLite opened it and through the claimed final
-handle. The staged entry, both final pathnames, and the staging pathname are
-checked against their claimed open handles before success is reported. SQLite
-therefore never opens the final basename or touches unowned adjacent WAL/SHM
-paths, and a substituted staged entry cannot become publication input.
+private staging directory. Immediately before SQLite opens that ambient path,
+the generator checks that the staged pathname and retained handle still have
+the same identity. The bundled SQLite Unix VFS then opens with
+`SQLITE_OPEN_NOFOLLOW`, which rejects a symbolic component. Generation fails
+closed before claiming outputs on non-Unix targets; no Windows reparse-point
+protection is claimed. Same-file enforcement is supported on Unix filesystems
+that expose stable device/inode identity through `stat`/`fstat`; other
+filesystems receive only best-effort identity checks and are unsupported.
+
+There is necessarily an interval between the same-file check and SQLite's
+pathname open. Phase A supports accidental concurrency and no-clobber behavior
+for public outputs, but assumes no same-user actor mutates the random private
+staging directory or entry while the generator runs. Fully defending
+regular-file or hard-link replacement in that interval requires binding SQLite
+to the retained handle with a custom VFS and is outside Phase A. This is not an
+arbitrary hostile/concurrent private-staging guarantee.
+
+The checkpointed, verified database is published through the staged file handle
+claimed with create-new semantics before SQLite opened it and through the
+claimed final handle. The staged entry is checked again after SQLite closes and,
+together with both final pathnames and the staging pathname, before success is
+reported. Under the private-staging trust assumption above, SQLite therefore
+never opens the final basename or touches unowned adjacent WAL/SHM paths, and a
+substituted staged entry cannot become publication input. These guarantees do
+not cover the documented regular-file or hard-link replacement in the
+check/open interval.
 
 Directory cleanup never recursively removes either staging or omitted-output
 directories. Path-based `remove_dir_all` is vulnerable to pathname replacement,
@@ -343,6 +360,13 @@ changing durability or compiling timing-sensitive CI assertions into tests.
 **Verification:** A known small fixture demonstrates the current `1 + 2M`
 list data-query growth. Release-build runs report p50/p95 and sample counts.
 
+Before publication, the harness writes the complete report to a
+destination-directory temporary file and syncs the file. No existing
+destination is overwritten. Publication atomicity is platform/filesystem
+dependent: a hard-link/unlink fallback can leave the original owned temporary
+link after interruption or unlink failure. The parent directory is not synced,
+so this is not a crash-durability guarantee.
+
 #### V2-005 — Define host-level workflow/token fixtures
 
 **Depends on:** V2-001, V2-003.
@@ -374,6 +398,9 @@ The published evidence is the
 
 **Verification:** Another developer can reproduce the commands and interpret
 the results. No predicted percentage is presented as a measured improvement.
+Raw harness results retain the V2-004 report-publication guarantees and
+limitations; checking them into Git does not strengthen the harness's
+platform/filesystem-dependent publication or crash-durability properties.
 
 ### Phase B — Implement bounded typed reads
 

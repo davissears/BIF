@@ -1,11 +1,17 @@
+#![cfg(unix)]
+
 mod support;
 
-use std::{fs, process::Command};
+use std::{
+    fs,
+    process::{Command, Stdio},
+};
 
+use bif::benchmark_fixture;
+use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
 use support::OwnedTestDirectory;
 
-#[cfg(unix)]
 fn wait_for_marker_path(
     marker: &std::path::Path,
     ready: impl Fn(&std::path::Path) -> bool,
@@ -203,7 +209,6 @@ fn replacement_after_claim_is_preserved_and_prevents_success() {
     }
 }
 
-#[cfg(unix)]
 #[test]
 fn replaced_staging_path_cannot_redirect_sqlite_or_cleanup() {
     use std::os::unix::fs::symlink;
@@ -263,7 +268,89 @@ fn replaced_staging_path_cannot_redirect_sqlite_or_cleanup() {
     );
 }
 
-#[cfg(unix)]
+#[test]
+fn replaced_staged_file_is_rejected_before_sqlite_mutates_substitute() {
+    let directory = OwnedTestDirectory::new();
+    let donor = directory.path().join("existing.sqlite3");
+    let donor_generated = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+        .args(["100", "--seed", "2003", "--output"])
+        .arg(&donor)
+        .output()
+        .unwrap();
+    assert!(
+        donor_generated.status.success(),
+        "{}",
+        String::from_utf8_lossy(&donor_generated.stderr)
+    );
+    let donor_bytes = fs::read(&donor).unwrap();
+    let donor_digest = {
+        let connection =
+            Connection::open_with_flags(&donor, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        benchmark_fixture::summarize(&connection).unwrap().digest
+    };
+
+    let database = directory.path().join("store.sqlite3");
+    let metadata = format!("{}.metadata.json", database.display());
+    let final_wal = format!("{}-wal", database.display());
+    let marker = directory.path().join("claimed.marker");
+    fs::write(&final_wal, b"final wal sentinel").unwrap();
+    let child = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+        .args(["100", "--output"])
+        .arg(&database)
+        .env("BIF_BENCHMARK_STORE_TEST_CLAIM_MARKER", &marker)
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let staging = wait_for_marker_path(&marker, std::path::Path::is_dir);
+    let staged = fs::read_dir(&staging)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| path.is_file())
+        .expect("generator claimed its staged database");
+    let retained_staged = staged.with_extension("retained-owned-database");
+    fs::rename(&staged, &retained_staged).unwrap();
+    fs::hard_link(&donor, &staged).unwrap();
+    fs::remove_file(&marker).unwrap();
+
+    let output = child.wait_with_output().unwrap();
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("was replaced during generation"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        fs::read(&donor).unwrap(),
+        donor_bytes,
+        "SQLite must not mutate the hard-linked substitute"
+    );
+    let unchanged_digest = {
+        let connection =
+            Connection::open_with_flags(&donor, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        benchmark_fixture::summarize(&connection).unwrap().digest
+    };
+    assert_eq!(unchanged_digest, donor_digest);
+    assert!(
+        !staged
+            .with_file_name(format!(
+                "{}-wal",
+                staged.file_name().unwrap().to_string_lossy()
+            ))
+            .exists()
+    );
+    assert!(
+        !staged
+            .with_file_name(format!(
+                "{}-shm",
+                staged.file_name().unwrap().to_string_lossy()
+            ))
+            .exists()
+    );
+    assert_eq!(fs::read(&final_wal).unwrap(), b"final wal sentinel");
+    assert_eq!(fs::metadata(&database).unwrap().len(), 0);
+    assert_eq!(fs::metadata(&metadata).unwrap().len(), 0);
+}
+
 #[test]
 fn replaced_staged_file_cannot_substitute_publication_input() {
     use std::os::unix::fs::symlink;

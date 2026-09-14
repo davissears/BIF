@@ -358,7 +358,7 @@ fn publish_report_with(
             )
         } else {
             format!(
-                "could not atomically publish output {}: {}",
+                "could not publish output {}: {}",
                 output.path.display(),
                 error.error
             )
@@ -925,6 +925,19 @@ mod report_output_tests {
         assert_eq!(fs::read(&output.path).unwrap(), b"competitor");
         assert_eq!(fs::read(&unrelated).unwrap(), b"keep");
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 2);
+    }
+
+    #[test]
+    fn publication_error_does_not_claim_atomicity() {
+        let directory = tempfile::tempdir().unwrap();
+        let output = prepared(directory.path(), "missing/report.json");
+
+        let error = publish_report_with(&output, |file| file.write_all(b"complete")).unwrap_err();
+        let message = error.to_string();
+
+        assert!(message.contains("could not publish output"));
+        assert!(!message.contains("atomically"));
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
     }
 }
 
