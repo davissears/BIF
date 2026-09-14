@@ -1,5 +1,7 @@
 # BIF — Before I Forget
 
+<img src="assets/branding/bif-logo.png" alt="Pixel-art portrait of Biff Tannen" width="128" height="128">
+
 BIF is a local task ledger built with Rust and SQLite. Capture work before you
 forget it, triage it into actionable tasks, and keep a durable history of who
 requested each change and why.
