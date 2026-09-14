@@ -1,20 +1,10 @@
-use std::{
-    fs,
-    io::Write,
-    path::PathBuf,
-    process::{Command, Stdio},
-    time::{SystemTime, UNIX_EPOCH},
-};
+mod support;
 
-fn root(name: &str) -> PathBuf {
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let path = std::env::temp_dir().join(format!("bif-rpc-{name}-{nonce}"));
-    fs::create_dir_all(&path).unwrap();
-    path
-}
+use std::{
+    io::Write,
+    process::{Command, Stdio},
+};
+use support::OwnedTestDirectory;
 
 fn bif(arguments: &[&str], input: Option<&str>) -> std::process::Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_bif"));
@@ -42,9 +32,9 @@ fn bif(arguments: &[&str], input: Option<&str>) -> std::process::Output {
 
 #[test]
 fn rpc_process_handles_one_mutation_then_one_read_with_clean_stdout() {
-    let root = root("round-trip");
-    let root_text = root.to_str().unwrap();
-    let config = root.join("config.toml");
+    let root = OwnedTestDirectory::new();
+    let root_text = root.path().to_str().unwrap();
+    let config = root.path().join("config.toml");
     let initialized = bif(
         &[
             "init",
@@ -83,19 +73,17 @@ fn rpc_process_handles_one_mutation_then_one_read_with_clean_stdout() {
     let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(response["result"]["item"]["title"], "RPC task");
     assert!(String::from_utf8_lossy(&output.stderr).is_empty());
-
-    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
 fn rpc_process_returns_protocol_error_and_exit_code_when_not_initialized() {
-    let root = root("not-initialized");
+    let root = OwnedTestDirectory::new();
     let request = r#"{"protocol_version":1,"request_id":"missing","operation":"list","params":{}}"#;
     let output = bif(
         &[
             "rpc",
             "--root",
-            root.to_str().unwrap(),
+            root.path().to_str().unwrap(),
             "--requester",
             "DAVIS",
         ],
@@ -110,6 +98,4 @@ fn rpc_process_returns_protocol_error_and_exit_code_when_not_initialized() {
         1
     );
     assert!(!String::from_utf8_lossy(&output.stderr).is_empty());
-
-    fs::remove_dir_all(root).unwrap();
 }

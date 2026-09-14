@@ -1,9 +1,8 @@
+mod support;
+
 use std::{
-    fs,
-    path::PathBuf,
     sync::{Arc, Barrier},
     thread,
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use bif::{
@@ -14,29 +13,7 @@ use bif::{
     domain::{ItemContent, ProjectId, Provenance, RequesterId, Timestamp},
     storage::{self, CaptureRepository},
 };
-
-struct TempDirectory(PathBuf);
-
-impl TempDirectory {
-    fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "bif-capture-idempotency-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
-    }
-}
-
-impl Drop for TempDirectory {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
+use support::OwnedTestDirectory as TempDirectory;
 
 struct FixedClock(&'static str);
 
@@ -98,7 +75,7 @@ fn request(key: &str, criteria: &[&str]) -> CaptureRequest {
 #[test]
 fn retry_ignores_new_server_values_and_conflicting_order_writes_nothing() {
     let temp = TempDirectory::new();
-    let database = temp.0.join("bif.sqlite");
+    let database = temp.path().join("bif.sqlite");
     let mut connection = storage::open(&database).unwrap();
 
     let first = {
@@ -157,7 +134,7 @@ fn retry_ignores_new_server_values_and_conflicting_order_writes_nothing() {
 fn concurrent_identical_keys_allocate_one_item() {
     const ATTEMPTS: usize = 10;
     let temp = TempDirectory::new();
-    let database = temp.0.join("bif.sqlite");
+    let database = temp.path().join("bif.sqlite");
     storage::open(&database).unwrap();
     let barrier = Arc::new(Barrier::new(ATTEMPTS));
 

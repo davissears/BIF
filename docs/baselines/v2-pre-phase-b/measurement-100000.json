@@ -1,0 +1,425 @@
+{
+  "format": "bif-v2-measurement-v2",
+  "provenance": {
+    "revision": "a3cc0873744eb88fd2b07adf6d6daefe7d0856b7",
+    "dirty": true,
+    "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)",
+    "target": "aarch64-apple-darwin",
+    "sqlite_version": "3.51.1",
+    "profile": "release",
+    "unix_time_seconds": 1789331545,
+    "host_os": "Darwin Daviss-Mac-mini.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:11:03 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8132 arm64",
+    "exact_command": [
+      "target/release/bif-benchmark",
+      "target/bif-v2-006-refresh/100000.sqlite3",
+      "--samples",
+      "1",
+      "--output",
+      "target/bif-v2-006-refresh/measurement-100000.json"
+    ],
+    "cache_procedure": "none; no OS cache eviction attempted",
+    "fixture_bytes": 324333568,
+    "fixture_seed": 2003,
+    "fixture_digest": "87a07c0632977092"
+  },
+  "source_database": "target/bif-v2-006-refresh/100000.sqlite3",
+  "measured_store": "/var/folders/y0/q3qv9t8n0p94lbs4msx02stm0000gn/T/delta-terminal-.delta-fs-JbjUZg/bif-measurement-53431-1789331538994276000-0/store.sqlite3",
+  "measured_store_sizes_before_writes": {
+    "database": {
+      "status": "present",
+      "bytes": 324333568
+    },
+    "wal": {
+      "status": "present",
+      "bytes": 0
+    }
+  },
+  "measured_store_sizes_after_writes": {
+    "database": {
+      "status": "present",
+      "bytes": 324333568
+    },
+    "wal": {
+      "status": "missing"
+    }
+  },
+  "durability": {
+    "foreign_keys": "ON",
+    "journal_mode": "wal",
+    "synchronous": "FULL"
+  },
+  "percentile_definition": "nearest rank; overflow-safe quotient/remainder calculation",
+  "startup_open": {
+    "sample_count": 1,
+    "p50": 506917,
+    "p95": 506917,
+    "samples": [
+      506917
+    ]
+  },
+  "persistence_verification": {
+    "revision": 29,
+    "expected_revision": 29,
+    "benchmark_note_events": 1,
+    "expected_benchmark_note_events": 1,
+    "integrity_check": "ok",
+    "foreign_key_violations": 0
+  },
+  "filesystem_cold": {
+    "status": "unavailable",
+    "value": null,
+    "reason": "OS cache not evicted; procedure recorded in provenance"
+  },
+  "operations": [
+    {
+      "name": "get",
+      "phase": "warm_connection_and_os_cache",
+      "sql_metrics_scope": "totals plus complete per-sample trace and StatementStatus counters",
+      "matches_per_sample": [
+        1
+      ],
+      "lexical_data_statements_per_sample": [
+        2
+      ],
+      "sql_metrics_per_sample": [
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        }
+      ],
+      "sql_totals": {
+        "lexical_data_statements": 2,
+        "sqlite_row_callbacks": 4,
+        "profile_nanoseconds": 0,
+        "sqlite_work": {
+          "fullscan_steps": 0,
+          "sorts": 0,
+          "autoindex_rows": 0,
+          "vm_steps": 65,
+          "reprepares": 0,
+          "runs": 2,
+          "filter_misses": 0,
+          "filter_hits": 0
+        }
+      },
+      "wall_nanoseconds": {
+        "sample_count": 1,
+        "p50": 50583,
+        "p95": 50583,
+        "samples": [
+          50583
+        ]
+      },
+      "sqlite_profile_nanoseconds": {
+        "sample_count": 1,
+        "p50": 0,
+        "p95": 0,
+        "samples": [
+          0
+        ]
+      },
+      "non_profiled_wall_residual_nanoseconds": {
+        "sample_count": 1,
+        "p50": 50583,
+        "p95": 50583,
+        "samples": [
+          50583
+        ]
+      },
+      "profile_exceeded_wall_samples": [],
+      "profile_zero_samples": [
+        0
+      ],
+      "serialization_nanoseconds": {
+        "sample_count": 1,
+        "p50": 17958,
+        "p95": 17958,
+        "samples": [
+          17958
+        ]
+      },
+      "response_bytes": {
+        "sample_count": 1,
+        "p50": 837,
+        "p95": 837,
+        "samples": [
+          837
+        ]
+      },
+      "serialization_shape": "stable current v1 CLI/RPC result JSON (without RPC transport envelope)"
+    },
+    {
+      "name": "history",
+      "phase": "warm_connection_and_os_cache",
+      "sql_metrics_scope": "totals plus complete per-sample trace and StatementStatus counters",
+      "matches_per_sample": [
+        28
+      ],
+      "lexical_data_statements_per_sample": [
+        2
+      ],
+      "sql_metrics_per_sample": [
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 29,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 672,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        }
+      ],
+      "sql_totals": {
+        "lexical_data_statements": 2,
+        "sqlite_row_callbacks": 29,
+        "profile_nanoseconds": 0,
+        "sqlite_work": {
+          "fullscan_steps": 0,
+          "sorts": 0,
+          "autoindex_rows": 0,
+          "vm_steps": 672,
+          "reprepares": 0,
+          "runs": 2,
+          "filter_misses": 0,
+          "filter_hits": 0
+        }
+      },
+      "wall_nanoseconds": {
+        "sample_count": 1,
+        "p50": 131666,
+        "p95": 131666,
+        "samples": [
+          131666
+        ]
+      },
+      "sqlite_profile_nanoseconds": {
+        "sample_count": 1,
+        "p50": 0,
+        "p95": 0,
+        "samples": [
+          0
+        ]
+      },
+      "non_profiled_wall_residual_nanoseconds": {
+        "sample_count": 1,
+        "p50": 131666,
+        "p95": 131666,
+        "samples": [
+          131666
+        ]
+      },
+      "profile_exceeded_wall_samples": [],
+      "profile_zero_samples": [
+        0
+      ],
+      "serialization_nanoseconds": {
+        "sample_count": 1,
+        "p50": 10875,
+        "p95": 10875,
+        "samples": [
+          10875
+        ]
+      },
+      "response_bytes": {
+        "sample_count": 1,
+        "p50": 11435,
+        "p95": 11435,
+        "samples": [
+          11435
+        ]
+      },
+      "serialization_shape": "stable current v1 CLI/RPC result JSON (without RPC transport envelope)"
+    },
+    {
+      "name": "list_all",
+      "phase": "warm_connection_and_os_cache",
+      "sql_metrics_scope": "totals plus complete per-sample trace and StatementStatus counters",
+      "matches_per_sample": [
+        100
+      ],
+      "lexical_data_statements_per_sample": [
+        200001
+      ],
+      "sql_metrics_per_sample": [
+        {
+          "lexical_data_statements": 200001,
+          "sqlite_row_callbacks": 506795,
+          "profile_nanoseconds": 528000000,
+          "sqlite_work": {
+            "fullscan_steps": 99999,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 6833982,
+            "reprepares": 0,
+            "runs": 200001,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        }
+      ],
+      "sql_totals": {
+        "lexical_data_statements": 200001,
+        "sqlite_row_callbacks": 506795,
+        "profile_nanoseconds": 528000000,
+        "sqlite_work": {
+          "fullscan_steps": 99999,
+          "sorts": 0,
+          "autoindex_rows": 0,
+          "vm_steps": 6833982,
+          "reprepares": 0,
+          "runs": 200001,
+          "filter_misses": 0,
+          "filter_hits": 0
+        }
+      },
+      "wall_nanoseconds": {
+        "sample_count": 1,
+        "p50": 1467220333,
+        "p95": 1467220333,
+        "samples": [
+          1467220333
+        ]
+      },
+      "sqlite_profile_nanoseconds": {
+        "sample_count": 1,
+        "p50": 528000000,
+        "p95": 528000000,
+        "samples": [
+          528000000
+        ]
+      },
+      "non_profiled_wall_residual_nanoseconds": {
+        "sample_count": 1,
+        "p50": 939220333,
+        "p95": 939220333,
+        "samples": [
+          939220333
+        ]
+      },
+      "profile_exceeded_wall_samples": [],
+      "profile_zero_samples": [],
+      "serialization_nanoseconds": {
+        "sample_count": 1,
+        "p50": 71709,
+        "p95": 71709,
+        "samples": [
+          71709
+        ]
+      },
+      "response_bytes": {
+        "sample_count": 1,
+        "p50": 83364,
+        "p95": 83364,
+        "samples": [
+          83364
+        ]
+      },
+      "serialization_shape": "stable current v1 CLI/RPC result JSON (without RPC transport envelope)"
+    },
+    {
+      "name": "mutation_note",
+      "phase": "warm_connection_and_os_cache",
+      "sql_metrics_scope": "totals plus complete per-sample trace and StatementStatus counters",
+      "matches_per_sample": [
+        1
+      ],
+      "lexical_data_statements_per_sample": [
+        7
+      ],
+      "sql_metrics_per_sample": [
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 1000000,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        }
+      ],
+      "sql_totals": {
+        "lexical_data_statements": 7,
+        "sqlite_row_callbacks": 4,
+        "profile_nanoseconds": 1000000,
+        "sqlite_work": {
+          "fullscan_steps": 0,
+          "sorts": 0,
+          "autoindex_rows": 0,
+          "vm_steps": 579,
+          "reprepares": 0,
+          "runs": 9,
+          "filter_misses": 0,
+          "filter_hits": 0
+        }
+      },
+      "wall_nanoseconds": {
+        "sample_count": 1,
+        "p50": 486958,
+        "p95": 486958,
+        "samples": [
+          486958
+        ]
+      },
+      "sqlite_profile_nanoseconds": {
+        "sample_count": 1,
+        "p50": 1000000,
+        "p95": 1000000,
+        "samples": [
+          1000000
+        ]
+      },
+      "non_profiled_wall_residual_nanoseconds": {
+        "sample_count": 1,
+        "p50": 0,
+        "p95": 0,
+        "samples": [
+          0
+        ]
+      },
+      "profile_exceeded_wall_samples": [
+        0
+      ],
+      "profile_zero_samples": [],
+      "serialization_nanoseconds": {
+        "sample_count": 1,
+        "p50": 2750,
+        "p95": 2750,
+        "samples": [
+          2750
+        ]
+      },
+      "response_bytes": {
+        "sample_count": 1,
+        "p50": 828,
+        "p95": 828,
+        "samples": [
+          828
+        ]
+      },
+      "serialization_shape": "stable current v1 CLI/RPC result JSON (without RPC transport envelope)"
+    }
+  ]
+}

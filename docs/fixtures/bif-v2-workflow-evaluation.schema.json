@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bif.local/schemas/bif-v2-workflow-evaluation.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fixture_version", "contract", "benchmark_store", "measurement_states", "environment", "workflows"],
+  "properties": {
+    "fixture_version": {"const": 1},
+    "contract": {"const": "V2-001"},
+    "benchmark_store": {"type": "object", "additionalProperties": false, "required": ["size", "seed", "logical_digest"], "properties": {
+      "size": {"const": 100}, "seed": {"const": 2003}, "logical_digest": {"type": "string", "pattern": "^[0-9a-f]{16}$"}
+    }},
+    "measurement_states": {"const": ["measured", "unknown", "not_measured"]},
+    "environment": {"type": "object", "additionalProperties": false, "required": ["host", "model", "tokenizer", "tokenizer_version_config", "cache_accounting_semantics", "measurement_provenance", "content_classification"], "properties": {
+      "host": {"$ref": "#/$defs/state"}, "model": {"$ref": "#/$defs/state"}, "tokenizer": {"$ref": "#/$defs/state"},
+      "tokenizer_version_config": {"$ref": "#/$defs/state"}, "cache_accounting_semantics": {"$ref": "#/$defs/state"},
+      "measurement_provenance": {"$ref": "#/$defs/state"}, "content_classification": {"const": "synthetic_non_private"}
+    }},
+    "workflows": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/workflow"}}
+  },
+  "$defs": {
+    "state": {"type": "object", "additionalProperties": false, "required": ["state"], "properties": {
+      "state": {"enum": ["measured", "unknown", "not_measured"]}, "value": {}, "reason": {"type": "string", "minLength": 1}
+    }},
+    "bytes": {"type": "object", "additionalProperties": false, "required": ["tool_schema", "request_envelope", "response_envelope", "response_content", "follow_up"], "properties": {
+      "tool_schema": {"type": "integer", "minimum": 0}, "request_envelope": {"type": "integer", "minimum": 0},
+      "response_envelope": {"type": "integer", "minimum": 0}, "response_content": {"type": "integer", "minimum": 0},
+      "follow_up": {"type": "integer", "minimum": 0}
+    }},
+    "tokens": {"type": "object", "additionalProperties": false, "required": ["prompt", "completion", "cached", "uncached"], "properties": {
+      "prompt": {"$ref": "#/$defs/state"}, "completion": {"$ref": "#/$defs/state"},
+      "cached": {"$ref": "#/$defs/state"}, "uncached": {"$ref": "#/$defs/state"}
+    }},
+    "attempt": {"type": "object", "additionalProperties": false,
+      "required": ["attempt", "tool_schema", "request_envelope", "response_envelope", "response_content", "follow_up", "proxy_utf8_bytes", "total_proxy_utf8_bytes", "tokens", "completion_time_ms"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 1}, "operation": {"type": "string", "minLength": 1},
+        "attempt": {"type": "integer", "minimum": 1}, "cache": {"enum": ["cold", "warm", "unknown"]},
+        "tool_schema": {"type": "string", "minLength": 1}, "request_envelope": {"type": "string", "minLength": 1},
+        "response_envelope": {"type": "string", "minLength": 1}, "response_content": {"type": "string", "minLength": 1},
+        "follow_up": {"type": "string", "minLength": 1}, "proxy_utf8_bytes": {"$ref": "#/$defs/bytes"},
+        "total_proxy_utf8_bytes": {"type": "integer", "minimum": 0}, "tokens": {"$ref": "#/$defs/tokens"},
+        "completion_time_ms": {"$ref": "#/$defs/state"}, "outcome": {"$ref": "#/$defs/state"},
+        "phase": {"enum": ["failure", "recovery", "backoff", "retry_success", "termination"]},
+        "request_cursor_accounting": {"const": "illustrative_not_runtime_generated"},
+        "expected_request_semantics": {
+          "type": "object", "additionalProperties": false,
+          "required": ["cursor"],
+          "properties": {"cursor": {"const": "opaque_continuation_from_predecessor_page"}}
+        },
+        "response_content_accounting": {"enum": ["measured", "illustrative_estimate"]},
+        "expected_response_semantics": {
+          "type": "object", "additionalProperties": false,
+          "required": ["next_cursor"],
+          "properties": {"next_cursor": {"const": "non_null_opaque_continuation"}}
+        }
+      }
+    },
+    "errorSpecification": {"type": "object", "additionalProperties": false,
+      "required": ["id", "trigger_precondition", "operation", "request_shape", "expected_error", "retryability", "retry_or_termination_policy", "expected_subsequent_request_behavior", "execution_state", "attempts", "evidence"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "trigger_precondition": {"type": "string", "minLength": 1},
+        "operation": {"type": "string", "minLength": 1},
+        "request_shape": {"type": "object", "minProperties": 1},
+        "expected_error": {"type": "object", "additionalProperties": false, "required": ["code", "assertions"], "properties": {
+          "code": {"enum": ["invalid_input", "not_found", "unauthorized", "unsupported_version", "not_initialized", "storage_busy", "invalid_cursor", "payload_too_large", "internal"]},
+          "assertions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+        }},
+        "retryability": {"enum": ["retryable", "not_retryable"]},
+        "retry_or_termination_policy": {"type": "string", "minLength": 1},
+        "expected_subsequent_request_behavior": {"type": "string", "minLength": 1},
+        "execution_state": {"const": "not_executed"},
+        "attempts": {"type": "array", "maxItems": 0},
+        "evidence": {"type": "array", "maxItems": 0}
+      }
+    },
+    "workflow": {"type": "object", "additionalProperties": false,
+      "required": ["id", "initial_state", "reset_before_variant", "stopping_condition", "success_assertions", "error_retry_specifications", "variants"],
+      "properties": {
+        "id": {"enum": ["planning", "select_and_execute", "triage", "refresh", "recovery", "agent_handoff"]},
+        "initial_state": {"type": "object", "minProperties": 1},
+        "reset_before_variant": {"type": "object", "additionalProperties": false, "required": ["method", "size", "seed", "logical_digest"], "properties": {
+          "method": {"const": "regenerate_benchmark_store"}, "size": {"const": 100}, "seed": {"const": 2003},
+          "logical_digest": {"type": "string", "pattern": "^[0-9a-f]{16}$"}
+        }},
+        "stopping_condition": {"type": "string", "minLength": 1},
+        "success_assertions": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["path", "equals"], "properties": {"path": {"type": "string", "minLength": 1}, "equals": {}}}},
+        "error_retry_specifications": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/errorSpecification"}},
+        "variants": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false,
+          "required": ["id", "baseline", "implementation", "calls", "totals", "outcome"], "properties": {
+            "id": {"enum": ["v1_full_json", "v1_compact_human", "v2_contract"]}, "baseline": {"type": "boolean"},
+            "implementation": {"type": "string", "minLength": 1}, "calls": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/attempt"}},
+            "totals": {"type": "object", "additionalProperties": false, "required": ["proxy_utf8_bytes", "tokens", "completion_time_ms"], "properties": {
+              "proxy_utf8_bytes": {"type": "integer", "minimum": 0}, "tokens": {"$ref": "#/$defs/state"}, "completion_time_ms": {"$ref": "#/$defs/state"}
+            }}, "outcome": {"$ref": "#/$defs/state"}
+          }
+        }}
+      }
+    }
+  }
+}

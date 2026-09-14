@@ -1,37 +1,13 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
-};
+mod support;
+
+use std::{fs, path::Path};
 
 use bif::{
     config::{ProjectPathMapping, ProjectRemoteMapping},
     domain::ProjectId,
     storage::{self, ProjectRegistrationError, ProjectRepository},
 };
-
-struct TempDirectory(PathBuf);
-
-impl TempDirectory {
-    fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "bif-project-registrations-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
-    }
-}
-
-impl Drop for TempDirectory {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
+use support::OwnedTestDirectory as TempDirectory;
 
 fn project(value: &str) -> ProjectId {
     ProjectId::new(value).unwrap()
@@ -44,11 +20,11 @@ fn path_mapping(project_id: &str, path: &Path) -> ProjectPathMapping {
 #[test]
 fn registrations_persist_and_list_in_stable_order() {
     let temp = TempDirectory::new();
-    let checkout_a = temp.0.join("a");
-    let checkout_b = temp.0.join("b");
+    let checkout_a = temp.path().join("a");
+    let checkout_b = temp.path().join("b");
     fs::create_dir(&checkout_a).unwrap();
     fs::create_dir(&checkout_b).unwrap();
-    let database = temp.0.join("bif.sqlite");
+    let database = temp.path().join("bif.sqlite");
 
     {
         let mut connection = storage::open(&database).unwrap();
@@ -82,9 +58,9 @@ fn registrations_persist_and_list_in_stable_order() {
 #[test]
 fn exact_duplicates_are_idempotent() {
     let temp = TempDirectory::new();
-    let checkout = temp.0.join("checkout");
+    let checkout = temp.path().join("checkout");
     fs::create_dir(&checkout).unwrap();
-    let mut connection = storage::open(temp.0.join("bif.sqlite")).unwrap();
+    let mut connection = storage::open(temp.path().join("bif.sqlite")).unwrap();
     let mut repository = ProjectRepository::new(&mut connection);
     let path = path_mapping("same", &checkout);
     let remote =
@@ -102,9 +78,9 @@ fn exact_duplicates_are_idempotent() {
 #[test]
 fn conflicting_path_and_normalized_remote_return_typed_errors() {
     let temp = TempDirectory::new();
-    let checkout = temp.0.join("checkout");
+    let checkout = temp.path().join("checkout");
     fs::create_dir(&checkout).unwrap();
-    let mut connection = storage::open(temp.0.join("bif.sqlite")).unwrap();
+    let mut connection = storage::open(temp.path().join("bif.sqlite")).unwrap();
     let mut repository = ProjectRepository::new(&mut connection);
     repository
         .register_path(&path_mapping("first", &checkout))

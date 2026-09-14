@@ -1,31 +1,11 @@
+mod support;
+
 use std::{
     fs,
     path::{Path, PathBuf},
     process::{Command, Output},
-    sync::atomic::{AtomicU64, Ordering},
 };
-
-static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
-
-struct TestDirectory(PathBuf);
-
-impl TestDirectory {
-    fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "bif-mutation-cli-test-{}-{}",
-            std::process::id(),
-            NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir_all(&path).unwrap();
-        Self(path)
-    }
-}
-
-impl Drop for TestDirectory {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
+use support::OwnedTestDirectory as TestDirectory;
 
 fn bif(directory: &Path, arguments: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_bif"))
@@ -44,11 +24,11 @@ fn text(bytes: &[u8]) -> String {
 
 fn initialized() -> (TestDirectory, PathBuf) {
     let directory = TestDirectory::new();
-    let root = directory.0.join("root");
+    let root = directory.path().join("root");
     fs::create_dir(&root).unwrap();
-    let config = directory.0.join("config.toml");
+    let config = directory.path().join("config.toml");
     let output = bif(
-        &directory.0,
+        directory.path(),
         &[
             "init",
             "--root",
@@ -96,7 +76,7 @@ fn mutate(directory: &Path, config: &Path, arguments: &[&str]) -> Output {
 #[test]
 fn compound_triage_is_atomic_and_retry_is_reported() {
     let (directory, config) = initialized();
-    let id = capture(&directory.0, &config, "Compound", "capture-compound");
+    let id = capture(directory.path(), &config, "Compound", "capture-compound");
     let arguments = [
         "triage",
         &id,
@@ -113,7 +93,7 @@ fn compound_triage_is_atomic_and_retry_is_reported() {
         "--idempotency-key",
         "triage-compound",
     ];
-    let first = mutate(&directory.0, &config, &arguments);
+    let first = mutate(directory.path(), &config, &arguments);
     assert!(first.status.success(), "{}", text(&first.stderr));
     assert_eq!(
         text(&first.stdout),
@@ -122,12 +102,12 @@ fn compound_triage_is_atomic_and_retry_is_reported() {
         )
     );
 
-    let retry = mutate(&directory.0, &config, &arguments);
+    let retry = mutate(directory.path(), &config, &arguments);
     assert!(retry.status.success(), "{}", text(&retry.stderr));
     assert!(text(&retry.stdout).ends_with("revision: 2\nreplayed: true\n"));
 
     let stale = mutate(
-        &directory.0,
+        directory.path(),
         &config,
         &[
             "prioritize",
@@ -146,7 +126,7 @@ fn compound_triage_is_atomic_and_retry_is_reported() {
 #[test]
 fn convenience_commands_cover_lifecycle_and_explicit_clears() {
     let (directory, config) = initialized();
-    let id = capture(&directory.0, &config, "Lifecycle", "capture-lifecycle");
+    let id = capture(directory.path(), &config, "Lifecycle", "capture-lifecycle");
     let steps = [
         ("approve", None, "1", "approve", "ready"),
         ("assign", Some("Taylor"), "2", "assign", "ready"),
@@ -162,7 +142,7 @@ fn convenience_commands_cover_lifecycle_and_explicit_clears() {
             arguments.push(value);
         }
         arguments.extend(["--expected-revision", revision, "--idempotency-key", key]);
-        let output = mutate(&directory.0, &config, &arguments);
+        let output = mutate(directory.path(), &config, &arguments);
         assert!(output.status.success(), "{}", text(&output.stderr));
         assert!(
             text(&output.stdout).contains(&format!("status: {status}\n")),
@@ -171,9 +151,9 @@ fn convenience_commands_cover_lifecycle_and_explicit_clears() {
         );
     }
 
-    let rejected = capture(&directory.0, &config, "Reject", "capture-reject");
+    let rejected = capture(directory.path(), &config, "Reject", "capture-reject");
     let output = mutate(
-        &directory.0,
+        directory.path(),
         &config,
         &[
             "reject",
@@ -192,9 +172,9 @@ fn convenience_commands_cover_lifecycle_and_explicit_clears() {
 #[test]
 fn omitted_fields_remain_unchanged_while_clear_is_explicit() {
     let (directory, config) = initialized();
-    let id = capture(&directory.0, &config, "Clear", "capture-clear");
+    let id = capture(directory.path(), &config, "Clear", "capture-clear");
     let set = mutate(
-        &directory.0,
+        directory.path(),
         &config,
         &[
             "triage",
@@ -212,7 +192,7 @@ fn omitted_fields_remain_unchanged_while_clear_is_explicit() {
     assert!(set.status.success(), "{}", text(&set.stderr));
 
     let clear_priority = mutate(
-        &directory.0,
+        directory.path(),
         &config,
         &[
             "prioritize",
@@ -232,7 +212,7 @@ fn omitted_fields_remain_unchanged_while_clear_is_explicit() {
     assert!(text(&clear_priority.stdout).contains("priority: unprioritized\nassignee: taylor\n"));
 
     let clear_assignee = mutate(
-        &directory.0,
+        directory.path(),
         &config,
         &[
             "assign",
