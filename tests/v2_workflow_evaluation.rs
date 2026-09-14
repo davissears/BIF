@@ -156,6 +156,54 @@ fn named_view(value: &Value) -> NamedView {
     }
 }
 
+fn canonical_page(
+    repository: &ItemRepository<'_>,
+    requester: &RequesterId,
+    request: &Value,
+    offset: usize,
+) -> (Vec<Value>, Option<usize>) {
+    let limit = request["limit"].as_u64().expect("bounded V2 page") as usize;
+    let filters = ItemListFilters {
+        project: request
+            .get("project")
+            .map(|project| ProjectId::new(project.as_str().unwrap()).unwrap()),
+        ..ItemListFilters::default()
+    };
+    let pagination = Pagination::new(PageSize::new(limit).unwrap(), PageOffset::new(offset));
+    if let Some(view) = request.get("view") {
+        let page = list_item_page(
+            repository,
+            &authorization(),
+            named_view(view),
+            requester,
+            &filters,
+            pagination,
+        )
+        .unwrap();
+        let ids = page
+            .items
+            .iter()
+            .map(|item| Value::String(item.id().to_string()))
+            .collect();
+        (ids, page.next_offset.map(|offset| offset.get()))
+    } else {
+        let page = next_item_page(
+            repository,
+            &authorization(),
+            requester,
+            &filters,
+            pagination,
+        )
+        .unwrap();
+        let ids = page
+            .items
+            .iter()
+            .map(|item| Value::String(item.id().to_string()))
+            .collect();
+        (ids, page.next_offset.map(|offset| offset.get()))
+    }
+}
+
 fn execute_argv(root: &Path, request: &str) -> Output {
     let request: Value = serde_json::from_str(request).unwrap();
     let argv = request["argv"].as_array().expect("request argv");
@@ -480,7 +528,8 @@ fn unimplemented_v2_non_null_cursors_describe_canonical_continuations() {
     let connection = storage::open(directory.path().join(".bif/bif.sqlite")).unwrap();
     let repository = ItemRepository::new(&connection);
     let requester = RequesterId::new("BENCH").unwrap();
-    let mut checked = 0;
+    let mut response_cursors_checked = 0;
+    let mut request_cursors_checked = 0;
 
     for workflow in fixture["workflows"].as_array().expect("workflows") {
         for variant in workflow["variants"].as_array().expect("variants") {
@@ -491,62 +540,28 @@ fn unimplemented_v2_non_null_cursors_describe_canonical_continuations() {
                 continue;
             }
             for call in variant["calls"].as_array().expect("calls") {
-                let response: Value =
-                    serde_json::from_str(call["response_content"].as_str().unwrap()).unwrap();
-                if !response
-                    .get("next_cursor")
-                    .is_some_and(|cursor| !cursor.is_null())
-                {
-                    continue;
-                }
-                checked += 1;
-                let context = format!("{} / {}", workflow["id"], variant["id"]);
-                assert_eq!(
-                    call["response_content_accounting"], "illustrative_estimate",
-                    "{context}"
+                let context = format!(
+                    "{} / {} / {}",
+                    workflow["id"], variant["id"], call["operation"]
                 );
-                assert_eq!(
-                    call["expected_response_semantics"]["next_cursor"],
-                    "non_null_opaque_continuation",
-                    "{context}"
-                );
-
                 let request: Value =
                     serde_json::from_str(call["request_envelope"].as_str().unwrap()).unwrap();
-                let limit = request["limit"].as_u64().expect("bounded V2 page") as usize;
-                let offset = workflow["initial_state"]["offset"].as_u64().unwrap_or(0) as usize;
-                let filters = ItemListFilters {
-                    project: request
-                        .get("project")
-                        .map(|project| ProjectId::new(project.as_str().unwrap()).unwrap()),
-                    ..ItemListFilters::default()
-                };
-                let pagination =
-                    Pagination::new(PageSize::new(limit).unwrap(), PageOffset::new(offset));
-                let page = if let Some(view) = request.get("view") {
-                    list_item_page(
-                        &repository,
-                        &authorization(),
-                        named_view(view),
-                        &requester,
-                        &filters,
-                        pagination,
-                    )
-                } else {
-                    next_item_page(
-                        &repository,
-                        &authorization(),
-                        &requester,
-                        &filters,
-                        pagination,
-                    )
+                let response: Value =
+                    serde_json::from_str(call["response_content"].as_str().unwrap()).unwrap();
+                let response_has_cursor = response
+                    .get("next_cursor")
+                    .is_some_and(|cursor| !cursor.is_null());
+                let request_has_cursor = request
+                    .get("cursor")
+                    .is_some_and(|cursor| !cursor.is_null());
+                if !response_has_cursor && !request_has_cursor {
+                    continue;
                 }
-                .unwrap();
-                let canonical_ids = page
-                    .items
-                    .iter()
-                    .map(|item| Value::String(item.id().to_string()))
-                    .collect::<Vec<_>>();
+
+                let resumed_offset =
+                    workflow["initial_state"]["offset"].as_u64().unwrap_or(0) as usize;
+                let (canonical_ids, next_offset) =
+                    canonical_page(&repository, &requester, &request, resumed_offset);
                 let declared_ids = response["items"]
                     .as_array()
                     .unwrap()
@@ -554,14 +569,91 @@ fn unimplemented_v2_non_null_cursors_describe_canonical_continuations() {
                     .map(|item| item["id"].clone())
                     .collect::<Vec<_>>();
                 assert_eq!(declared_ids, canonical_ids, "{context}: page items/order");
-                assert!(
-                    page.next_offset.is_some(),
-                    "{context}: non-null cursor has no canonical continuation"
-                );
+
+                if let Some(initial_items) = workflow["initial_state"]["items"].as_array() {
+                    assert_eq!(
+                        initial_items, &canonical_ids,
+                        "{context}: initial items differ from the canonical page"
+                    );
+                }
+
+                if response_has_cursor {
+                    response_cursors_checked += 1;
+                    assert_eq!(
+                        call["response_content_accounting"], "illustrative_estimate",
+                        "{context}"
+                    );
+                    assert_eq!(
+                        call["expected_response_semantics"]["next_cursor"],
+                        "non_null_opaque_continuation",
+                        "{context}"
+                    );
+                    assert!(
+                        next_offset.is_some(),
+                        "{context}: non-null response cursor has no canonical continuation"
+                    );
+                }
+
+                if request_has_cursor {
+                    request_cursors_checked += 1;
+                    assert_eq!(
+                        call["request_cursor_accounting"], "illustrative_not_runtime_generated",
+                        "{context}"
+                    );
+                    assert_eq!(
+                        call["expected_request_semantics"]["cursor"],
+                        "opaque_continuation_from_predecessor_page",
+                        "{context}"
+                    );
+                    assert!(
+                        resumed_offset > 0,
+                        "{context}: request cursor must resume after a predecessor"
+                    );
+                    let limit = request["limit"].as_u64().unwrap() as usize;
+                    assert_eq!(
+                        resumed_offset % limit,
+                        0,
+                        "{context}: resumed offset must be a page boundary"
+                    );
+                    let predecessor_offset = resumed_offset - limit;
+                    let (predecessor_ids, predecessor_next_offset) =
+                        canonical_page(&repository, &requester, &request, predecessor_offset);
+                    assert_eq!(
+                        predecessor_next_offset,
+                        Some(resumed_offset),
+                        "{context}: predecessor does not continue to resumed page"
+                    );
+                    if let Some(seen) = workflow["initial_state"]["seen"].as_array() {
+                        assert_eq!(
+                            seen, &predecessor_ids,
+                            "{context}: initial seen IDs are not the canonical predecessor page"
+                        );
+                    }
+                    assert!(
+                        predecessor_ids.iter().all(|id| !canonical_ids.contains(id)),
+                        "{context}: resumed page repeats a predecessor item"
+                    );
+                    for key in ["view", "project", "limit"] {
+                        if let Some(initial) = workflow["initial_state"].get(key) {
+                            assert_eq!(
+                                request.get(key),
+                                Some(initial),
+                                "{context}: continuation changed {key}"
+                            );
+                        }
+                    }
+                }
             }
         }
     }
-    assert!(checked > 0, "fixture must exercise non-null V2 cursors");
+    assert!(
+        response_cursors_checked > 0,
+        "fixture must exercise non-null V2 response cursors"
+    );
+    assert!(
+        request_cursors_checked > 0,
+        "fixture must exercise non-null V2 request cursors"
+    );
 }
 
 #[test]
@@ -592,8 +684,7 @@ fn v2_requests_preserve_declared_scope_filters_and_bounds() {
                 "view": "active",
                 "project": "core",
                 "projection": "work",
-                "limit": 1,
-                "cursor": "cursor-page-1"
+                "limit": 1
             }),
         ),
         (
@@ -627,7 +718,14 @@ fn v2_requests_preserve_declared_scope_filters_and_bounds() {
         let request: Value =
             serde_json::from_str(call["request_envelope"].as_str().unwrap()).unwrap();
         validate_frozen_request(&contract, operation, &request).unwrap();
-        assert_eq!(request, expected_request, "{workflow_id}");
+        let mut comparable_request = request.clone();
+        if comparable_request
+            .get("cursor")
+            .is_some_and(|cursor| !cursor.is_null())
+        {
+            comparable_request.as_object_mut().unwrap().remove("cursor");
+        }
+        assert_eq!(comparable_request, expected_request, "{workflow_id}");
 
         for key in ["project", "view", "limit"] {
             if let Some(declared) = workflow["initial_state"].get(key) {

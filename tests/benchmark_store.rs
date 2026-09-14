@@ -115,6 +115,7 @@ fn explicit_output_failure_never_removes_unowned_database_or_sqlite_sidecars() {
         .unwrap();
     assert!(!refused.status.success());
     assert_eq!(fs::read(&database).unwrap(), b"existing database");
+    assert!(!std::path::Path::new(&format!("{}.metadata.json", database.display())).exists());
 
     fs::remove_file(&database).unwrap();
     let sidecar = format!("{}.metadata.json", database.display());
@@ -131,11 +132,135 @@ fn explicit_output_failure_never_removes_unowned_database_or_sqlite_sidecars() {
         .output()
         .unwrap();
     assert!(!refused.status.success());
-    assert!(
-        !database.exists(),
-        "only the invocation-owned database is removed"
+    assert_eq!(
+        fs::metadata(&database).unwrap().len(),
+        0,
+        "the invocation-owned database claim may remain after failure"
     );
     assert_eq!(fs::read(sidecar).unwrap(), b"existing metadata");
     assert_eq!(fs::read(wal).unwrap(), b"other process wal");
     assert_eq!(fs::read(shm).unwrap(), b"other process shm");
+}
+
+#[test]
+fn replacement_after_claim_is_preserved_and_prevents_success() {
+    for replace_metadata in [false, true] {
+        let directory = OwnedTestDirectory::new();
+        let database = directory.path().join(if replace_metadata {
+            "metadata.sqlite3"
+        } else {
+            "database.sqlite3"
+        });
+        let metadata = format!("{}.metadata.json", database.display());
+        let marker = directory.path().join("claimed.marker");
+        let mut child = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+            .args(["100", "--output"])
+            .arg(&database)
+            .env("BIF_BENCHMARK_STORE_TEST_CLAIM_MARKER", &marker)
+            .spawn()
+            .unwrap();
+        for _ in 0..1_000 {
+            if marker.exists() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert!(marker.exists(), "generator reached the post-claim boundary");
+
+        let replaced = if replace_metadata {
+            std::path::Path::new(&metadata)
+        } else {
+            database.as_path()
+        };
+        fs::remove_file(replaced).unwrap();
+        fs::write(replaced, b"unowned replacement").unwrap();
+        fs::remove_file(&marker).unwrap();
+
+        assert!(!child.wait().unwrap().success());
+        assert_eq!(fs::read(replaced).unwrap(), b"unowned replacement");
+    }
+}
+
+#[test]
+fn explicit_output_never_opens_final_sqlite_basename() {
+    let directory = OwnedTestDirectory::new();
+    let database = directory.path().join("store.sqlite3");
+    let wal = format!("{}-wal", database.display());
+    let shm = format!("{}-shm", database.display());
+    fs::write(&wal, b"unowned wal sentinel").unwrap();
+    fs::write(&shm, b"unowned shm sentinel").unwrap();
+
+    let generated = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+        .args(["100", "--seed", "2003", "--output"])
+        .arg(&database)
+        .output()
+        .unwrap();
+
+    assert!(
+        generated.status.success(),
+        "{}",
+        String::from_utf8_lossy(&generated.stderr)
+    );
+    // Success proves the test reached generation and SQLite work rather than
+    // taking an early metadata/output collision path.
+    assert_eq!(fs::read(&wal).unwrap(), b"unowned wal sentinel");
+    assert_eq!(fs::read(&shm).unwrap(), b"unowned shm sentinel");
+    let connection = rusqlite::Connection::open_with_flags(
+        &database,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .unwrap();
+    assert_eq!(
+        connection
+            .query_row("PRAGMA integrity_check", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "ok"
+    );
+}
+
+#[test]
+fn omitted_output_allocates_distinct_private_destinations() {
+    let generate = || {
+        let generated = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+            .arg("100")
+            .output()
+            .unwrap();
+        assert!(
+            generated.status.success(),
+            "{}",
+            String::from_utf8_lossy(&generated.stderr)
+        );
+        serde_json::from_slice::<Value>(&generated.stdout).unwrap()
+    };
+
+    let first = generate();
+    let second = generate();
+    let first_database = first["database"].as_str().unwrap();
+    let second_database = second["database"].as_str().unwrap();
+    assert_ne!(first_database, second_database);
+    assert!(std::path::Path::new(first_database).is_file());
+    assert!(std::path::Path::new(second_database).is_file());
+
+    fs::remove_dir_all(std::path::Path::new(first_database).parent().unwrap()).unwrap();
+    fs::remove_dir_all(std::path::Path::new(second_database).parent().unwrap()).unwrap();
+}
+
+#[test]
+fn omitted_output_failure_removes_the_invocation_owned_directory() {
+    let temporary_root = OwnedTestDirectory::new();
+    let failed = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+        .arg("100")
+        .env("TMPDIR", temporary_root.path())
+        .env("BIF_BENCHMARK_STORE_TEST_FAIL_AFTER_CLAIMS", "1")
+        .output()
+        .unwrap();
+
+    assert!(!failed.status.success());
+    assert!(
+        fs::read_dir(temporary_root.path())
+            .unwrap()
+            .next()
+            .is_none(),
+        "the disposable outer directory and all claimed/staged files are removed"
+    );
 }

@@ -42,6 +42,12 @@
         "total_proxy_utf8_bytes": {"type": "integer", "minimum": 0}, "tokens": {"$ref": "#/$defs/tokens"},
         "completion_time_ms": {"$ref": "#/$defs/state"}, "outcome": {"$ref": "#/$defs/state"},
         "phase": {"enum": ["failure", "recovery", "backoff", "retry_success", "termination"]},
+        "request_cursor_accounting": {"const": "illustrative_not_runtime_generated"},
+        "expected_request_semantics": {
+          "type": "object", "additionalProperties": false,
+          "required": ["cursor"],
+          "properties": {"cursor": {"const": "opaque_continuation_from_predecessor_page"}}
+        },
         "response_content_accounting": {"enum": ["measured", "illustrative_estimate"]},
         "expected_response_semantics": {
           "type": "object", "additionalProperties": false,

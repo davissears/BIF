@@ -199,7 +199,11 @@
       {"field": "event_index", "direction": "ascending", "type": "u64"}
     ],
     "missing_item": "not_found",
-    "existing_item_without_events": {"events": [], "next_cursor": null}
+    "existing_item_without_events": {
+      "item_id": "DAVIS:bif:001",
+      "events": [],
+      "next_cursor": null
+    }
   },
   "results": {
     "success_envelope_fields": ["api_version", "schema_version", "ok", "result"],

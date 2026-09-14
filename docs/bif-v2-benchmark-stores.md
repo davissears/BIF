@@ -25,12 +25,24 @@ including the seed, logical digest, row counts, status/priority/project/assignee
 distributions, elapsed time, integrity result, and canonically loaded samples.
 
 The main database and metadata path are claimed with atomic create-new opens.
-On failure the generator removes only paths whose ownership it established.
-For an explicit `--output`, that means the database and any newly claimed
-metadata file; SQLite `-wal` and `-shm` paths are deliberately left alone
-because another process can create or replace them. When `--output` is omitted,
-the generator owns the newly created private parent directory and may safely
-clean up its SQLite sidecars as well.
+SQLite generation happens at a separate basename inside an invocation-owned
+private staging directory in the output directory. After checkpointing,
+verification, and closing that connection, the completed database is copied
+through the already claimed final file handle and synced; metadata is then
+written and synced through its claimed handle. Before reporting success, the
+generator verifies that both final pathnames still identify those claimed open
+files. SQLite is therefore never asked
+to open the requested final basename and never inspects, creates, truncates, or
+removes adjacent final-name `-wal` or `-shm` paths. Existing database, metadata,
+WAL, and SHM paths are never adopted or replaced. For an explicit output,
+failure cleanup deliberately does not unlink either claimed final name:
+portable filesystems cannot conditionally unlink a pathname only if it still
+identifies a particular open file, so unlinking could delete a third-party
+replacement. A failed explicit invocation can consequently leave an
+invocation-owned empty or partial database and/or metadata claim for manual
+removal. Omitted-output failures remain fully cleanable because they recursively
+remove only their invocation-owned outer directory; private staging directories
+are automatically removed in both modes.
 
 The generator bulk-builds one transaction through fixture-only infrastructure
 rather than weakening production durability or spending one durable transaction
@@ -102,6 +114,17 @@ startup sample and the measured operations use an atomically owned disposable
 directory; cleanup only removes that directory. Sizes identify the disposable
 measured database and distinguish before/after writes as well as a missing WAL
 from a present zero-byte WAL.
+
+Source identity is canonical filesystem identity. When the database argument is
+a file symlink, the harness snapshots the canonical target and discovers
+generator provenance only at `<canonical-database>.metadata.json`; the
+sidecar's recorded database path must resolve to that same canonical file. A
+distinct `<lexical-alias>.metadata.json` is rejected as ambiguous even if its
+contents happen to match, rather than silently choosing between provenance
+records. Report output validation protects the database, WAL, SHM, and metadata
+companion names for both the canonical target and the exact lexical alias used
+by the invocation. Output parents must still exist, and publication remains an
+atomic no-clobber operation.
 
 `startup_open` measures opening, configuring, and migrating a fresh snapshot in
 the harness process. `warm_connection_and_os_cache` reuses one connection and

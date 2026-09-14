@@ -41,6 +41,59 @@ fn assert_exact_fields(object: &Map<String, Value>, expected: &[&str], context: 
     assert_eq!(actual, expected, "{context} fields");
 }
 
+fn assert_normative_history_results(
+    value: &Value,
+    expected_fields: &[&str],
+    context: &str,
+) -> usize {
+    match value {
+        Value::Object(object) => {
+            let is_history_result =
+                object.contains_key("events") && object.contains_key("next_cursor");
+            let mut count = usize::from(is_history_result);
+
+            if is_history_result {
+                assert_exact_fields(object, expected_fields, context);
+                assert!(
+                    value["item_id"]
+                        .as_str()
+                        .is_some_and(|item_id| !item_id.is_empty()),
+                    "{context}.item_id must be a nonempty string"
+                );
+                assert!(
+                    value["events"].is_array(),
+                    "{context}.events must be an array, including when empty"
+                );
+                assert!(
+                    value["next_cursor"].is_null() || value["next_cursor"].is_string(),
+                    "{context}.next_cursor must be a string or null"
+                );
+            }
+
+            for (field, child) in object {
+                count += assert_normative_history_results(
+                    child,
+                    expected_fields,
+                    &format!("{context}.{field}"),
+                );
+            }
+            count
+        }
+        Value::Array(values) => values
+            .iter()
+            .enumerate()
+            .map(|(index, child)| {
+                assert_normative_history_results(
+                    child,
+                    expected_fields,
+                    &format!("{context}[{index}]"),
+                )
+            })
+            .sum(),
+        _ => 0,
+    }
+}
+
 fn assert_projection(fixture: &Value, projection: &str, item: &Value, context: &str) {
     let schema = &fixture["projection_schemas"][projection];
     let fields = strings(&schema["fields"]);
@@ -205,13 +258,6 @@ fn covers_required_boundaries_and_rejects_offset_cursor_combinations() {
         cases["empty_results"]["list"],
         fixture["results"]["empty_page"]
     );
-    assert_exact_fields(
-        cases["empty_results"]["history"]
-            .as_object()
-            .expect("empty history result"),
-        &strings(&fixture["history_schema"]["result_fields"]),
-        "empty history result",
-    );
     assert_eq!(cases["empty_results"]["history"]["events"], json!([]));
     assert_eq!(
         cases["empty_results"]["history"]["next_cursor"],
@@ -362,6 +408,33 @@ fn covers_required_boundaries_and_rejects_offset_cursor_combinations() {
     })
     .collect::<BTreeSet<_>>();
     assert_eq!(actual_invalid, expected_invalid);
+}
+
+#[test]
+fn every_normative_history_result_matches_the_declared_schema() {
+    let fixture = fixture();
+    let result_fields = strings(&fixture["history_schema"]["result_fields"]);
+    let result_count = assert_normative_history_results(&fixture, &result_fields, "fixture");
+
+    assert!(
+        result_count > 0,
+        "fixture must contain a normative history result"
+    );
+    assert_eq!(
+        fixture["history_schema"]["existing_item_without_events"]["item_id"],
+        fixture["coverage_cases"]["empty_results"]["history"]["item_id"],
+        "empty-history examples must use the intended existing item identity"
+    );
+    assert_eq!(
+        fixture["history_schema"]["existing_item_without_events"]["events"],
+        json!([]),
+        "an existing item without events has a present, empty events array"
+    );
+    assert_eq!(
+        fixture["history_schema"]["existing_item_without_events"]["next_cursor"],
+        Value::Null,
+        "an empty history page has a null continuation cursor"
+    );
 }
 
 #[test]

@@ -880,7 +880,7 @@
         "offset": 1,
         "limit": 1,
         "seen": [
-          "CODEX:core:004"
+          "BENCH:core:026"
         ]
       },
       "stopping_condition": "Continuation returns BENCH:core:014 and no duplicate IDs.",
@@ -1020,16 +1020,16 @@
               "tool_schema": "bif --api-version 2 list active --project core --projection work --limit 1 --cursor TOKEN --json",
               "request_envelope": "{\"view\":\"active\",\"project\":\"core\",\"projection\":\"work\",\"limit\":1,\"cursor\":\"cursor-page-1\"}",
               "response_envelope": "{\"api_version\":2,\"schema_version\":1,\"ok\":true}",
-              "response_content": "{\"items\":[{\"id\":\"BENCH:core:014\",\"title\":\"Improve core workflow component 63\",\"status\":\"in_progress\",\"priority\":\"P2\",\"assignee\":\"bob\",\"revision\":5,\"description\":null,\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 3072\",\"Criterion 2 verifies deterministic behavior for scenario 3072\",\"Criterion 3 verifies deterministic behavior for scenario 3072\",\"Criterion 4 verifies deterministic behavior for scenario 3072\"],\"status_reason\":null}],\"next_cursor\":null}\n",
+              "response_content": "{\"items\":[{\"id\":\"DELTA:core:019\",\"title\":\"Improve core workflow component 99\",\"status\":\"blocked\",\"priority\":\"P4\",\"assignee\":\"alice\",\"revision\":8,\"description\":\"Investigate scenario 8337 and preserve supported behavior across local developer workflows.\",\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 1233\",\"Criterion 2 verifies deterministic behavior for scenario 1233\"],\"status_reason\":\"Waiting for a reproducible upstream result\"}],\"next_cursor\":null}\n",
               "follow_up": "{\"duplicates\":0}",
               "proxy_utf8_bytes": {
                 "tool_schema": 96,
                 "request_envelope": 89,
                 "response_envelope": 46,
-                "response_content": 489,
+                "response_content": 488,
                 "follow_up": 16
               },
-              "total_proxy_utf8_bytes": 736,
+              "total_proxy_utf8_bytes": 735,
               "tokens": {
                 "prompt": {
                   "state": "unknown"
@@ -1046,11 +1046,15 @@
               },
               "completion_time_ms": {
                 "state": "not_measured"
+              },
+              "request_cursor_accounting": "illustrative_not_runtime_generated",
+              "expected_request_semantics": {
+                "cursor": "opaque_continuation_from_predecessor_page"
               }
             }
           ],
           "totals": {
-            "proxy_utf8_bytes": 736,
+            "proxy_utf8_bytes": 735,
             "tokens": {
               "state": "unknown"
             },

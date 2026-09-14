@@ -201,6 +201,110 @@ fn stale_fixture_sidecar_is_rejected() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("stale"));
 }
 
+#[cfg(unix)]
+#[test]
+fn symlink_alias_uses_canonical_provenance_and_protects_both_companion_sets() {
+    use std::os::unix::fs::symlink;
+
+    let directory = OwnedTestDirectory::new();
+    let database = directory.path().join("100.sqlite3");
+    let alias = directory.path().join("fixture-alias.sqlite3");
+    assert!(
+        Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+            .args(["100", "--seed", "2003", "--output"])
+            .arg(&database)
+            .status()
+            .unwrap()
+            .success()
+    );
+    symlink(&database, &alias).unwrap();
+
+    let report = directory.path().join("alias-measurement.json");
+    let measured = Command::new(env!("CARGO_BIN_EXE_bif-benchmark"))
+        .arg(&alias)
+        .args(["--samples", "1", "--output"])
+        .arg(&report)
+        .output()
+        .unwrap();
+    assert!(
+        measured.status.success(),
+        "{}",
+        String::from_utf8_lossy(&measured.stderr)
+    );
+    let value: Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
+    assert_eq!(value["provenance"]["fixture_seed"], 2003);
+    assert!(value["provenance"]["fixture_digest"].is_string());
+    assert_eq!(
+        value["source_database"],
+        fs::canonicalize(&database).unwrap().display().to_string()
+    );
+
+    for protected in [
+        format!("{}-wal", alias.display()),
+        format!("{}-shm", alias.display()),
+        format!("{}.metadata.json", alias.display()),
+        format!("{}-wal", database.display()),
+        format!("{}-shm", database.display()),
+        format!("{}.metadata.json", database.display()),
+    ] {
+        let protected = Path::new(&protected);
+        let existed = protected.exists();
+        let output = Command::new(env!("CARGO_BIN_EXE_bif-benchmark"))
+            .arg(&alias)
+            .args(["--samples", "1", "--output"])
+            .arg(protected)
+            .output()
+            .unwrap();
+        assert!(
+            !output.status.success()
+                && String::from_utf8_lossy(&output.stderr).contains("refusing"),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            protected.exists(),
+            existed,
+            "must not create {}",
+            protected.display()
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn symlink_alias_sidecar_is_rejected_as_ambiguous() {
+    use std::os::unix::fs::symlink;
+
+    let directory = OwnedTestDirectory::new();
+    let database = directory.path().join("100.sqlite3");
+    let alias = directory.path().join("fixture-alias.sqlite3");
+    assert!(
+        Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+            .args(["100", "--output"])
+            .arg(&database)
+            .status()
+            .unwrap()
+            .success()
+    );
+    symlink(&database, &alias).unwrap();
+    let canonical_sidecar = format!("{}.metadata.json", database.display());
+    let alias_sidecar = format!("{}.metadata.json", alias.display());
+    let mut conflicting = fs::read(&canonical_sidecar).unwrap();
+    conflicting.extend_from_slice(b"\n");
+    fs::write(&alias_sidecar, conflicting).unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_bif-benchmark"))
+        .arg(&alias)
+        .args(["--samples", "1"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("ambiguous fixture metadata"), "{stderr}");
+    assert!(stderr.contains(&alias_sidecar), "{stderr}");
+    assert!(stderr.contains(&canonical_sidecar), "{stderr}");
+}
+
 #[test]
 fn report_output_cannot_overwrite_fixture_paths_or_existing_files() {
     let directory = OwnedTestDirectory::new();

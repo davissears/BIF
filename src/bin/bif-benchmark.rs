@@ -247,8 +247,51 @@ struct PreparedOutput {
     parent: PathBuf,
 }
 
+struct SourceIdentity {
+    canonical: PathBuf,
+    lexical: PathBuf,
+}
+
+impl SourceIdentity {
+    fn resolve(source: &Path) -> Result<Self, Box<dyn std::error::Error>> {
+        let canonical = fs::canonicalize(source)?;
+        let parent = source
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let name = source.file_name().ok_or("database path must name a file")?;
+        let lexical = fs::canonicalize(parent)?.join(name);
+        Ok(Self { canonical, lexical })
+    }
+
+    fn companion_paths(&self) -> Vec<PathBuf> {
+        let mut paths = Vec::with_capacity(8);
+        for database in [&self.canonical, &self.lexical] {
+            for path in [
+                database.clone(),
+                PathBuf::from(format!("{}-wal", database.display())),
+                PathBuf::from(format!("{}-shm", database.display())),
+                PathBuf::from(format!("{}.metadata.json", database.display())),
+            ] {
+                if !paths.contains(&path) {
+                    paths.push(path);
+                }
+            }
+        }
+        paths
+    }
+
+    fn canonical_metadata(&self) -> PathBuf {
+        PathBuf::from(format!("{}.metadata.json", self.canonical.display()))
+    }
+
+    fn lexical_metadata(&self) -> PathBuf {
+        PathBuf::from(format!("{}.metadata.json", self.lexical.display()))
+    }
+}
+
 fn prepare_output(
-    source: &Path,
+    source: &SourceIdentity,
     output: &Path,
 ) -> Result<PreparedOutput, Box<dyn std::error::Error>> {
     if output.exists() {
@@ -266,14 +309,8 @@ fn prepare_output(
         )
     })?;
     let resolved_output = resolved_parent.join(output_name);
-    let resolved_source = fs::canonicalize(source)?;
-    let protected = [
-        resolved_source.clone(),
-        PathBuf::from(format!("{}-wal", resolved_source.display())),
-        PathBuf::from(format!("{}-shm", resolved_source.display())),
-        PathBuf::from(format!("{}.metadata.json", resolved_source.display())),
-    ];
-    if protected
+    if source
+        .companion_paths()
         .iter()
         .any(|path| resolved_output.starts_with(path))
     {
@@ -304,11 +341,18 @@ fn publish_report_with(
     write(temporary.as_file_mut())?;
     temporary.as_file_mut().sync_all()?;
     temporary.persist_noclobber(&output.path).map_err(|error| {
-        format!(
-            "refusing to overwrite existing output {}: {}",
-            output.path.display(),
-            error.error
-        )
+        if error.error.kind() == std::io::ErrorKind::AlreadyExists {
+            format!(
+                "refusing to overwrite existing output {}",
+                output.path.display()
+            )
+        } else {
+            format!(
+                "could not atomically publish output {}: {}",
+                output.path.display(),
+                error.error
+            )
+        }
     })?;
     Ok(())
 }
@@ -340,23 +384,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if !(1..=MAX_SAMPLES).contains(&samples) {
         return Err(format!("--samples must be between 1 and {MAX_SAMPLES}").into());
     }
+    let source = SourceIdentity::resolve(&source)?;
     let output = output
         .as_ref()
         .map(|path| prepare_output(&source, path))
         .transpose()?;
-    let fixture_bytes = fs::metadata(&source)?.len();
+    let fixture_bytes = fs::metadata(&source.canonical)?.len();
     let metadata = fixture_metadata(&source, fixture_bytes)?;
 
     let mut startup = Vec::with_capacity(samples);
     for _ in 0..samples {
         let temp = Temp::new()?;
-        snapshot(&source, &temp.database)?;
+        snapshot(&source.canonical, &temp.database)?;
         let now = Instant::now();
         drop(storage::open(&temp.database)?);
         startup.push(now.elapsed().as_nanos());
     }
     let temp = Temp::new()?;
-    snapshot(&source, &temp.database)?;
+    snapshot(&source.canonical, &temp.database)?;
     if let Some(metadata) = metadata.as_ref() {
         let expected = metadata["logical_digest"]
             .as_str()
@@ -496,7 +541,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let report = Report {
         format: "bif-v2-measurement-v2",
         provenance: provenance(command, fixture_bytes, metadata)?,
-        source_database: source.display().to_string(),
+        source_database: source.canonical.display().to_string(),
         measured_store: temp.database.display().to_string(),
         measured_store_sizes_before_writes: before,
         measured_store_sizes_after_writes: after,
@@ -879,16 +924,33 @@ fn provenance(
     })
 }
 fn fixture_metadata(
-    database: &Path,
+    source_identity: &SourceIdentity,
     fixture_bytes: u64,
 ) -> Result<Option<Value>, Box<dyn std::error::Error>> {
-    match fs::read(format!("{}.metadata.json", database.display())) {
+    let database = &source_identity.canonical;
+    let canonical_metadata = source_identity.canonical_metadata();
+    let lexical_metadata = source_identity.lexical_metadata();
+    if lexical_metadata != canonical_metadata && lexical_metadata.try_exists()? {
+        return Err(format!(
+            "ambiguous fixture metadata: lexical alias sidecar {} exists; canonical provenance must come only from {}",
+            lexical_metadata.display(),
+            canonical_metadata.display()
+        )
+        .into());
+    }
+    match fs::read(&canonical_metadata) {
         Ok(v) => {
             let value: Value = serde_json::from_slice(&v)?;
             let metadata: FixtureMetadata = serde_json::from_value(value.clone())?;
+            let metadata_database = fs::canonicalize(&metadata.database).map_err(|error| {
+                format!(
+                    "fixture metadata database path {} cannot be resolved: {error}",
+                    metadata.database
+                )
+            })?;
             if metadata.format != benchmark_fixture::FORMAT
                 || metadata.logical_digest_algorithm != benchmark_fixture::DIGEST_ALGORITHM
-                || metadata.database != database.display().to_string()
+                || metadata_database != *database
                 || metadata.integrity_check != "ok"
             {
                 return Err(

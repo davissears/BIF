@@ -1,6 +1,6 @@
 # BIF v2 migration plan
 
-**Status:** Proposed; implementation has not started.
+**Status:** Proposed; Phase B runtime implementation has not started.
 
 **Purpose:** Deliver faster bounded local reads and lower agent workflow token
 cost without weakening durability, authorization, compatibility, or recovery.
@@ -285,15 +285,23 @@ records row counts, distributions, and seed.
 **Verification:** Sample canonical loads and integrity checks pass; repeating a
 seed gives the same logical contents. Large fixtures stay out of ordinary CI.
 
-The generator atomically claims an explicit database path with create-new
-semantics. It never opens, adopts, truncates, or mutates a pre-existing output.
-After generation it independently creates the adjacent
-`<database>.metadata.json` sidecar with the same create-new rule. If any later
-step fails, cleanup removes only files successfully claimed by that invocation;
-an existing database or sidecar is preserved byte-for-byte. The metadata names
-the canonical digest algorithm/version. Its digest covers `store_metadata`,
-projects, requester/project counters, items, criteria, provenance, operations,
-and events in stable column/value order.
+The generator atomically claims the explicit database and adjacent
+`<database>.metadata.json` paths with create-new semantics. SQLite generation
+uses a distinct basename in an invocation-owned private staging directory; the
+checkpointed, verified database is closed before being published through the
+claimed final handle. Both final pathnames are checked against their claimed
+open files before success is reported. SQLite therefore never opens the final basename or
+touches unowned adjacent WAL/SHM paths. Private staging directories are removed
+on failure, and omitted-output failures recursively remove their
+invocation-owned outer directory. Pre-existing database, metadata, WAL, and SHM
+paths are preserved byte-for-byte. Explicit-output failure cleanup never
+unlinks claimed final database or metadata names,
+because a concurrently replaced pathname cannot be conditionally unlinked
+portably; a failed run can leave an owned empty or partial claim for manual
+removal rather than risk deleting an unowned replacement. The metadata names
+the canonical digest algorithm/version. Its
+digest covers `store_metadata`, projects, requester/project counters, items,
+criteria, provenance, operations, and events in stable column/value order.
 
 #### V2-004 — Instrument local read and write measurements
 

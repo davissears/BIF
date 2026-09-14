@@ -8,9 +8,9 @@
 use std::{
     collections::BTreeMap,
     env, fs,
-    fs::OpenOptions,
-    io::Write,
-    path::PathBuf,
+    fs::{File, OpenOptions},
+    io::{Seek, Write},
+    path::{Path, PathBuf},
     process,
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
@@ -25,7 +25,9 @@ use bif::{
     storage::{self, ItemHistoryRepository, ItemRepository},
 };
 use rusqlite::{Connection, params};
+use same_file::Handle;
 use serde::Serialize;
+use tempfile::Builder;
 
 const SIZES: [usize; 3] = [100, 10_000, 100_000];
 const PROJECTS: [(&str, usize); 5] = [
@@ -91,17 +93,25 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let owns_parent_directory = output.is_none();
-    let database = match output {
-        Some(path) => path,
-        None => disposable_path(size, seed)?,
+    let (database, mut owned_parent) = match output {
+        Some(path) => (path, None),
+        None => {
+            let path = disposable_path(size, seed)?;
+            let parent = path
+                .parent()
+                .expect("disposable database always has a parent")
+                .to_path_buf();
+            (path, Some(OwnedDirectory::new(parent)))
+        }
     };
     if let Some(parent) = database.parent() {
         fs::create_dir_all(parent)?;
     }
-    // `create_new` is the ownership boundary. A prior existence check is not:
-    // another process could create the file between checking and opening it.
-    let database_claim = OpenOptions::new()
+    let metadata_path = PathBuf::from(format!("{}.metadata.json", database.display()));
+    // Claim both public names before doing expensive work. SQLite is never
+    // given either public name: its database and sidecars live under a private,
+    // invocation-owned staging directory.
+    let database_file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&database)
@@ -111,26 +121,31 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 database.display()
             )
         })?;
-    drop(database_claim);
-    let mut owned_database = OwnedOutput::new(database.clone(), owns_parent_directory);
-    // Claim the metadata name before SQLite opens the database. Besides
-    // avoiding wasted generation, this ensures a sidecar-claim failure cannot
-    // make SQLite inspect or modify unowned WAL/SHM paths.
-    let metadata_path = PathBuf::from(format!("{}.metadata.json", database.display()));
-    let mut metadata_file = OpenOptions::new()
+    let mut owned_database = OwnedOutput::new(database.clone(), database_file);
+    let metadata_file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&metadata_path)
         .map_err(|error| {
             format!(
-                "could not atomically create metadata sidecar {}: {error}",
+                "could not atomically claim metadata sidecar {}: {error}",
                 metadata_path.display()
             )
         })?;
-    let mut owned_metadata = OwnedOutput::new(metadata_path, false);
+    let mut owned_metadata = OwnedOutput::new(metadata_path, metadata_file);
+
+    let parent = database.parent().unwrap_or_else(|| Path::new("."));
+    let staging = Builder::new()
+        .prefix(".bif-benchmark-stage-")
+        .tempdir_in(parent)?;
+    let staged_database = staging.path().join("store.sqlite3");
+    if env::var_os("BIF_BENCHMARK_STORE_TEST_FAIL_AFTER_CLAIMS").is_some() {
+        return Err("injected failure after output claims".into());
+    }
+    wait_at_test_claim_boundary()?;
 
     let started = Instant::now();
-    let mut connection = storage::open(&database)?;
+    let mut connection = storage::open(&staged_database)?;
     generate(&mut connection, size, seed)?;
     connection.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
     let summary = benchmark_fixture::summarize(&connection)?;
@@ -148,6 +163,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if foreign_key_violations != 0 {
         return Err(format!("foreign_key_check found {foreign_key_violations} violations").into());
     }
+    drop(connection);
 
     let metadata = Metadata {
         format: benchmark_fixture::FORMAT,
@@ -162,27 +178,31 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         samples_verified,
         integrity_check,
     };
-    metadata_file.write_all(&serde_json::to_vec_pretty(&metadata)?)?;
-    metadata_file.sync_all()?;
-    owned_metadata.keep();
-    owned_database.keep();
+    // Publish through the already atomically claimed file handles. No path is
+    // reopened, so a third party replacing a public pathname cannot redirect
+    // these writes. The staged connection is closed and checkpointed first.
+    publish_file(&staged_database, owned_database.file_mut())?;
+    owned_metadata
+        .file_mut()
+        .write_all(&serde_json::to_vec_pretty(&metadata)?)?;
+    owned_metadata.file_mut().sync_all()?;
+    owned_database.verify_path_ownership()?;
+    owned_metadata.verify_path_ownership()?;
+    if let Some(directory) = &mut owned_parent {
+        directory.keep();
+    }
     println!("{}", serde_json::to_string(&metadata)?);
     Ok(())
 }
 
-struct OwnedOutput {
+struct OwnedDirectory {
     path: PathBuf,
-    owns_companion_paths: bool,
     keep: bool,
 }
 
-impl OwnedOutput {
-    fn new(path: PathBuf, owns_companion_paths: bool) -> Self {
-        Self {
-            path,
-            owns_companion_paths,
-            keep: false,
-        }
+impl OwnedDirectory {
+    fn new(path: PathBuf) -> Self {
+        Self { path, keep: false }
     }
 
     fn keep(&mut self) {
@@ -190,50 +210,64 @@ impl OwnedOutput {
     }
 }
 
-impl Drop for OwnedOutput {
+impl Drop for OwnedDirectory {
     fn drop(&mut self) {
         if !self.keep {
-            if self.owns_companion_paths {
-                // A default output lives in a directory allocated solely for
-                // this invocation. Removing the ownership boundary itself
-                // handles the database, metadata, and every SQLite sidecar,
-                // including files created after an earlier cleanup step.
-                if let Some(directory) = self.path.parent() {
-                    let _ = fs::remove_dir_all(directory);
-                }
-                return;
-            }
-            let _ = fs::remove_file(&self.path);
+            let _ = fs::remove_dir_all(&self.path);
         }
     }
 }
 
-#[cfg(test)]
-mod owned_output_tests {
-    use super::OwnedOutput;
-    use std::{env, fs, process, time::SystemTime};
+struct OwnedOutput {
+    path: PathBuf,
+    file: File,
+}
 
-    #[test]
-    fn failed_private_output_removes_its_owned_directory() {
-        let directory = env::temp_dir().join(format!(
-            "bif-owned-output-test-{}-{:?}",
-            process::id(),
-            SystemTime::now()
-        ));
-        fs::create_dir(&directory).unwrap();
-        let database = directory.join("store.sqlite3");
-        fs::write(&database, b"partial database").unwrap();
-        fs::write(directory.join("store.sqlite3-wal"), b"partial wal").unwrap();
-        fs::write(
-            directory.join("store.sqlite3.metadata.json"),
-            b"partial metadata",
-        )
-        .unwrap();
-
-        drop(OwnedOutput::new(database, true));
-
-        assert!(!directory.exists());
+impl OwnedOutput {
+    fn new(path: PathBuf, file: File) -> Self {
+        Self { path, file }
     }
+
+    fn file_mut(&mut self) -> &mut File {
+        &mut self.file
+    }
+
+    fn verify_path_ownership(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let claimed = Handle::from_file(self.file.try_clone()?)?;
+        let current = Handle::from_path(&self.path).map_err(|error| {
+            format!(
+                "claimed output pathname {} is no longer available: {error}",
+                self.path.display()
+            )
+        })?;
+        if claimed != current {
+            return Err(format!(
+                "claimed output pathname {} was replaced during generation",
+                self.path.display()
+            )
+            .into());
+        }
+        Ok(())
+    }
+}
+
+fn wait_at_test_claim_boundary() -> Result<(), Box<dyn std::error::Error>> {
+    let Some(marker) = env::var_os("BIF_BENCHMARK_STORE_TEST_CLAIM_MARKER") else {
+        return Ok(());
+    };
+    let marker = PathBuf::from(marker);
+    fs::write(&marker, b"claimed")?;
+    while marker.exists() {
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    Ok(())
+}
+
+fn publish_file(source: &Path, destination: &mut File) -> Result<(), std::io::Error> {
+    let mut source = File::open(source)?;
+    destination.rewind()?;
+    std::io::copy(&mut source, destination)?;
+    destination.sync_all()
 }
 
 fn disposable_path(size: usize, seed: u64) -> Result<PathBuf, std::io::Error> {
