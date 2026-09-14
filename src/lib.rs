@@ -5,6 +5,7 @@
 //! other crate modules.
 
 pub mod application;
+pub mod benchmark_fixture;
 pub mod cli;
 mod cli_mutation;
 mod cli_read;
@@ -15,3 +16,7 @@ pub mod rpc;
 pub mod rpc_mutation;
 pub mod rpc_read;
 pub mod storage;
+
+#[cfg(test)]
+#[path = "../tests/support/mod.rs"]
+mod test_support;

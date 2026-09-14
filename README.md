@@ -6,6 +6,10 @@ BIF is a local task ledger built with Rust and SQLite. Capture work before you
 forget it, triage it into actionable tasks, and keep a durable history of who
 requested each change and why.
 
+The checked-in [v2 pre-Phase-B baseline](docs/baselines/v2-pre-phase-b/README.md)
+records the reproducible Phase A fixture, local read/write, and workflow
+evidence used before the read-path migration.
+
 The repository provides a `bif` command-line tool and a Rust library. It also
 exposes **BIF RPC v1**, a one-shot JSON interface for automation and agent
 integrations. This is a custom protocol, not JSON-RPC 2.0.
@@ -275,8 +279,12 @@ Further documentation:
 
 - [v1 implementation plan](docs/bif-v1-plan.md): architecture and intended contracts.
 - [v1 task backlog](docs/bif-v1-tasks.md): delivery scope and acceptance checks.
+- [v2 migration plan](docs/bif-v2-migration-plan.md): architecture decisions,
+  staged migration tasks, dependencies, verification, and release gates.
+- [v2 read contract](docs/bif-v2-read-contract.md): frozen compatibility,
+  projection, pagination, error, and payload-boundary rules.
 - [Contract fixtures](docs/fixtures/): canonical values, lifecycle rules, RPC
-  envelopes, and authorization examples.
+  envelopes, authorization examples, and the v2 read contract.
 
 The plan and backlog describe intended delivery, not a declaration that every
 planned integration or recovery feature is already implemented.

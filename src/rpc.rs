@@ -75,7 +75,8 @@ pub trait Dispatcher {
 }
 
 /// Serializes an item once for every RPC operation that returns canonical state.
-pub(crate) fn item_json(item: &Item) -> Value {
+/// Stable v1 JSON projection used by CLI, RPC, and developer instrumentation.
+pub fn item_json(item: &Item) -> Value {
     let provenance = item.provenance();
     json!({
         "id": item.id().to_string(),

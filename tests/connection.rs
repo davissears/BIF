@@ -1,21 +1,19 @@
+mod support;
+
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use bif::storage::open;
+use support::OwnedTestDirectory;
 
-static NEXT_DATABASE: AtomicU64 = AtomicU64::new(0);
-
-fn temporary_database() -> PathBuf {
-    let sequence = NEXT_DATABASE.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!(
-        "bif-connection-test-{}-{sequence}.sqlite",
-        std::process::id()
-    ))
+fn temporary_database() -> (OwnedTestDirectory, PathBuf) {
+    let directory = OwnedTestDirectory::new();
+    let path = directory.path().join("bif.sqlite");
+    (directory, path)
 }
 
 #[test]
 fn connection_factory_applies_all_sqlite_settings() {
-    let path = temporary_database();
+    let (_directory, path) = temporary_database();
     let connection = open(&path).unwrap();
 
     let foreign_keys: i64 = connection
@@ -37,5 +35,25 @@ fn connection_factory_applies_all_sqlite_settings() {
     assert_eq!(busy_timeout_ms, 5_000);
 
     drop(connection);
-    std::fs::remove_file(path).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn nofollow_factory_rejects_an_intermediate_symbolic_component() {
+    use std::{fs, os::unix::fs::symlink};
+
+    use bif::storage::open_nofollow;
+
+    let directory = OwnedTestDirectory::new();
+    let canonical_root = fs::canonicalize(directory.path()).unwrap();
+    let real = canonical_root.join("real");
+    let alias = canonical_root.join("alias");
+    fs::create_dir(&real).unwrap();
+    symlink(&real, &alias).unwrap();
+
+    assert!(open_nofollow(alias.join("bif.sqlite")).is_err());
+    assert!(
+        !real.join("bif.sqlite").exists(),
+        "the Unix VFS must not follow the intermediate symbolic component"
+    );
 }

@@ -1,0 +1,2192 @@
+{
+  "format": "bif-v2-measurement-v2",
+  "provenance": {
+    "revision": "a3cc0873744eb88fd2b07adf6d6daefe7d0856b7",
+    "dirty": true,
+    "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)",
+    "target": "aarch64-apple-darwin",
+    "sqlite_version": "3.51.1",
+    "profile": "release",
+    "unix_time_seconds": 1789331535,
+    "host_os": "Darwin Daviss-Mac-mini.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:11:03 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8132 arm64",
+    "exact_command": [
+      "target/release/bif-benchmark",
+      "target/bif-v2-006-refresh/100.sqlite3",
+      "--samples",
+      "20",
+      "--output",
+      "target/bif-v2-006-refresh/measurement-100.json"
+    ],
+    "cache_procedure": "none; no OS cache eviction attempted",
+    "fixture_bytes": 466944,
+    "fixture_seed": 2003,
+    "fixture_digest": "b819125481255ec7"
+  },
+  "source_database": "target/bif-v2-006-refresh/100.sqlite3",
+  "measured_store": "/var/folders/y0/q3qv9t8n0p94lbs4msx02stm0000gn/T/delta-terminal-.delta-fs-JbjUZg/bif-measurement-53308-1789331535542974000-0/store.sqlite3",
+  "measured_store_sizes_before_writes": {
+    "database": {
+      "status": "present",
+      "bytes": 466944
+    },
+    "wal": {
+      "status": "present",
+      "bytes": 0
+    }
+  },
+  "measured_store_sizes_after_writes": {
+    "database": {
+      "status": "present",
+      "bytes": 483328
+    },
+    "wal": {
+      "status": "missing"
+    }
+  },
+  "durability": {
+    "foreign_keys": "ON",
+    "journal_mode": "wal",
+    "synchronous": "FULL"
+  },
+  "percentile_definition": "nearest rank; overflow-safe quotient/remainder calculation",
+  "startup_open": {
+    "sample_count": 20,
+    "p50": 303250,
+    "p95": 373833,
+    "samples": [
+      373833,
+      325792,
+      287958,
+      275250,
+      307750,
+      303250,
+      300167,
+      310959,
+      291667,
+      289875,
+      296792,
+      294750,
+      299709,
+      302542,
+      305750,
+      314292,
+      310791,
+      344625,
+      403583,
+      347584
+    ]
+  },
+  "persistence_verification": {
+    "revision": 24,
+    "expected_revision": 24,
+    "benchmark_note_events": 20,
+    "expected_benchmark_note_events": 20,
+    "integrity_check": "ok",
+    "foreign_key_violations": 0
+  },
+  "filesystem_cold": {
+    "status": "unavailable",
+    "value": null,
+    "reason": "OS cache not evicted; procedure recorded in provenance"
+  },
+  "operations": [
+    {
+      "name": "get",
+      "phase": "warm_connection_and_os_cache",
+      "sql_metrics_scope": "totals plus complete per-sample trace and StatementStatus counters",
+      "matches_per_sample": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "lexical_data_statements_per_sample": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "sql_metrics_per_sample": [
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 65,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        }
+      ],
+      "sql_totals": {
+        "lexical_data_statements": 40,
+        "sqlite_row_callbacks": 80,
+        "profile_nanoseconds": 0,
+        "sqlite_work": {
+          "fullscan_steps": 0,
+          "sorts": 0,
+          "autoindex_rows": 0,
+          "vm_steps": 1300,
+          "reprepares": 0,
+          "runs": 40,
+          "filter_misses": 0,
+          "filter_hits": 0
+        }
+      },
+      "wall_nanoseconds": {
+        "sample_count": 20,
+        "p50": 18583,
+        "p95": 32208,
+        "samples": [
+          48667,
+          32208,
+          23208,
+          20958,
+          22000,
+          21083,
+          19208,
+          20625,
+          18583,
+          18791,
+          19958,
+          18375,
+          18209,
+          17875,
+          17791,
+          17708,
+          17625,
+          17708,
+          17708,
+          17584
+        ]
+      },
+      "sqlite_profile_nanoseconds": {
+        "sample_count": 20,
+        "p50": 0,
+        "p95": 0,
+        "samples": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "non_profiled_wall_residual_nanoseconds": {
+        "sample_count": 20,
+        "p50": 18583,
+        "p95": 32208,
+        "samples": [
+          48667,
+          32208,
+          23208,
+          20958,
+          22000,
+          21083,
+          19208,
+          20625,
+          18583,
+          18791,
+          19958,
+          18375,
+          18209,
+          17875,
+          17791,
+          17708,
+          17625,
+          17708,
+          17708,
+          17584
+        ]
+      },
+      "profile_exceeded_wall_samples": [],
+      "profile_zero_samples": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "serialization_nanoseconds": {
+        "sample_count": 20,
+        "p50": 750,
+        "p95": 4375,
+        "samples": [
+          18292,
+          1166,
+          875,
+          833,
+          750,
+          875,
+          4375,
+          792,
+          2041,
+          834,
+          708,
+          667,
+          709,
+          708,
+          708,
+          708,
+          708,
+          750,
+          708,
+          667
+        ]
+      },
+      "response_bytes": {
+        "sample_count": 20,
+        "p50": 836,
+        "p95": 836,
+        "samples": [
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836,
+          836
+        ]
+      },
+      "serialization_shape": "stable current v1 CLI/RPC result JSON (without RPC transport envelope)"
+    },
+    {
+      "name": "history",
+      "phase": "warm_connection_and_os_cache",
+      "sql_metrics_scope": "totals plus complete per-sample trace and StatementStatus counters",
+      "matches_per_sample": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "lexical_data_statements_per_sample": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "sql_metrics_per_sample": [
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 2,
+          "sqlite_row_callbacks": 5,
+          "profile_nanoseconds": 1000000,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 120,
+            "reprepares": 0,
+            "runs": 2,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        }
+      ],
+      "sql_totals": {
+        "lexical_data_statements": 40,
+        "sqlite_row_callbacks": 100,
+        "profile_nanoseconds": 1000000,
+        "sqlite_work": {
+          "fullscan_steps": 0,
+          "sorts": 0,
+          "autoindex_rows": 0,
+          "vm_steps": 2400,
+          "reprepares": 0,
+          "runs": 40,
+          "filter_misses": 0,
+          "filter_hits": 0
+        }
+      },
+      "wall_nanoseconds": {
+        "sample_count": 20,
+        "p50": 27042,
+        "p95": 32500,
+        "samples": [
+          42666,
+          32500,
+          29125,
+          28417,
+          27375,
+          28708,
+          27833,
+          27083,
+          27041,
+          27000,
+          26792,
+          27042,
+          26958,
+          26625,
+          26833,
+          26791,
+          26834,
+          27125,
+          27000,
+          27375
+        ]
+      },
+      "sqlite_profile_nanoseconds": {
+        "sample_count": 20,
+        "p50": 0,
+        "p95": 0,
+        "samples": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1000000
+        ]
+      },
+      "non_profiled_wall_residual_nanoseconds": {
+        "sample_count": 20,
+        "p50": 27041,
+        "p95": 32500,
+        "samples": [
+          42666,
+          32500,
+          29125,
+          28417,
+          27375,
+          28708,
+          27833,
+          27083,
+          27041,
+          27000,
+          26792,
+          27042,
+          26958,
+          26625,
+          26833,
+          26791,
+          26834,
+          27125,
+          27000,
+          0
+        ]
+      },
+      "profile_exceeded_wall_samples": [
+        19
+      ],
+      "profile_zero_samples": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "serialization_nanoseconds": {
+        "sample_count": 20,
+        "p50": 1584,
+        "p95": 2625,
+        "samples": [
+          2625,
+          1750,
+          2916,
+          1750,
+          1625,
+          1625,
+          1667,
+          1583,
+          1583,
+          1667,
+          1583,
+          1542,
+          1583,
+          1541,
+          1583,
+          1584,
+          1584,
+          1625,
+          1583,
+          1583
+        ]
+      },
+      "response_bytes": {
+        "sample_count": 20,
+        "p50": 1576,
+        "p95": 1576,
+        "samples": [
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576,
+          1576
+        ]
+      },
+      "serialization_shape": "stable current v1 CLI/RPC result JSON (without RPC transport envelope)"
+    },
+    {
+      "name": "list_all",
+      "phase": "warm_connection_and_os_cache",
+      "sql_metrics_scope": "totals plus complete per-sample trace and StatementStatus counters",
+      "matches_per_sample": [
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100
+      ],
+      "lexical_data_statements_per_sample": [
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201,
+        201
+      ],
+      "sql_metrics_per_sample": [
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 2000000,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 1000000,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 1000000,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 1000000,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 1000000,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 1000000,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 201,
+          "sqlite_row_callbacks": 539,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 99,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 7002,
+            "reprepares": 0,
+            "runs": 201,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        }
+      ],
+      "sql_totals": {
+        "lexical_data_statements": 4020,
+        "sqlite_row_callbacks": 10780,
+        "profile_nanoseconds": 7000000,
+        "sqlite_work": {
+          "fullscan_steps": 1980,
+          "sorts": 0,
+          "autoindex_rows": 0,
+          "vm_steps": 140040,
+          "reprepares": 0,
+          "runs": 4020,
+          "filter_misses": 0,
+          "filter_hits": 0
+        }
+      },
+      "wall_nanoseconds": {
+        "sample_count": 20,
+        "p50": 1571000,
+        "p95": 1785000,
+        "samples": [
+          1897833,
+          1785000,
+          1749000,
+          1681833,
+          1670125,
+          1623000,
+          1615959,
+          1598250,
+          1595792,
+          1573416,
+          1564042,
+          1567583,
+          1571000,
+          1555500,
+          1548125,
+          1451417,
+          1487834,
+          1460666,
+          1494625,
+          1464958
+        ]
+      },
+      "sqlite_profile_nanoseconds": {
+        "sample_count": 20,
+        "p50": 0,
+        "p95": 1000000,
+        "samples": [
+          0,
+          0,
+          0,
+          2000000,
+          0,
+          0,
+          1000000,
+          0,
+          1000000,
+          0,
+          1000000,
+          0,
+          0,
+          1000000,
+          0,
+          1000000,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "non_profiled_wall_residual_nanoseconds": {
+        "sample_count": 20,
+        "p50": 1494625,
+        "p95": 1785000,
+        "samples": [
+          1897833,
+          1785000,
+          1749000,
+          0,
+          1670125,
+          1623000,
+          615959,
+          1598250,
+          595792,
+          1573416,
+          564042,
+          1567583,
+          1571000,
+          555500,
+          1548125,
+          451417,
+          1487834,
+          1460666,
+          1494625,
+          1464958
+        ]
+      },
+      "profile_exceeded_wall_samples": [
+        3
+      ],
+      "profile_zero_samples": [
+        0,
+        1,
+        2,
+        4,
+        5,
+        7,
+        9,
+        11,
+        12,
+        14,
+        16,
+        17,
+        18,
+        19
+      ],
+      "serialization_nanoseconds": {
+        "sample_count": 20,
+        "p50": 51500,
+        "p95": 57875,
+        "samples": [
+          59209,
+          57875,
+          54333,
+          54208,
+          53333,
+          52333,
+          51500,
+          55417,
+          50958,
+          50875,
+          50625,
+          57792,
+          50792,
+          50750,
+          47208,
+          47208,
+          54917,
+          47167,
+          47084,
+          51791
+        ]
+      },
+      "response_bytes": {
+        "sample_count": 20,
+        "p50": 86915,
+        "p95": 86915,
+        "samples": [
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915,
+          86915
+        ]
+      },
+      "serialization_shape": "stable current v1 CLI/RPC result JSON (without RPC transport envelope)"
+    },
+    {
+      "name": "mutation_note",
+      "phase": "warm_connection_and_os_cache",
+      "sql_metrics_scope": "totals plus complete per-sample trace and StatementStatus counters",
+      "matches_per_sample": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "lexical_data_statements_per_sample": [
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "sql_metrics_per_sample": [
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 1000000,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 1000000,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 1000000,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        },
+        {
+          "lexical_data_statements": 7,
+          "sqlite_row_callbacks": 4,
+          "profile_nanoseconds": 0,
+          "sqlite_work": {
+            "fullscan_steps": 0,
+            "sorts": 0,
+            "autoindex_rows": 0,
+            "vm_steps": 579,
+            "reprepares": 0,
+            "runs": 9,
+            "filter_misses": 0,
+            "filter_hits": 0
+          }
+        }
+      ],
+      "sql_totals": {
+        "lexical_data_statements": 140,
+        "sqlite_row_callbacks": 80,
+        "profile_nanoseconds": 3000000,
+        "sqlite_work": {
+          "fullscan_steps": 0,
+          "sorts": 0,
+          "autoindex_rows": 0,
+          "vm_steps": 11580,
+          "reprepares": 0,
+          "runs": 180,
+          "filter_misses": 0,
+          "filter_hits": 0
+        }
+      },
+      "wall_nanoseconds": {
+        "sample_count": 20,
+        "p50": 152417,
+        "p95": 225166,
+        "samples": [
+          331875,
+          212708,
+          225166,
+          176458,
+          156666,
+          141291,
+          143500,
+          138750,
+          187750,
+          178625,
+          138792,
+          157208,
+          152000,
+          149250,
+          152417,
+          153167,
+          141583,
+          172959,
+          144167,
+          143750
+        ]
+      },
+      "sqlite_profile_nanoseconds": {
+        "sample_count": 20,
+        "p50": 0,
+        "p95": 1000000,
+        "samples": [
+          0,
+          0,
+          0,
+          0,
+          1000000,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1000000,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1000000,
+          0,
+          0
+        ]
+      },
+      "non_profiled_wall_residual_nanoseconds": {
+        "sample_count": 20,
+        "p50": 144167,
+        "p95": 225166,
+        "samples": [
+          331875,
+          212708,
+          225166,
+          176458,
+          0,
+          141291,
+          143500,
+          138750,
+          187750,
+          178625,
+          138792,
+          0,
+          152000,
+          149250,
+          152417,
+          153167,
+          141583,
+          0,
+          144167,
+          143750
+        ]
+      },
+      "profile_exceeded_wall_samples": [
+        4,
+        11,
+        17
+      ],
+      "profile_zero_samples": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13,
+        14,
+        15,
+        16,
+        18,
+        19
+      ],
+      "serialization_nanoseconds": {
+        "sample_count": 20,
+        "p50": 708,
+        "p95": 1417,
+        "samples": [
+          1417,
+          1542,
+          1042,
+          1083,
+          792,
+          750,
+          708,
+          708,
+          1167,
+          666,
+          625,
+          750,
+          667,
+          750,
+          667,
+          625,
+          667,
+          667,
+          708,
+          708
+        ]
+      },
+      "response_bytes": {
+        "sample_count": 20,
+        "p50": 828,
+        "p95": 828,
+        "samples": [
+          827,
+          827,
+          827,
+          827,
+          827,
+          828,
+          828,
+          828,
+          828,
+          828,
+          828,
+          828,
+          828,
+          828,
+          828,
+          828,
+          828,
+          828,
+          828,
+          828
+        ]
+      },
+      "serialization_shape": "stable current v1 CLI/RPC result JSON (without RPC transport envelope)"
+    }
+  ]
+}

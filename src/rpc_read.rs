@@ -14,6 +14,21 @@ use crate::domain::{
 };
 use crate::rpc::{Dispatcher, ErrorCode, Operation, Request, RpcError, item_json};
 
+pub fn get_result_json(item: &crate::domain::Item) -> Value {
+    json!({ "item": item_json(item) })
+}
+
+pub fn history_result_json(events: &[application::ItemHistoryEvent]) -> Value {
+    json!({ "events": events.iter().map(history_json).collect::<Vec<_>>() })
+}
+
+pub fn list_result_json(page: &application::ItemPage) -> Value {
+    json!({
+        "items": page.items.iter().map(item_json).collect::<Vec<_>>(),
+        "next_offset": page.next_offset.map(PageOffset::get)
+    })
+}
+
 /// Trusted read identity and the requester used by the `mine` view.
 #[derive(Clone, Copy)]
 pub struct ReadAuthorization<'a> {
@@ -221,7 +236,7 @@ where
             &self.authorization(),
             &parse_item_id(&params.item_id)?,
         )
-        .map(|item| json!({ "item": item_json(&item) }))
+        .map(|item| get_result_json(&item))
         .map_err(map_read_error)
     }
 
@@ -232,7 +247,7 @@ where
             &self.authorization(),
             &parse_item_id(&params.item_id)?,
         )
-        .map(|events| json!({ "events": events.iter().map(history_json).collect::<Vec<_>>() }))
+        .map(|events| history_result_json(&events))
         .map_err(map_history_error)
     }
 
@@ -267,12 +282,7 @@ where
             )
         };
         result
-            .map(|page| {
-                json!({
-                    "items": page.items.iter().map(item_json).collect::<Vec<_>>(),
-                    "next_offset": page.next_offset.map(PageOffset::get)
-                })
-            })
+            .map(|page| list_result_json(&page))
             .map_err(map_view_error)
     }
 }
@@ -388,7 +398,8 @@ fn decode<T: for<'de> Deserialize<'de>>(params: Map<String, Value>) -> Result<T,
     serde_json::from_value(Value::Object(params)).map_err(|_| invalid())
 }
 
-pub(crate) fn history_json(event: &application::ItemHistoryEvent) -> Value {
+/// Stable v1 JSON projection used by CLI, RPC, and developer instrumentation.
+pub fn history_json(event: &application::ItemHistoryEvent) -> Value {
     json!({
         "operation_id": event.operation_id, "event_id": event.event_id,
         "item_revision": event.item_revision.get(), "event_index": event.event_index,

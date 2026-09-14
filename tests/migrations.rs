@@ -1,17 +1,15 @@
+mod support;
+
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use bif::storage::{MigrationError, migrate, open};
 use rusqlite::{Connection, OptionalExtension};
+use support::OwnedTestDirectory;
 
-static NEXT_DATABASE: AtomicU64 = AtomicU64::new(0);
-
-fn temporary_database() -> PathBuf {
-    let sequence = NEXT_DATABASE.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!(
-        "bif-storage-test-{}-{sequence}.sqlite",
-        std::process::id()
-    ))
+fn temporary_database() -> (OwnedTestDirectory, PathBuf) {
+    let directory = OwnedTestDirectory::new();
+    let path = directory.path().join("bif.sqlite");
+    (directory, path)
 }
 
 fn table_exists(connection: &Connection, table: &str) -> bool {
@@ -28,7 +26,7 @@ fn table_exists(connection: &Connection, table: &str) -> bool {
 
 #[test]
 fn fresh_install_records_schema_and_store_metadata() {
-    let path = temporary_database();
+    let (_directory, path) = temporary_database();
     let connection = open(&path).unwrap();
 
     assert!(table_exists(&connection, "schema_migrations"));
@@ -59,12 +57,11 @@ fn fresh_install_records_schema_and_store_metadata() {
     assert!(store.2);
 
     drop(connection);
-    std::fs::remove_file(path).unwrap();
 }
 
 #[test]
 fn repeat_startup_is_a_no_op_and_preserves_store_identity() {
-    let path = temporary_database();
+    let (_directory, path) = temporary_database();
     let connection = open(&path).unwrap();
     let store_id: String = connection
         .query_row("SELECT store_id FROM store_metadata", [], |row| row.get(0))
@@ -85,7 +82,6 @@ fn repeat_startup_is_a_no_op_and_preserves_store_identity() {
     assert_eq!(state, (2, store_id));
 
     drop(connection);
-    std::fs::remove_file(path).unwrap();
 }
 
 #[test]

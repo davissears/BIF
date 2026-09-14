@@ -1,32 +1,12 @@
+mod support;
+
 use rusqlite::Connection;
 use std::{
     fs,
     path::{Path, PathBuf},
     process::{Command, Output},
-    sync::atomic::{AtomicU64, Ordering},
 };
-
-static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
-
-struct TestDirectory(PathBuf);
-
-impl TestDirectory {
-    fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "bif-capture-cli-test-{}-{}",
-            std::process::id(),
-            NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir_all(&path).unwrap();
-        Self(path)
-    }
-}
-
-impl Drop for TestDirectory {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
+use support::OwnedTestDirectory as TestDirectory;
 
 fn bif(directory: &Path, arguments: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_bif"))
@@ -45,11 +25,11 @@ fn text(bytes: &[u8]) -> String {
 
 fn initialized() -> (TestDirectory, PathBuf, PathBuf) {
     let directory = TestDirectory::new();
-    let root = directory.0.join("root");
+    let root = directory.path().join("root");
     fs::create_dir(&root).unwrap();
-    let config = directory.0.join("config.toml");
+    let config = directory.path().join("config.toml");
     let initialized = bif(
-        &directory.0,
+        directory.path(),
         &[
             "init",
             "--root",
@@ -72,7 +52,7 @@ fn initialized() -> (TestDirectory, PathBuf, PathBuf) {
 fn capture_persists_content_provenance_and_ordered_acceptance() {
     let (directory, root, config) = initialized();
     let captured = bif(
-        &directory.0,
+        directory.path(),
         &[
             "capture",
             "Ship capture CLI",
@@ -176,8 +156,8 @@ fn retry_returns_the_original_id_and_conflicts_are_operational_failures() {
         "--config",
         config.to_str().unwrap(),
     ];
-    let first = bif(&directory.0, &arguments);
-    let retry = bif(&directory.0, &arguments);
+    let first = bif(directory.path(), &arguments);
+    let retry = bif(directory.path(), &arguments);
     assert!(first.status.success(), "{}", text(&first.stderr));
     assert!(retry.status.success(), "{}", text(&retry.stderr));
     assert_eq!(
@@ -186,7 +166,7 @@ fn retry_returns_the_original_id_and_conflicts_are_operational_failures() {
     );
 
     let conflict = bif(
-        &directory.0,
+        directory.path(),
         &[
             "capture",
             "Changed payload",
@@ -208,10 +188,10 @@ fn retry_returns_the_original_id_and_conflicts_are_operational_failures() {
 #[test]
 fn capture_uses_configured_requester_and_resolves_registered_project() {
     let (directory, _, config) = initialized();
-    let checkout = directory.0.join("checkout");
+    let checkout = directory.path().join("checkout");
     fs::create_dir(&checkout).unwrap();
     let registered = bif(
-        &directory.0,
+        directory.path(),
         &[
             "project",
             "register",

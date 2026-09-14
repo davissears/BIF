@@ -1,0 +1,438 @@
+{
+  "fixture": "bif-v2-read-contract",
+  "fixture_version": 1,
+  "contract_version": 2,
+  "implementation_status": "contract_only",
+  "v1_compatibility": {
+    "fixtures_unchanged": [
+      "bif-v1-authorization.json",
+      "bif-v1-canonical.json",
+      "bif-v1-lifecycle.json",
+      "bif-v1-rpc.json"
+    ],
+    "default_cli_version": 1,
+    "rpc_invocation": "bif rpc",
+    "rpc_protocol_version": 1,
+    "offset_pagination_preserved": true,
+    "complete_item_shapes_preserved": true,
+    "response_budget_added": false
+  },
+  "cli": {
+    "selector": {
+      "tokens": ["--api-version", "2"],
+      "position": "before_command",
+      "required_for_v2": true
+    },
+    "json_required": true,
+    "operations": {
+      "get": "bif --api-version 2 get ITEM_ID [--projection PROJECTION] --json",
+      "list": "bif --api-version 2 list [VIEW] [FILTERS] [--projection PROJECTION] [--limit N] [--cursor TOKEN] --json",
+      "next": "bif --api-version 2 next [FILTERS] [--projection PROJECTION] [--limit N] [--cursor TOKEN] --json",
+      "history": "bif --api-version 2 history ITEM_ID [--limit N] [--cursor TOKEN] --json"
+    },
+    "invalid_combinations": [
+      {"operation": "get", "options": ["--cursor", "opaque"], "error": "invalid_input"},
+      {"operation": "get", "options": ["--limit", "1"], "error": "invalid_input"},
+      {"operation": "get", "options": ["--offset", "1"], "error": "invalid_input"},
+      {"operation": "list", "options": ["--offset", "1"], "error": "invalid_input"},
+      {"operation": "list", "options": ["--offset", "1", "--cursor", "opaque"], "error": "invalid_input"},
+      {"operation": "next", "options": ["--offset", "1"], "error": "invalid_input"},
+      {"operation": "next", "options": ["--offset", "1", "--cursor", "opaque"], "error": "invalid_input"},
+      {"operation": "history", "options": ["--offset", "1"], "error": "invalid_input"},
+      {"operation": "history", "options": ["--offset", "1", "--cursor", "opaque"], "error": "invalid_input"},
+      {"operation": "history", "options": ["--projection", "audit"], "error": "invalid_input"}
+    ]
+  },
+  "requests": {
+    "defaults": {
+      "view": "all",
+      "unassigned": false,
+      "projection": "summary",
+      "limit": 20
+    },
+    "limit_range": {"minimum": 1, "maximum": 100},
+    "get_fields": ["item_id", "projection"],
+    "list_fields": [
+      "view",
+      "project",
+      "requester",
+      "assignee",
+      "status",
+      "priority",
+      "unassigned",
+      "text",
+      "projection",
+      "limit",
+      "cursor"
+    ],
+    "next_fields": [
+      "project",
+      "requester",
+      "assignee",
+      "status",
+      "priority",
+      "unassigned",
+      "text",
+      "projection",
+      "limit",
+      "cursor"
+    ],
+    "history_fields": ["item_id", "limit", "cursor"],
+    "mutually_exclusive": [["assignee", "unassigned:true"]]
+  },
+  "closed_enums": {
+    "projection": ["summary", "work", "audit"],
+    "status": ["proposed", "ready", "in_progress", "blocked", "done", "rejected"],
+    "priority": ["P0", "P1", "P2", "P3", "P4"],
+    "source_host": ["delta", "codex", "local"],
+    "event_type": [
+      "captured",
+      "approved",
+      "rejected",
+      "started",
+      "blocked",
+      "resumed",
+      "finished",
+      "priority_changed",
+      "assignee_changed",
+      "note_added"
+    ],
+    "actor_kind": ["human", "agent"],
+    "execution_kind": ["direct", "agent"],
+    "read_error_code": [
+      "invalid_input",
+      "not_found",
+      "unauthorized",
+      "unsupported_version",
+      "not_initialized",
+      "storage_busy",
+      "invalid_cursor",
+      "payload_too_large",
+      "internal"
+    ]
+  },
+  "projection_schemas": {
+    "summary": {
+      "schema_version": 1,
+      "fields": ["id", "title", "status", "priority", "assignee", "revision"],
+      "nullable_fields": ["priority", "assignee"]
+    },
+    "work": {
+      "schema_version": 1,
+      "fields": [
+        "id",
+        "title",
+        "status",
+        "priority",
+        "assignee",
+        "revision",
+        "description",
+        "acceptance_criteria",
+        "status_reason"
+      ],
+      "nullable_fields": ["priority", "assignee", "description", "status_reason"]
+    },
+    "audit": {
+      "schema_version": 1,
+      "fields": [
+        "id",
+        "title",
+        "status",
+        "priority",
+        "assignee",
+        "revision",
+        "description",
+        "acceptance_criteria",
+        "status_reason",
+        "requester",
+        "project",
+        "sequence",
+        "captured_at",
+        "updated_at",
+        "provenance"
+      ],
+      "nullable_fields": ["priority", "assignee", "description", "status_reason"],
+      "provenance_fields": [
+        "source_host",
+        "thread_id",
+        "message_id",
+        "url",
+        "repository_reference",
+        "revision_reference",
+        "context_excerpt"
+      ],
+      "nullable_provenance_fields": [
+        "source_host",
+        "thread_id",
+        "message_id",
+        "url",
+        "repository_reference",
+        "revision_reference",
+        "context_excerpt"
+      ]
+    }
+  },
+  "history_schema": {
+    "schema_version": 1,
+    "result_fields": ["item_id", "events", "next_cursor"],
+    "event_fields": [
+      "operation_id",
+      "event_id",
+      "item_revision",
+      "event_index",
+      "event_type",
+      "before",
+      "after",
+      "actor",
+      "execution",
+      "reason",
+      "note",
+      "occurred_at",
+      "schema_version"
+    ],
+    "nullable_event_fields": ["before", "after", "reason", "note"],
+    "actor_fields": ["kind", "id", "surface", "host"],
+    "direct_execution_fields": ["kind", "surface", "host"],
+    "agent_execution_fields": ["kind", "agent_id", "surface", "host"],
+    "ordering": [
+      {"field": "item_revision", "direction": "ascending", "type": "u64"},
+      {"field": "event_index", "direction": "ascending", "type": "u64"}
+    ],
+    "missing_item": "not_found",
+    "existing_item_without_events": {
+      "item_id": "DAVIS:bif:001",
+      "events": [],
+      "next_cursor": null
+    }
+  },
+  "results": {
+    "success_envelope_fields": ["api_version", "schema_version", "ok", "result"],
+    "error_envelope_fields": ["api_version", "schema_version", "ok", "error"],
+    "api_version": 2,
+    "schema_version": 1,
+    "success_ok": true,
+    "error_ok": false,
+    "stdout_framing": "One JSON value followed by one newline",
+    "diagnostics": "stderr_only",
+    "get_fields": ["item"],
+    "page_fields": ["items", "next_cursor"],
+    "empty_page": {"items": [], "next_cursor": null},
+    "null_rule": "All schema fields are present; nullable fields use JSON null and arrays are never null",
+    "replacement_rule": "Every projection and history event is a complete object for its schema, never a patch",
+    "audit_history_rule": "Audit is complete current item state and provenance but never embeds history"
+  },
+  "ordering": {
+    "list": [
+      {"field": "captured_at", "direction": "descending", "type": "timestamp"},
+      {"field": "requester", "direction": "ascending", "type": "canonical_string"},
+      {"field": "project", "direction": "ascending", "type": "canonical_string"},
+      {"field": "sequence", "direction": "ascending", "type": "u64"}
+    ],
+    "next": [
+      {"field": "priority", "direction": "ascending", "rank": ["P0", "P1", "P2", "P3", "P4", null]},
+      {"field": "captured_at", "direction": "ascending", "type": "timestamp"},
+      {"field": "requester", "direction": "ascending", "type": "canonical_string"},
+      {"field": "project", "direction": "ascending", "type": "canonical_string"},
+      {"field": "sequence", "direction": "ascending", "type": "u64"}
+    ],
+    "identity_rule": "Compare requester, project, then numeric u64 sequence; never compare display IDs lexically",
+    "large_id_case": {
+      "ordered_ids": ["DAVIS:bif:999", "DAVIS:bif:1000", "DAVIS:bif:9007199254740993"],
+      "maximum_fixture_sequence": 9007199254740993
+    }
+  },
+  "pagination": {
+    "model": "live_keyset",
+    "cursor": {
+      "encoding": "opaque",
+      "bound_to": [
+        "cursor_version",
+        "operation_kind",
+        "store_id",
+        "effective_scope_and_filters",
+        "order_version",
+        "projection_schema_version",
+        "last_returned_record"
+      ]
+    },
+    "unchanged_dataset": "exactly_once_traversal",
+    "concurrent_change_behavior": "Items may repeat or be omitted when membership or sort keys move; no historical snapshot is promised",
+    "offset_with_cursor": "reject_with_invalid_input",
+    "offset_in_v2": "reject_with_invalid_input"
+  },
+  "strict_input": {
+    "unknown_fields": "reject_with_invalid_input",
+    "duplicate_fields": "reject_with_invalid_input",
+    "enum_matching": "exact_case_sensitive",
+    "response_unknown_fields": "not_emitted_in_schema_version_1"
+  },
+  "payload_boundaries": {
+    "maximum_request_bytes": 1048576,
+    "maximum_response_bytes": 1048576,
+    "maximum_page_items": 100,
+    "measurement": "UTF-8 bytes of the complete encoded JSON value",
+    "page_boundary": "Return only complete records and derive next_cursor from the last returned record",
+    "field_truncation": "forbidden",
+    "single_oversized_record": {
+      "error": "payload_too_large",
+      "cursor_advanced": false,
+      "partial_success_written": false,
+      "detail_fields": [
+        "record_kind",
+        "record_id",
+        "maximum_response_bytes",
+        "minimum_required_bytes"
+      ]
+    },
+    "oversized_request": {
+      "error": "invalid_input",
+      "request_id_recovered": false
+    }
+  },
+  "stable_errors": {
+    "shape_fields": ["code", "message", "details"],
+    "message_stability": "nonempty but not stable for programmatic matching",
+    "exit_codes": {
+      "invalid_input": 2,
+      "not_found": 3,
+      "unauthorized": 4,
+      "unsupported_version": 8,
+      "not_initialized": 9,
+      "storage_busy": 10,
+      "invalid_cursor": 2,
+      "payload_too_large": 11,
+      "internal": 1
+    },
+    "details_rules": {
+      "invalid_cursor": ["reason", "restart_required"],
+      "payload_too_large": [
+        "record_kind",
+        "record_id",
+        "maximum_response_bytes",
+        "minimum_required_bytes"
+      ]
+    }
+  },
+  "coverage_cases": {
+    "nulls_and_empty_arrays": {
+      "projection": "audit",
+      "item": {
+        "id": "DAVIS:bif:001",
+        "title": "Null contract case",
+        "status": "proposed",
+        "priority": null,
+        "assignee": null,
+        "revision": 1,
+        "description": null,
+        "acceptance_criteria": [],
+        "status_reason": null,
+        "requester": "DAVIS",
+        "project": "bif",
+        "sequence": 1,
+        "captured_at": "2025-01-02T03:04:05Z",
+        "updated_at": "2025-01-02T03:04:05Z",
+        "provenance": {
+          "source_host": null,
+          "thread_id": null,
+          "message_id": null,
+          "url": null,
+          "repository_reference": null,
+          "revision_reference": null,
+          "context_excerpt": null
+        }
+      }
+    },
+    "p4": {
+      "projection": "summary",
+      "item": {
+        "id": "DAVIS:bif:004",
+        "title": "P4 contract case",
+        "status": "ready",
+        "priority": "P4",
+        "assignee": "davis",
+        "revision": 2
+      }
+    },
+    "large_numeric_id": {
+      "projection": "audit",
+      "item": {
+        "id": "DAVIS:bif:9007199254740993",
+        "title": "Large numeric ID contract case",
+        "status": "ready",
+        "priority": "P0",
+        "assignee": "davis",
+        "revision": 1,
+        "description": "Keep the sequence as an exact unsigned integer.",
+        "acceptance_criteria": [],
+        "status_reason": null,
+        "requester": "DAVIS",
+        "project": "bif",
+        "sequence": 9007199254740993,
+        "captured_at": "2025-01-02T03:04:05Z",
+        "updated_at": "2025-01-02T03:04:05Z",
+        "provenance": {
+          "source_host": "delta",
+          "thread_id": null,
+          "message_id": null,
+          "url": null,
+          "repository_reference": null,
+          "revision_reference": null,
+          "context_excerpt": null
+        }
+      },
+      "rule": "Must remain an exact u64 and sort numerically"
+    },
+    "empty_results": {
+      "list": {"items": [], "next_cursor": null},
+      "history": {"item_id": "DAVIS:bif:001", "events": [], "next_cursor": null}
+    },
+    "unknown_field": {
+      "operation": "list",
+      "request": {
+        "projection": "summary",
+        "limit": 10,
+        "unexpected": true
+      },
+      "error": "invalid_input",
+      "storage_accessed": false
+    },
+    "oversized_record": {
+      "operation": "get",
+      "projection": "work",
+      "request": {
+        "item_id": "DAVIS:bif:007",
+        "projection": "work"
+      },
+      "response_construction": {
+        "encoding": "serde_json_compact_utf8",
+        "envelope": "v2_success_get",
+        "repeat_field": "result.item.description",
+        "repeat_value": "x",
+        "repeat_count": 1048576,
+        "item": {
+          "id": "DAVIS:bif:007",
+          "title": "Oversized record contract case",
+          "status": "ready",
+          "priority": null,
+          "assignee": null,
+          "revision": 1,
+          "description": null,
+          "acceptance_criteria": [],
+          "status_reason": null
+        }
+      },
+      "expected_error": {
+        "code": "payload_too_large",
+        "message": "A complete item exceeds the maximum response size",
+        "details": {
+          "record_kind": "item",
+          "record_id": "DAVIS:bif:007",
+          "maximum_response_bytes": 1048576,
+          "minimum_required_bytes": 1048829
+        }
+      },
+      "cursor_advanced": false,
+      "partial_success_written": false
+    }
+  }
+}
