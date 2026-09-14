@@ -152,6 +152,16 @@ consistently, but the startup samples and final measured snapshot are separate
 backups and can observe different committed states if that precondition is
 violated.
 
+Before any SQLite connection opens the canonical source, the harness checks its
+canonical `-wal` and `-shm` companion names. WAL without SHM is an unsupported
+source state and fails closed: ordinary read-only SQLite opens can create the
+missing public SHM path. The preflight only observes those paths and does not
+create or remove companions. DB-only sources with neither companion remain
+supported, as do active-WAL sources where both companions exist. The check and
+SQLite open cannot be atomic; the immutable-source requirement above excludes a
+companion change in that interval. A hostile or concurrent path mutation could
+therefore bypass or spuriously trigger the check and is outside Phase A.
+
 The online backups do not themselves change the logical or durable source
 database or its WAL contents. SQLite may, however, update transient read-mark
 and coordination bytes in an existing `-shm` file while a reader uses an active
@@ -190,6 +200,9 @@ provenance only at `<resolved-database>.metadata.json`; the sidecar's recorded
 database path must resolve to that same pathname. A distinct
 `<lexical-alias>.metadata.json` is rejected as ambiguous even if its contents
 happen to match, rather than silently choosing between provenance records.
+The WAL-without-SHM preflight likewise derives both companion names from the
+resolved target; lexical-alias companions do not substitute for canonical
+companions and are not touched.
 Report output validation protects the database, WAL, SHM, and metadata companion
 names for both the resolved target and the exact lexical alias used by the
 invocation.

@@ -106,9 +106,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             (path, Some(directory))
         }
     };
-    if let Some(parent) = database.parent() {
-        fs::create_dir_all(parent)?;
-    }
+    let parent = database
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)?;
+    // On the supported Unix boundary, the bundled SQLite VFS's NOFOLLOW checks
+    // every path component. Resolve any pre-existing benign aliases (for
+    // example macOS `/var` -> `/private/var`) before claiming public names; a
+    // later replacement remains detectable.
+    let staging_parent = fs::canonicalize(parent)?;
     let metadata_path = PathBuf::from(format!("{}.metadata.json", database.display()));
     // Claim both public names before doing expensive work. SQLite is never
     // given either public name: its database and sidecars use a distinct random
@@ -136,12 +143,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         })?;
     let mut owned_metadata = OwnedOutput::new(metadata_path, metadata_file);
 
-    let parent = database.parent().unwrap_or_else(|| Path::new("."));
-    // On the supported Unix boundary, the bundled SQLite VFS's NOFOLLOW checks
-    // every path component. Resolve any pre-existing benign aliases (for
-    // example macOS `/var` -> `/private/var`) before creating the staging
-    // directory; a later replacement remains detectable.
-    let staging_parent = fs::canonicalize(parent)?;
     // Disarm tempfile's pathname-based Drop immediately. No later code
     // recursively deletes this directory: portable directory removal APIs
     // cannot guarantee that a concurrent rename will not retarget cleanup.

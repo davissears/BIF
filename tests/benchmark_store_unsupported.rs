@@ -4,8 +4,10 @@ use std::{fs, process::Command};
 
 #[test]
 fn generator_fails_closed_before_claiming_outputs() {
-    let directory = tempfile::tempdir().unwrap();
-    let database = directory.path().join("store.sqlite3");
+    // Disarm tempfile's pathname-based recursive Drop; external temp cleanup
+    // may reclaim this uniquely named test directory.
+    let directory = tempfile::tempdir().unwrap().keep();
+    let database = directory.join("store.sqlite3");
     let output = Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
         .args(["100", "--output"])
         .arg(&database)

@@ -360,6 +360,15 @@ changing durability or compiling timing-sensitive CI assertions into tests.
 **Verification:** A known small fixture demonstrates the current `1 + 2M`
 list data-query growth. Release-build runs report p50/p95 and sample counts.
 
+Before metadata validation or backup opens the canonical source through SQLite,
+the harness fails closed when the canonical WAL exists without its canonical
+SHM. Read-only SQLite can otherwise create that missing public SHM path. The
+preflight does not create or remove companion paths; DB-only sources and
+active-WAL sources with both companions remain supported, including transient
+SHM coordination-byte changes. Canonical/lexical alias handling follows the
+documented source and output policy. The check/open interval retains the Phase A
+immutable-source precondition rather than claiming atomicity.
+
 Before publication, the harness writes the complete report to a
 destination-directory temporary file and syncs the file. No existing
 destination is overwritten. Publication atomicity is platform/filesystem

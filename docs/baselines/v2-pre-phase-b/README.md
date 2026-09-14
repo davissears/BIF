@@ -36,7 +36,10 @@ completion through the corresponding harness exit, keep its logical state and
 metadata immutable: do not open a concurrent writer, replace either path, or
 measure through a hard-link alias. The harness takes separate backups for
 startup samples and measured operations; it does not anchor them to one source
-snapshot.
+snapshot. A source with WAL but no SHM is unsupported and fails closed before
+SQLite metadata validation or backup: reproduce from a normal DB-only generator
+output, or retain both WAL and SHM for an active-WAL input. Do not add, remove,
+or replace either companion between preflight and harness exit.
 
 ```sh
 rm -rf target/bif-v2-006-refresh
@@ -164,6 +167,10 @@ measured improvement.
   backups. Only the final measured snapshot was digest-validated; the artifacts
   do not prove that the source stayed unchanged across the run. Trustworthy
   reproduction depends on the immutable/disposable-source procedure above.
+- WAL-without-SHM sources are unsupported and fail closed because a read-only
+  SQLite open can create the missing public SHM. The canonical companion
+  preflight is observational, but is not atomic with the later SQLite open; the
+  immutable-source reproduction precondition excludes that residual race.
 - Allocator-wide allocation counts are unavailable.
 - Response bytes exclude transport envelopes and are not tokens.
 - Persistence checks do not simulate power loss or process crashes.

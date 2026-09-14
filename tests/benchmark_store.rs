@@ -132,6 +132,76 @@ fn small_benchmark_store_is_deterministic_and_verified() {
 }
 
 #[test]
+fn bare_and_explicit_dot_outputs_are_equivalent_and_never_overwritten() {
+    let mut generated_metadata = Vec::new();
+
+    for output_path in ["bare.sqlite3", "./bare.sqlite3"] {
+        let directory = OwnedTestDirectory::new();
+        let generate = || {
+            Command::new(env!("CARGO_BIN_EXE_bif-benchmark-store"))
+                .args(["100", "--seed", "8675309", "--output", output_path])
+                .current_dir(directory.path())
+                .output()
+                .expect("run fixture generator from disposable working directory")
+        };
+
+        let generated = generate();
+        assert!(
+            generated.status.success(),
+            "{output_path}: {}",
+            String::from_utf8_lossy(&generated.stderr)
+        );
+        let stdout_metadata =
+            serde_json::from_slice::<Value>(&generated.stdout).expect("machine-readable metadata");
+        let database = directory.path().join("bare.sqlite3");
+        let metadata_path = directory.path().join("bare.sqlite3.metadata.json");
+        let database_bytes = fs::read(&database).expect("generated database");
+        let metadata_bytes = fs::read(&metadata_path).expect("generated metadata sidecar");
+        let sidecar_metadata =
+            serde_json::from_slice::<Value>(&metadata_bytes).expect("valid metadata sidecar");
+        assert_eq!(sidecar_metadata, stdout_metadata);
+        assert_eq!(stdout_metadata["database"], output_path);
+        assert_eq!(stdout_metadata["integrity_check"], "ok");
+
+        let connection =
+            Connection::open_with_flags(&database, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        assert_eq!(
+            connection
+                .query_row("PRAGMA integrity_check", [], |row| row.get::<_, String>(0))
+                .unwrap(),
+            "ok"
+        );
+        let summary = benchmark_fixture::summarize(&connection).unwrap();
+        assert_eq!(
+            stdout_metadata["logical_digest"],
+            format!("{:016x}", summary.digest)
+        );
+        drop(connection);
+
+        let refused = generate();
+        assert!(
+            !refused.status.success(),
+            "{output_path} must not overwrite"
+        );
+        assert_eq!(fs::read(&database).unwrap(), database_bytes);
+        assert_eq!(fs::read(&metadata_path).unwrap(), metadata_bytes);
+        generated_metadata.push(stdout_metadata);
+    }
+
+    for field in [
+        "logical_digest",
+        "row_counts",
+        "distributions",
+        "samples_verified",
+    ] {
+        assert_eq!(
+            generated_metadata[0][field], generated_metadata[1][field],
+            "{field} differs between bare and explicit-dot output paths"
+        );
+    }
+}
+
+#[test]
 fn explicit_output_failure_never_removes_unowned_database_or_sqlite_sidecars() {
     let directory = OwnedTestDirectory::new();
     let database = directory.path().join("store.sqlite3");

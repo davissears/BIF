@@ -274,14 +274,20 @@ impl SourceIdentity {
         Ok(Self { canonical, lexical })
     }
 
+    fn append_suffix(database: &Path, suffix: &str) -> PathBuf {
+        let mut path = database.as_os_str().to_os_string();
+        path.push(suffix);
+        path.into()
+    }
+
     fn companion_paths(&self) -> Vec<PathBuf> {
         let mut paths = Vec::with_capacity(8);
         for database in [&self.canonical, &self.lexical] {
             for path in [
                 database.clone(),
-                PathBuf::from(format!("{}-wal", database.display())),
-                PathBuf::from(format!("{}-shm", database.display())),
-                PathBuf::from(format!("{}.metadata.json", database.display())),
+                Self::append_suffix(database, "-wal"),
+                Self::append_suffix(database, "-shm"),
+                Self::append_suffix(database, ".metadata.json"),
             ] {
                 if !paths.contains(&path) {
                     paths.push(path);
@@ -291,12 +297,28 @@ impl SourceIdentity {
         paths
     }
 
+    fn reject_wal_without_shm(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let wal = Self::append_suffix(&self.canonical, "-wal");
+        let shm = Self::append_suffix(&self.canonical, "-shm");
+        // These existence checks do not open SQLite or create, remove, or
+        // otherwise adopt either companion pathname.
+        if wal.try_exists()? && !shm.try_exists()? {
+            return Err(format!(
+                "unsupported source state: WAL {} exists but SHM {} is absent; refusing to open the source database",
+                wal.display(),
+                shm.display()
+            )
+            .into());
+        }
+        Ok(())
+    }
+
     fn canonical_metadata(&self) -> PathBuf {
-        PathBuf::from(format!("{}.metadata.json", self.canonical.display()))
+        Self::append_suffix(&self.canonical, ".metadata.json")
     }
 
     fn lexical_metadata(&self) -> PathBuf {
-        PathBuf::from(format!("{}.metadata.json", self.lexical.display()))
+        Self::append_suffix(&self.lexical, ".metadata.json")
     }
 }
 
@@ -395,6 +417,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Err(format!("--samples must be between 1 and {MAX_SAMPLES}").into());
     }
     let source = SourceIdentity::resolve(&source)?;
+    source.reject_wal_without_shm()?;
     let output = output
         .as_ref()
         .map(|path| prepare_output(&source, path))
@@ -891,10 +914,12 @@ mod report_output_tests {
 
     #[test]
     fn partial_write_removes_only_owned_temporary_file() {
-        let directory = tempfile::tempdir().unwrap();
-        let unrelated = directory.path().join("unrelated");
+        // Disarm tempfile's pathname-based recursive Drop; external temp
+        // cleanup may reclaim this uniquely named test directory.
+        let directory = tempfile::tempdir().unwrap().keep();
+        let unrelated = directory.join("unrelated");
         fs::write(&unrelated, b"keep").unwrap();
-        let output = prepared(directory.path(), "report.json");
+        let output = prepared(&directory, "report.json");
 
         let error = publish_report_with(&output, |file| {
             file.write_all(br#"{"partial":"#)?;
@@ -905,15 +930,15 @@ mod report_output_tests {
         assert!(error.to_string().contains("simulated write failure"));
         assert!(!output.path.exists());
         assert_eq!(fs::read(&unrelated).unwrap(), b"keep");
-        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(&directory).unwrap().count(), 1);
     }
 
     #[test]
     fn competing_destination_is_not_clobbered() {
-        let directory = tempfile::tempdir().unwrap();
-        let unrelated = directory.path().join("unrelated");
+        let directory = tempfile::tempdir().unwrap().keep();
+        let unrelated = directory.join("unrelated");
         fs::write(&unrelated, b"keep").unwrap();
-        let output = prepared(directory.path(), "report.json");
+        let output = prepared(&directory, "report.json");
 
         let error = publish_report_with(&output, |file| {
             file.write_all(br#"{"complete":true}"#)?;
@@ -924,20 +949,20 @@ mod report_output_tests {
         assert!(error.to_string().contains("refusing to overwrite"));
         assert_eq!(fs::read(&output.path).unwrap(), b"competitor");
         assert_eq!(fs::read(&unrelated).unwrap(), b"keep");
-        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 2);
+        assert_eq!(fs::read_dir(&directory).unwrap().count(), 2);
     }
 
     #[test]
     fn publication_error_does_not_claim_atomicity() {
-        let directory = tempfile::tempdir().unwrap();
-        let output = prepared(directory.path(), "missing/report.json");
+        let directory = tempfile::tempdir().unwrap().keep();
+        let output = prepared(&directory, "missing/report.json");
 
         let error = publish_report_with(&output, |file| file.write_all(b"complete")).unwrap_err();
         let message = error.to_string();
 
         assert!(message.contains("could not publish output"));
         assert!(!message.contains("atomically"));
-        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
+        assert_eq!(fs::read_dir(&directory).unwrap().count(), 0);
     }
 }
 
