@@ -20,7 +20,7 @@ use super::{
 };
 
 /// Maximum complete encoded token size, checked before decoding or allocation.
-pub const MAX_CURSOR_BYTES: usize = 16_384;
+pub use crate::limits::MAX_CURSOR_BYTES;
 const PREFIX: &str = "bifc1.";
 const MAX_ENVELOPE_BYTES: usize = (MAX_CURSOR_BYTES - PREFIX.len()) / 2;
 const CURSOR_VERSION: u32 = 1;
@@ -84,6 +84,42 @@ impl fmt::Display for InvalidCursor {
 }
 
 impl Error for InvalidCursor {}
+
+/// Generated continuation failures are not invalid supplied cursors.
+#[derive(Debug)]
+pub enum CursorEncodeError {
+    InvalidContext(InvalidCursor),
+    /// Exact complete token size; no oversized token was allocated.
+    TooLarge {
+        encoded_token_bytes: usize,
+    },
+    Serialization(serde_json::Error),
+}
+
+impl fmt::Display for CursorEncodeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidContext(error) => error.fmt(formatter),
+            Self::TooLarge {
+                encoded_token_bytes,
+            } => write!(
+                formatter,
+                "generated cursor requires {encoded_token_bytes} bytes"
+            ),
+            Self::Serialization(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl Error for CursorEncodeError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::InvalidContext(error) => Some(error),
+            Self::Serialization(error) => Some(error),
+            Self::TooLarge { .. } => None,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -272,20 +308,14 @@ impl CursorContext {
         }
     }
 
-    pub fn encode_item_key(&self, key: &ItemReadKey) -> Result<String, InvalidCursor> {
-        self.require_item_kind()?;
-        // Bound intermediate copies as well as the final encoded representation.
-        if key.captured_at.as_str().len() > MAX_ENVELOPE_BYTES
-            || key.id.requester().as_str().len() > MAX_ENVELOPE_BYTES
-            || key.id.project().as_str().len() > MAX_ENVELOPE_BYTES
-        {
-            return Err(InvalidCursor(InvalidCursorReason::Oversized));
-        }
+    pub fn encode_item_key(&self, key: &ItemReadKey) -> Result<String, CursorEncodeError> {
+        self.require_item_kind()
+            .map_err(CursorEncodeError::InvalidContext)?;
         self.encode(Boundary::Item(ItemBoundary {
-            requester: key.id.requester().as_str().to_owned(),
-            project: key.id.project().as_str().to_owned(),
+            requester: key.id.requester().as_str(),
+            project: key.id.project().as_str(),
             sequence: key.id.sequence(),
-            captured_at: key.captured_at.as_str().to_owned(),
+            captured_at: key.captured_at.as_str(),
             priority: key.priority.map(WirePriority::from),
         }))
     }
@@ -304,8 +334,9 @@ impl CursorContext {
         Ok(key.clone())
     }
 
-    pub fn encode_history_key(&self, key: &HistoryReadKey) -> Result<String, InvalidCursor> {
-        self.require_history_kind()?;
+    pub fn encode_history_key(&self, key: &HistoryReadKey) -> Result<String, CursorEncodeError> {
+        self.require_history_kind()
+            .map_err(CursorEncodeError::InvalidContext)?;
         self.encode(Boundary::History(HistoryBoundary {
             item_revision: key.item_revision.get(),
             event_index: key.event_index,
@@ -344,27 +375,32 @@ impl CursorContext {
         }
     }
 
-    fn encode(&self, boundary: Boundary) -> Result<String, InvalidCursor> {
-        if self.store_id.len() > MAX_ENVELOPE_BYTES {
-            return Err(InvalidCursor(InvalidCursorReason::Oversized));
-        }
+    fn encode(&self, boundary: Boundary<&str>) -> Result<String, CursorEncodeError> {
         let envelope = Envelope {
             cursor_version: CURSOR_VERSION,
             kind: self.kind,
-            store_id: self.store_id.clone(),
+            store_id: self.store_id.as_str(),
             generation: None,
-            query_fingerprint: self.query_fingerprint.clone(),
+            query_fingerprint: self.query_fingerprint.as_str(),
             order_version: ORDER_VERSION,
             projection_schema_version: PROJECTION_SCHEMA_VERSION,
             boundary,
         };
-        let mut writer = BoundedEnvelope(Vec::new());
-        serde_json::to_writer(&mut writer, &envelope)
-            .map_err(|_| InvalidCursor(InvalidCursorReason::Oversized))?;
-        let mut token = String::with_capacity(PREFIX.len() + writer.0.len() * 2);
+        let mut writer = BoundedEnvelope {
+            bytes: Vec::new(),
+            total: 0,
+        };
+        serde_json::to_writer(&mut writer, &envelope).map_err(CursorEncodeError::Serialization)?;
+        let encoded_token_bytes = PREFIX.len() + writer.total * 2;
+        if encoded_token_bytes > MAX_CURSOR_BYTES {
+            return Err(CursorEncodeError::TooLarge {
+                encoded_token_bytes,
+            });
+        }
+        let mut token = String::with_capacity(encoded_token_bytes);
         token.push_str(PREFIX);
         const HEX: &[u8; 16] = b"0123456789abcdef";
-        for byte in writer.0 {
+        for byte in writer.bytes {
             token.push(HEX[(byte >> 4) as usize] as char);
             token.push(HEX[(byte & 15) as usize] as char);
         }
@@ -418,33 +454,34 @@ where
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Envelope {
+struct Envelope<S = String> {
     cursor_version: u32,
     kind: CursorKind,
-    store_id: String,
+    store_id: S,
     // Reserved for the journal migration: absent/null is supported, never a
     // non-null generation that would imply restore safety we do not provide.
     generation: Option<String>,
-    query_fingerprint: String,
+    query_fingerprint: S,
     order_version: u32,
     projection_schema_version: u32,
-    boundary: Boundary,
+    boundary: Boundary<S>,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum Boundary {
-    Item(#[serde(deserialize_with = "object_only")] ItemBoundary),
+#[serde(bound(deserialize = "S: Deserialize<'de>"))]
+enum Boundary<S = String> {
+    Item(#[serde(deserialize_with = "object_only")] ItemBoundary<S>),
     History(#[serde(deserialize_with = "object_only")] HistoryBoundary),
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ItemBoundary {
-    requester: String,
-    project: String,
+struct ItemBoundary<S = String> {
+    requester: S,
+    project: S,
     sequence: u64,
-    captured_at: String,
+    captured_at: S,
     #[serde(deserialize_with = "required_nullable")]
     priority: Option<WirePriority>,
 }
@@ -519,15 +556,22 @@ fn hex_digit(byte: u8) -> Option<u8> {
     }
 }
 
-/// Caps JSON serialization before it can allocate an oversized token.
-struct BoundedEnvelope(Vec<u8>);
+/// Retain only bounded JSON, but count the complete envelope after overflow.
+struct BoundedEnvelope {
+    bytes: Vec<u8>,
+    total: usize,
+}
 
 impl io::Write for BoundedEnvelope {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        if bytes.len() > MAX_ENVELOPE_BYTES - self.0.len() {
-            return Err(io::Error::other("cursor envelope exceeds byte limit"));
+        self.total = self
+            .total
+            .checked_add(bytes.len())
+            .filter(|total| *total <= (usize::MAX - PREFIX.len()) / 2)
+            .ok_or_else(|| io::Error::other("cursor size overflow"))?;
+        if self.total <= MAX_ENVELOPE_BYTES {
+            self.bytes.extend_from_slice(bytes);
         }
-        self.0.extend_from_slice(bytes);
         Ok(bytes.len())
     }
 

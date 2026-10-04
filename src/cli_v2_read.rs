@@ -13,23 +13,23 @@ use serde_json::{Map, Value, json};
 
 use crate::{
     application::{
-        self, Actor, ActorKind, AuthorizationRequest, Command, CursorContext, DecodedCursor,
-        Execution, HistoryOrdering, HistoryPageRequest, HistoryReadKey, HumanAuthorization,
-        ItemListFilters, ItemListOrdering, ItemProjectionKind, ItemProjectionPageRequest,
-        ObservedExecution, ProjectionGetRequest, ReadPageRequest,
+        self, Actor, ActorKind, AuthorizationRequest, Command, CursorContext, CursorEncodeError,
+        DecodedCursor, Execution, HistoryOrdering, HistoryPageRequest, HistoryReadKey,
+        HumanAuthorization, ItemListFilters, ItemListOrdering, ItemProjectionKind,
+        ItemProjectionPageRequest, ObservedExecution, ProjectionGetRequest, ReadPageRequest,
     },
     cli_read,
     config::{self, ConfigOverrides, ProjectPathMappings, ProjectRemoteMappings, resolve_project},
     domain::{AssigneeId, NamedView, ProjectId, RequesterId},
+    limits::MAXIMUM_REQUEST_BYTES,
     rpc_read::{ClassifyReadStorageError, ReadStorageErrorKind},
     storage::{
         self, ItemHistoryRepository, ProjectRegistrationError, ProjectRepository,
         ProjectionRepository,
     },
-    v2_response::{self, EncodeError, ReadError, ReadErrorCode, ResponseBudget},
+    v2_response::{self, CursorCandidate, EncodeError, ReadError, ReadErrorCode, ResponseBudget},
 };
 
-const MAXIMUM_REQUEST_BYTES: usize = 1_048_576;
 const PAGE_OPTIONS: &[&str] = &[
     "project",
     "requester",
@@ -418,8 +418,8 @@ fn execute(mut parsed: Parsed) -> Result<Vec<u8>, ReadError> {
                 application::ProjectionPageError::Unauthorized(_) => ReadError::Unauthorized,
                 application::ProjectionPageError::Storage(error) => storage_error(&error),
             })?;
-            v2_response::write_item_page(&mut output, &page, budget, |row| {
-                context.encode_item_key(&row.key).map_err(cursor_error)
+            v2_response::write_item_page_candidates(&mut output, &page, budget, |row| {
+                generated_cursor(context.encode_item_key(&row.key))
             })
             .map_err(encode_error)?;
         }
@@ -444,21 +444,32 @@ fn execute(mut parsed: Parsed) -> Result<Vec<u8>, ReadError> {
                 application::ItemHistoryError::InvalidPersistedData(_) => ReadError::Internal,
                 application::ItemHistoryError::Storage(error) => storage_error(&error),
             })?;
-            v2_response::write_history_page(
+            v2_response::write_history_page_candidates(
                 &mut output,
                 &request.item_id,
                 &page,
                 budget,
-                |event| {
-                    context
-                        .encode_history_key(&HistoryReadKey::from(event))
-                        .map_err(cursor_error)
-                },
+                |event| generated_cursor(context.encode_history_key(&HistoryReadKey::from(event))),
             )
             .map_err(encode_error)?;
         }
     }
     Ok(output)
+}
+
+/// Oversized generated boundaries are page candidates, not invalid input.
+fn generated_cursor(
+    result: Result<String, CursorEncodeError>,
+) -> Result<CursorCandidate, ReadError> {
+    match result {
+        Ok(token) => Ok(CursorCandidate::Token(token)),
+        Err(CursorEncodeError::TooLarge {
+            encoded_token_bytes,
+        }) => Ok(CursorCandidate::Oversized {
+            encoded_token_bytes,
+        }),
+        Err(_) => Err(ReadError::Internal),
+    }
 }
 
 fn invalid(_: impl std::fmt::Display) -> ReadError {

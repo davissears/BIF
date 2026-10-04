@@ -12,8 +12,9 @@ use bif::{
         Status, ThreadId, Timestamp,
     },
     v2_response::{
-        EncodeError, ReadError, RecordKind, ResponseBudget, write_error, write_get,
-        write_history_page, write_item_page,
+        CursorCandidate, EncodeError, ReadError, RecordKind, ResponseBudget, write_error,
+        write_get, write_history_page, write_history_page_candidates, write_item_page,
+        write_item_page_candidates,
     },
 };
 use serde_json::{Value, json};
@@ -488,6 +489,116 @@ fn largest_fitting_prefix_handles_variable_cursor_size_and_terminal_null() {
     .unwrap();
     assert_eq!(bytes, short);
     assert_eq!(called, [2, 1]);
+}
+
+#[test]
+fn oversized_generated_candidates_use_exact_minimum_and_can_fall_back() {
+    let page = ReadPage {
+        records: vec![row(1), row(2)],
+        has_more: true,
+    };
+    let encoded_token_bytes = 1_048_578;
+    let mut terminal = Vec::new();
+    write_item_page(
+        &mut terminal,
+        &ReadPage {
+            records: vec![row(1)],
+            has_more: false,
+        },
+        ResponseBudget::default(),
+        |_| panic!(),
+    )
+    .unwrap();
+    let mut oracle = value(&terminal);
+    oracle["result"]["next_cursor"] = json!("a".repeat(encoded_token_bytes));
+    let minimum = serde_json::to_vec(&oracle).unwrap().len();
+    let mut output = Vec::new();
+    let error = write_item_page_candidates(&mut output, &page, ResponseBudget::default(), |_| {
+        Ok(CursorCandidate::Oversized {
+            encoded_token_bytes,
+        })
+    })
+    .unwrap_err();
+    assert_payload(error, RecordKind::Item, "DAVIS:bif:001", minimum, 1_048_576);
+    assert!(output.is_empty());
+
+    let mut boundaries = Vec::new();
+    write_item_page_candidates(&mut output, &page, ResponseBudget::default(), |last| {
+        boundaries.push(last.key.id.sequence());
+        Ok(if last.key.id.sequence() == 2 {
+            CursorCandidate::Oversized {
+                encoded_token_bytes,
+            }
+        } else {
+            CursorCandidate::Token("short".into())
+        })
+    })
+    .unwrap();
+    assert_eq!(boundaries, [2, 1]);
+    let result = value(&output);
+    assert_eq!(result["result"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(result["result"]["next_cursor"], "short");
+
+    output.clear();
+    write_item_page_candidates(
+        &mut output,
+        &ReadPage {
+            records: page.records,
+            has_more: false,
+        },
+        ResponseBudget::default(),
+        |_| panic!("terminal needs no cursor"),
+    )
+    .unwrap();
+    assert_eq!(
+        value(&output)["result"]["items"].as_array().unwrap().len(),
+        2
+    );
+    assert!(value(&output)["result"]["next_cursor"].is_null());
+}
+
+#[test]
+fn history_generated_overflow_is_payload_not_invalid_cursor() {
+    let page = ReadPage {
+        records: vec![event()],
+        has_more: true,
+    };
+    let encoded_token_bytes = 1_048_578;
+    let mut output = Vec::new();
+    let mut oracle_bytes = Vec::new();
+    write_history_page(
+        &mut oracle_bytes,
+        &id(1),
+        &ReadPage {
+            records: vec![event()],
+            has_more: false,
+        },
+        ResponseBudget::default(),
+        |_| panic!(),
+    )
+    .unwrap();
+    let mut oracle = value(&oracle_bytes);
+    oracle["result"]["next_cursor"] = json!("a".repeat(encoded_token_bytes));
+    let error = write_history_page_candidates(
+        &mut output,
+        &id(1),
+        &page,
+        ResponseBudget::default(),
+        |_| {
+            Ok(CursorCandidate::Oversized {
+                encoded_token_bytes,
+            })
+        },
+    )
+    .unwrap_err();
+    assert_payload(
+        error,
+        RecordKind::Event,
+        "event",
+        serde_json::to_vec(&oracle).unwrap().len(),
+        1_048_576,
+    );
+    assert!(output.is_empty());
 }
 
 #[test]

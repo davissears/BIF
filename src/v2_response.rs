@@ -24,7 +24,7 @@ use crate::{
     domain::{AssigneeId, EventType, EventValue, ItemId, Priority, Provenance, SourceHost, Status},
 };
 
-pub const MAXIMUM_RESPONSE_BYTES: usize = 1_048_576;
+pub use crate::limits::MAXIMUM_RESPONSE_BYTES;
 const MAXIMUM_PAGE_RECORDS: usize = 100;
 
 /// A response may use a smaller delivery budget, but never exceed the contract.
@@ -279,6 +279,32 @@ pub fn write_item_page<W: Write, F: FnMut(&ProjectedItemRow) -> Result<String, R
     output: &mut W,
     page: &ReadPage<ProjectedItemRow>,
     budget: ResponseBudget,
+    mut cursor: F,
+) -> Result<ResponseStats, EncodeError> {
+    write_item_page_candidates(output, page, budget, |row| {
+        cursor(row).map(CursorCandidate::Token)
+    })
+}
+
+/// A generated continuation candidate, including exact sizes without a token.
+#[derive(Debug)]
+pub enum CursorCandidate {
+    Token(String),
+    /// Complete unescaped ASCII token bytes (the hex codec needs only quotes
+    /// in JSON). This boundary cannot be emitted, even under a larger budget.
+    Oversized {
+        encoded_token_bytes: usize,
+    },
+}
+
+/// Candidate-aware list/next delivery, sharing the String callback serializer.
+pub fn write_item_page_candidates<
+    W: Write,
+    F: FnMut(&ProjectedItemRow) -> Result<CursorCandidate, ReadError>,
+>(
+    output: &mut W,
+    page: &ReadPage<ProjectedItemRow>,
+    budget: ResponseBudget,
     cursor: F,
 ) -> Result<ResponseStats, EncodeError> {
     if page
@@ -293,6 +319,22 @@ pub fn write_item_page<W: Write, F: FnMut(&ProjectedItemRow) -> Result<String, R
 
 /// Write bounded complete history events; the caller binds cursors to this item.
 pub fn write_history_page<W: Write, F: FnMut(&ItemHistoryEvent) -> Result<String, ReadError>>(
+    output: &mut W,
+    item_id: &ItemId,
+    page: &ReadPage<ItemHistoryEvent>,
+    budget: ResponseBudget,
+    mut cursor: F,
+) -> Result<ResponseStats, EncodeError> {
+    write_history_page_candidates(output, item_id, page, budget, |event| {
+        cursor(event).map(CursorCandidate::Token)
+    })
+}
+
+/// Candidate-aware history delivery through the same bounded page core.
+pub fn write_history_page_candidates<
+    W: Write,
+    F: FnMut(&ItemHistoryEvent) -> Result<CursorCandidate, ReadError>,
+>(
     output: &mut W,
     item_id: &ItemId,
     page: &ReadPage<ItemHistoryEvent>,
@@ -348,7 +390,7 @@ impl<R: WireRecord> Serialize for PageWire<'_, R> {
     }
 }
 
-fn write_page<W: Write, R: WireRecord, F: FnMut(&R) -> Result<String, ReadError>>(
+fn write_page<W: Write, R: WireRecord, F: FnMut(&R) -> Result<CursorCandidate, ReadError>>(
     output: &mut W,
     item_id: Option<&ItemId>,
     page: &ReadPage<R>,
@@ -402,12 +444,26 @@ fn write_page<W: Write, R: WireRecord, F: FnMut(&R) -> Result<String, ReadError>
         } else {
             None
         };
-        let cursor_bytes = encoded_len(&candidate_cursor)?;
+        let (cursor_text, cursor_bytes, cursor_fits) = match &candidate_cursor {
+            None => (None, 4, true),
+            Some(CursorCandidate::Token(token)) => {
+                (Some(token.as_str()), encoded_len(token)?, true)
+            }
+            Some(CursorCandidate::Oversized {
+                encoded_token_bytes,
+            }) => (
+                None,
+                encoded_token_bytes
+                    .checked_add(2)
+                    .ok_or(EncodeError::Read(ReadError::Internal))?,
+                false,
+            ),
+        };
         // The empty envelope already reserves the four bytes of JSON null.
         let candidate_bytes = (prefix_bytes[index] - 4)
             .checked_add(cursor_bytes)
             .ok_or(EncodeError::Read(ReadError::Internal))?;
-        if candidate_bytes > budget.0 {
+        if !cursor_fits || candidate_bytes > budget.0 {
             if index == 0 {
                 return Err(oversized(
                     record.kind(),
@@ -421,7 +477,7 @@ fn write_page<W: Write, R: WireRecord, F: FnMut(&R) -> Result<String, ReadError>
         let envelope = success(PageWire {
             item_id,
             records: &page.records[..index + 1],
-            next_cursor: candidate_cursor.as_deref(),
+            next_cursor: cursor_text,
         });
         return emit(output, &envelope, candidate_bytes, index + 1);
     }

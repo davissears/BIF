@@ -460,7 +460,7 @@ fn misplaced_api_version_without_initial_selector_remains_a_v1_usage_error() {
 }
 
 #[test]
-fn oversized_cursor_is_rejected_before_config_access() {
+fn oversized_cursor_request_obeys_full_request_budget_before_config_access() {
     let directory = OwnedTestDirectory::new();
     let cursor = "x".repeat(bif::application::MAX_CURSOR_BYTES + 1);
     let missing_config = directory.path().join("missing-config.toml");
@@ -477,14 +477,147 @@ fn oversized_cursor_is_rejected_before_config_access() {
             "--config",
             missing_config.to_str().unwrap(),
         ]);
-        let error = envelope(process(directory.path(), &args), 2);
-        assert_eq!(error["error"]["code"], "invalid_cursor");
-        assert_eq!(
-            error["error"]["details"],
-            json!({"reason":"oversized","restart_required":true}),
-        );
+        // The full encoded request budget takes precedence; an OS argv of this
+        // size can fail with E2BIG before reaching BIF on Linux.
+        let mut stdout = Vec::new();
+        let mut stderr = Vec::new();
+        assert_eq!(bif::cli::run(args, &mut stdout, &mut stderr), 2);
+        let error: Value = serde_json::from_slice(&stdout).unwrap();
+        assert_eq!(error["error"]["code"], "invalid_input");
+        assert_eq!(error["error"]["details"], json!({}));
     }
     assert!(!missing_config.exists());
+}
+
+#[test]
+fn supported_long_identifier_captures_traverse_every_projection() {
+    let directory = OwnedTestDirectory::new();
+    let config = directory.path().join("config.toml");
+    let root = directory.path().join("root");
+    fs::create_dir(&root).unwrap();
+    let requester = "R".repeat(9000);
+    assert!(
+        process(
+            directory.path(),
+            &[
+                "init",
+                "--root",
+                root.to_str().unwrap(),
+                "--requester",
+                &requester,
+                "--config",
+                config.to_str().unwrap(),
+            ]
+        )
+        .status
+        .success()
+    );
+    for sequence in 1..=101 {
+        let output = process(
+            directory.path(),
+            &[
+                "capture",
+                "title",
+                "--project",
+                "alpha",
+                "--idempotency-key",
+                &format!("long-{sequence}"),
+                "--config",
+                config.to_str().unwrap(),
+            ],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .starts_with(&format!("Captured {requester}:alpha:{sequence:03}\n"))
+        );
+        if sequence == 2 {
+            for projection in ["summary", "work", "audit"] {
+                let terminal = envelope(
+                    process(
+                        directory.path(),
+                        &[
+                            "--api-version",
+                            "2",
+                            "list",
+                            "--project",
+                            "alpha",
+                            "--projection",
+                            projection,
+                            "--limit",
+                            "100",
+                            "--json",
+                            "--config",
+                            config.to_str().unwrap(),
+                        ],
+                    ),
+                    0,
+                );
+                assert_eq!(terminal["result"]["items"].as_array().unwrap().len(), 2);
+                assert!(terminal["result"]["next_cursor"].is_null());
+            }
+        }
+    }
+    for projection in ["summary", "work", "audit"] {
+        let mut cursor = None::<String>;
+        let mut seen = std::collections::BTreeSet::new();
+        let mut page_count = 0;
+        loop {
+            let mut args = vec![
+                "--api-version",
+                "2",
+                "list",
+                "--project",
+                "alpha",
+                "--projection",
+                projection,
+                "--limit",
+                "100",
+                "--json",
+                "--config",
+                config.to_str().unwrap(),
+            ];
+            if let Some(token) = &cursor {
+                args.extend(["--cursor", token]);
+            }
+            let output = process(directory.path(), &args);
+            assert!(output.stdout.len() - 1 <= 1_048_576);
+            let result = envelope(output, 0);
+            let items = result["result"]["items"].as_array().unwrap();
+            assert!(!items.is_empty());
+            if page_count == 0 {
+                if projection == "audit" {
+                    assert!(
+                        items.len() < 100,
+                        "audit must byte-stop before the count limit"
+                    );
+                } else {
+                    assert_eq!(items.len(), 100);
+                }
+            }
+            for item in items {
+                assert!(seen.insert(item["id"].as_str().unwrap().to_owned()));
+            }
+            page_count += 1;
+            assert!(page_count <= 101);
+            cursor = result["result"]["next_cursor"].as_str().map(str::to_owned);
+            if cursor.is_none() {
+                break;
+            }
+            assert!(cursor.as_ref().unwrap().len() > 16_384);
+        }
+        assert!(page_count >= 2);
+        assert_eq!(
+            seen,
+            (1..=101)
+                .map(|sequence| format!("{requester}:alpha:{sequence:03}"))
+                .collect()
+        );
+    }
 }
 
 /// Snapshot bytes and modification metadata without opening SQLite.
