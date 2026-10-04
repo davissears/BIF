@@ -1,8 +1,10 @@
 # BIF v2 read contract
 
 **Status:** Approved contract for V2-001. Phase B implements application
-projections, bounded SQLite reads and serializers; Phase C's opaque cursors,
-paginated history storage, legacy read routing and v2 CLI remain unimplemented.
+projections, bounded SQLite reads and serializers. Phase C adds opaque cursors,
+paginated history, bounded legacy routing, and explicit v2 CLI reads. The
+[Phase C evidence report](bif-v2-phase-c-evidence.md) records integrated
+verification, three-scale release measurements, and remaining limitations.
 
 This document freezes BIF v1 compatibility and the first BIF v2 read contract.
 Its machine-readable companion is
@@ -180,6 +182,16 @@ They describe a live continuation, not a historical snapshot. With unchanged
 data, traversal has no duplicates or omissions. With concurrent changes,
 membership or sort-key movement may cause repeats or omissions; callers that
 need reconciliation must use the later synchronization contract.
+
+The local-only cursor envelope is deliberately not MAC-authenticated. A cursor
+is untrusted query parameter data, not a capability: knowing or modifying a
+boundary grants no access, and authorization is re-evaluated on every request.
+Binding checks prevent accidental continuation against another store or query;
+they do not prove the token was issued by BIF. Decoding is bounded, strict, and
+versioned. Unsupported or mismatched tokens return `invalid_cursor` with restart
+guidance instead of falling back to the first page. Store generation is reserved
+for the later journal migration; Phase C does not claim restore-generation
+invalidation or historical snapshots.
 
 ## Strict input, errors, and payload boundaries
 

@@ -1,8 +1,8 @@
 //! Bounded read ports alongside the unchanged v1 complete-item ports.
 //!
-//! These are application/storage contracts, not wire results. View expansion,
-//! effective-filter normalization, sort comparisons, and cursor codecs are
-//! separate follow-up work; decoded keys here only preserve their required data.
+//! These are application/storage contracts, not wire results. Read semantics
+//! normalize effective filters and orders; the cursor codec binds those semantics
+//! to a store before adapters pass decoded, untrusted boundary data to these ports.
 
 use std::{error::Error, fmt};
 
@@ -32,7 +32,7 @@ pub enum ItemProjection {
 
 /// Validated page size and an optional exclusive, decoded keyset boundary.
 ///
-/// Opaque cursor authentication/binding must happen before constructing a
+/// Opaque cursor validation/binding must happen before constructing a
 /// continuation request. An absent boundary starts at the beginning.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReadPageRequest<Key> {
@@ -97,8 +97,8 @@ pub struct ProjectionGetRequest {
 /// Explicit scope, projection, ordering, and bound for list/next selection.
 ///
 /// View and filters are intersected, as in v1. Keep the configured requester
-/// explicit for `mine`. V2-009 will provide their normalized effective form;
-/// these fields are not yet a canonical query fingerprint.
+/// explicit for `mine`. `EffectiveItemFilters` supplies the normalized query
+/// semantics; the cursor context additionally binds the resolved `mine` identity.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ItemProjectionPageRequest {
     pub view: NamedView,

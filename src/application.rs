@@ -10,10 +10,12 @@ use crate::domain::{
     ProjectId, Provenance, RequesterId, Revision, Timestamp,
 };
 
+mod cursors;
 mod projections;
 pub mod read_semantics;
 mod reads;
 
+pub use cursors::{CursorContext, InvalidCursor, InvalidCursorReason, MAX_CURSOR_BYTES};
 pub use projections::{ItemAudit, ItemSummary, ItemWork};
 pub use reads::*;
 

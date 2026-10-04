@@ -452,9 +452,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let initial_revision = revision(&connection, &item_id)?;
     let initial_notes = note_count(&connection, &item_id)?;
     let requester = RequesterId::new("BENCH")?;
-    let list_candidates: usize = connection
-        .query_row("SELECT count(*) FROM items", [], |row| row.get::<_, i64>(0))?
-        .try_into()?;
     let read_authorization = AuthorizationRequest {
         actor: Actor {
             kind: ActorKind::Human,
@@ -512,21 +509,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         )
         .map(|page| (page.items.len(), rpc_read::list_result_json(&page)))
     })?;
-    for (&_matches, &actual) in list
+    for (&matches, &actual) in list
         .matches_per_sample
         .iter()
         .zip(&list.lexical_data_statements_per_sample)
     {
-        let expected = 1usize
-            .checked_add(
-                2usize
-                    .checked_mul(list_candidates)
-                    .ok_or("list count overflow")?,
-            )
-            .ok_or("list count overflow")?;
-        if u64::try_from(expected)? != actual {
+        // Legacy reads now select the SQL-bounded page, then batch criteria.
+        // Empty pages skip children; store size must not affect this count.
+        let expected = if matches == 0 { 1 } else { 2 };
+        if expected != actual {
             return Err(format!(
-                "list sample statement count {actual}, expected 1 + 2M = {expected}"
+                "list sample statement count {actual}, expected bounded primary + optional criteria = {expected}"
             )
             .into());
         }
@@ -779,7 +772,7 @@ fn measure<E, F: FnMut() -> Result<(usize, Value), E>>(
     Ok(Operation {
         name,
         phase: "warm_connection_and_os_cache",
-        sql_metrics_scope: "totals plus complete per-sample trace and StatementStatus counters",
+        sql_metrics_scope: "totals plus complete per-sample trace and StatementStatus counters; list uses bounded primary + optional batched criteria (1/2 data statements), not historical 1 + 2M hydration",
         matches_per_sample: matches,
         lexical_data_statements_per_sample: statements,
         sql_metrics_per_sample: sql_samples,

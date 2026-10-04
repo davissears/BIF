@@ -435,7 +435,7 @@ fn json_line(value: Value) -> Result<String, ReadError> {
         .map_err(operation)
 }
 
-fn parse_item_id(value: &str) -> Result<ItemId, ReadError> {
+pub(crate) fn parse_item_id(value: &str) -> Result<ItemId, ReadError> {
     let mut parts = value.split(':');
     let item = ItemId::new(
         RequesterId::new(parts.next().unwrap_or_default()).map_err(input)?,
@@ -454,7 +454,7 @@ fn parse_item_id(value: &str) -> Result<ItemId, ReadError> {
     }
 }
 
-fn parse_status(value: &str) -> Result<Status, ReadError> {
+pub(crate) fn parse_status(value: &str) -> Result<Status, ReadError> {
     match value {
         "proposed" => Ok(Status::Proposed),
         "ready" => Ok(Status::Ready),
@@ -466,7 +466,7 @@ fn parse_status(value: &str) -> Result<Status, ReadError> {
     }
 }
 
-fn parse_priority(value: &str) -> Result<Priority, ReadError> {
+pub(crate) fn parse_priority(value: &str) -> Result<Priority, ReadError> {
     match value {
         "P0" => Ok(Priority::P0),
         "P1" => Ok(Priority::P1),

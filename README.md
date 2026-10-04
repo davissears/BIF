@@ -187,6 +187,39 @@ bif list done --project my-project --limit 20
 Use `--json` on these commands when feeding the results to a script or agent.
 Use `--offset` with `--limit` to page through a larger queue.
 
+### Read bounded v2 projections and history
+
+Opt in by placing `--api-version 2` **before** the read command. V2 requires
+`--json`; existing commands and BIF RPC v1 retain their original output.
+
+```sh
+# Select summaries, then fetch the complete content needed to execute an item.
+bif --api-version 2 list ready --project my-project --limit 20 --json
+bif --api-version 2 get ITEM_ID --projection work --json
+
+# Audit includes current provenance, not the item's lifetime history.
+bif --api-version 2 get ITEM_ID --projection audit --json
+bif --api-version 2 history ITEM_ID --limit 20 --json
+
+# Resume using the exact next_cursor from the previous matching request.
+bif --api-version 2 list ready --project my-project --limit 20 \
+  --cursor TOKEN --json
+```
+
+Replace `TOKEN` with the returned opaque `next_cursor`; `null` means the page
+is exhausted. Keep the operation, projection, and effective filters unchanged
+when resuming. The default projection is `summary`, and limits range from 1
+through 100. V2 rejects `--offset`; legacy offset pagination remains supported
+but can be expensive at depth.
+
+Queue cursors are live continuations, not historical snapshots. An unchanged
+queue traverses exactly once; concurrent changes to membership or sort keys
+can cause repeats or omissions. History continues in append-only revision/event
+order. Responses include only complete records within a 1 MiB JSON budget; an
+individual record that cannot fit returns `payload_too_large`, never truncated
+content. See the [read contract](docs/bif-v2-read-contract.md) for exact schemas,
+errors, compatibility, and pagination rules.
+
 ### Preserve context across an agent handoff
 
 When an agent captures work from a conversation, attach source provenance so a

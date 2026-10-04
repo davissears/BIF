@@ -5,6 +5,7 @@
 
 mod projection_reads;
 pub use projection_reads::ProjectionRepository;
+mod history_pages;
 
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -136,6 +137,17 @@ pub fn open(path: impl AsRef<Path>) -> Result<Connection, MigrationError> {
     open_with_flags(path, rusqlite::OpenFlags::default())
 }
 
+/// Reads the durable cursor-binding identity without creating or repairing it.
+/// A missing or empty singleton is an integrity failure (`QueryReturnedNoRows`);
+/// invalid SQL types and busy errors remain native SQLite errors.
+pub fn read_store_identity(connection: &Connection) -> Result<String, rusqlite::Error> {
+    connection.query_row(
+        "SELECT store_id FROM store_metadata WHERE singleton = 1 AND length(store_id) > 0",
+        [],
+        |row| row.get(0),
+    )
+}
+
 /// Opens and prepares a SQLite database while requesting no symbolic links in
 /// any filename component.
 ///
@@ -236,6 +248,24 @@ impl ItemStore for ItemRepository<'_> {
 
 impl NamedViewStore for ItemRepository<'_> {
     type Error = ItemStorageError;
+
+    fn select_item_page(
+        &self,
+        view: NamedView,
+        configured_requester: &RequesterId,
+        filters: &ItemListFilters,
+        ordering: crate::application::ItemListOrdering,
+        pagination: crate::application::Pagination,
+    ) -> Result<crate::application::ItemPage, Self::Error> {
+        projection_reads::legacy_page(
+            self.connection,
+            view,
+            configured_requester,
+            filters,
+            ordering,
+            pagination,
+        )
+    }
 
     fn select_items(
         &self,
@@ -615,58 +645,12 @@ impl ItemHistoryStore for ItemHistoryRepository<'_> {
                  ORDER BY item_revision ASC, event_index ASC",
             )
             .map_err(history_sqlite)?;
-        type HistoryRow = (
-            String,
-            String,
-            i64,
-            i64,
-            String,
-            Option<String>,
-            Option<String>,
-            String,
-            String,
-            String,
-            String,
-            String,
-            Option<String>,
-            String,
-            String,
-            Option<String>,
-            Option<String>,
-            String,
-            i64,
-        );
         let rows = statement
-            .query_map([item_id], |row| {
-                Ok((
-                    row.get(0)?,
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(3)?,
-                    row.get(4)?,
-                    row.get(5)?,
-                    row.get(6)?,
-                    row.get(7)?,
-                    row.get(8)?,
-                    row.get(9)?,
-                    row.get(10)?,
-                    row.get(11)?,
-                    row.get(12)?,
-                    row.get(13)?,
-                    row.get(14)?,
-                    row.get(15)?,
-                    row.get(16)?,
-                    row.get(17)?,
-                    row.get(18)?,
-                ))
-            })
+            .query_map([item_id], read_history_row)
             .map_err(history_sqlite)?;
 
-        rows.map(|row| {
-            row.map_err(history_sqlite)
-                .and_then(|row: HistoryRow| history_event(row))
-        })
-        .collect()
+        rows.map(|row| row.map_err(history_sqlite).and_then(history_event))
+            .collect()
     }
 }
 
@@ -684,28 +668,54 @@ fn invalid_history(
     })
 }
 
+type HistoryRow = (
+    String,
+    String,
+    i64,
+    i64,
+    String,
+    Option<String>,
+    Option<String>,
+    String,
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    String,
+    i64,
+);
+
+fn read_history_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<HistoryRow> {
+    Ok((
+        row.get(0)?,
+        row.get(1)?,
+        row.get(2)?,
+        row.get(3)?,
+        row.get(4)?,
+        row.get(5)?,
+        row.get(6)?,
+        row.get(7)?,
+        row.get(8)?,
+        row.get(9)?,
+        row.get(10)?,
+        row.get(11)?,
+        row.get(12)?,
+        row.get(13)?,
+        row.get(14)?,
+        row.get(15)?,
+        row.get(16)?,
+        row.get(17)?,
+        row.get(18)?,
+    ))
+}
+
 fn history_event(
-    row: (
-        String,
-        String,
-        i64,
-        i64,
-        String,
-        Option<String>,
-        Option<String>,
-        String,
-        String,
-        String,
-        String,
-        String,
-        Option<String>,
-        String,
-        String,
-        Option<String>,
-        Option<String>,
-        String,
-        i64,
-    ),
+    row: HistoryRow,
 ) -> Result<ItemHistoryEvent, ItemHistoryStoreError<ItemHistoryStorageError>> {
     let revision = Revision::new(
         u64::try_from(row.2).map_err(|_| invalid_history("item_revision", row.2.to_string()))?,
@@ -1004,28 +1014,29 @@ fn mutation_type(events: &[DomainEvent]) -> &'static str {
     }
 }
 
+type ItemRow = (
+    String,
+    String,
+    i64,
+    String,
+    Option<String>,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    i64,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
+
 fn load_item(connection: &Connection, item_id: &str) -> Result<Option<Item>, ItemStorageError> {
-    type ItemRow = (
-        String,
-        String,
-        i64,
-        String,
-        Option<String>,
-        String,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        i64,
-        String,
-        String,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    );
     let row: Option<ItemRow> = connection
         .query_row(
             "SELECT i.requester, i.project_id, i.sequence, i.title, i.description,
@@ -1075,6 +1086,15 @@ fn load_item(connection: &Connection, item_id: &str) -> Result<Option<Item>, Ite
                 .collect::<rusqlite::Result<Vec<_>>>()
         })
         .map_err(ItemStorageError::from)?;
+    decode_item(item_id, row, criteria).map(Some)
+}
+
+/// Shared legacy decoder keeps single-item and bounded-page validation identical.
+fn decode_item(
+    item_id: &str,
+    row: ItemRow,
+    criteria: Vec<String>,
+) -> Result<Item, ItemStorageError> {
     let invalid = |detail: &str| invalid_item(item_id, detail);
     let requester =
         RequesterId::new(&row.0).map_err(|_| invalid("requester is not a valid RequesterId"))?;
@@ -1101,7 +1121,7 @@ fn load_item(connection: &Connection, item_id: &str) -> Result<Option<Item>, Ite
         row.17.map(RevisionReference::new),
         row.18,
     );
-    Ok(Some(Item::new(
+    Ok(Item::new(
         id,
         content,
         parse_status(&row.5, item_id)?,
@@ -1121,7 +1141,7 @@ fn load_item(connection: &Connection, item_id: &str) -> Result<Option<Item>, Ite
         Timestamp::new(row.10),
         Timestamp::new(row.11),
         provenance,
-    )))
+    ))
 }
 
 fn invalid_item(item_id: &str, detail: &str) -> ItemStorageError {

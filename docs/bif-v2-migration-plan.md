@@ -1,16 +1,22 @@
 # BIF v2 migration plan
 
-**Status:** Phase B is complete and independently reviewed, including refreshed
-evidence. Phase C has not started.
+**Status:** Phase C implementation and read-path comparison evidence are complete.
 
-V2-007 through V2-013 are implemented. The
+V2-007 through V2-020 are implemented. The
 [Phase B evidence report](bif-v2-phase-b-evidence.md) records bounded query,
 snapshot, serialization, index-selection and cost evidence with limitations.
+The [Phase C evidence report](bif-v2-phase-c-evidence.md) adds strict opaque
+cursors, live queue/history continuation, bounded compatible v1 pages, explicit
+v2 CLI reads, regression gates, and the three-scale release comparison.
 The [initial upgrade and rollback runbook](bif-upgrade-runbook.md) satisfies the
 reviewed V2-054 prerequisite before the index migration. Release-specific gates
-and operational rehearsals remain future tasks. Work stops after Phase B.
-Noncanonical persisted requester/project coordinates are rejected before
-returning projection keys. The index evidence has been rerun on that snapshot.
+and operational rehearsals remain future tasks. Phase D and later work remain
+deferred.
+V2 rejects noncanonical persisted requester/project coordinates before
+returning projection keys; v1 retains its accepted normalization and raw-filter
+behavior. Comparison evidence reports residual legacy sorting, sparse/text
+scans, and depth-sensitive next priority groups rather than claiming universal
+constant-work pagination.
 
 **Purpose:** Deliver faster bounded local reads and lower agent workflow token
 cost without weakening durability, authorization, compatibility, or recovery.

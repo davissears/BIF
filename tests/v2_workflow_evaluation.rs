@@ -207,10 +207,23 @@ fn canonical_page(
     }
 }
 
+/// Isolates host config and supplies the actor separately from list/next's requester filter.
+fn configured_command(root: &Path) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_bif"));
+    command
+        .env("BIF_REQUESTER", "BENCH")
+        .env_remove("BIF_ROOT")
+        .env_remove("BIF_CONFIG")
+        .env("HOME", root.join("home"))
+        .env("XDG_CONFIG_HOME", root.join("config"))
+        .env("APPDATA", root.join("appdata"));
+    command
+}
+
 fn execute_argv(root: &Path, request: &str) -> Output {
     let request: Value = serde_json::from_str(request).unwrap();
     let argv = request["argv"].as_array().expect("request argv");
-    Command::new(env!("CARGO_BIN_EXE_bif"))
+    configured_command(root)
         .args(argv.iter().map(|arg| arg.as_str().expect("string argv")))
         .args(["--root"])
         .arg(root)
@@ -502,7 +515,7 @@ fn error_plan_item_ids_are_canonical_and_missing_target_is_absent() {
         let Some(item_id) = specification["request_shape"]["item_id"].as_str() else {
             continue;
         };
-        let output = Command::new(env!("CARGO_BIN_EXE_bif"))
+        let output = configured_command(directory.path())
             .args(["get", item_id, "--root"])
             .arg(directory.path())
             .args(["--requester", "BENCH"])
@@ -1127,10 +1140,11 @@ fn all_v1_calls_replay_and_follow_ups_match_the_next_call() {
                 assert_eq!(
                     output.status.code(),
                     envelope["exit_code"].as_i64().map(|code| code as i32),
-                    "{} / {} / {} exit status",
+                    "{} / {} / {} exit status; stderr: {}",
                     workflow["id"],
                     variant["id"],
-                    call["operation"]
+                    call["operation"],
+                    String::from_utf8_lossy(&output.stderr)
                 );
                 assert_eq!(
                     String::from_utf8(output.stdout).unwrap(),

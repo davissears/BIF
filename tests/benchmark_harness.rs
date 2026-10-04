@@ -193,7 +193,7 @@ fn report_uses_snapshot_and_contains_review_evidence() {
     assert_eq!(list["matches_per_sample"], serde_json::json!([100, 100]));
     assert_eq!(
         list["lexical_data_statements_per_sample"],
-        serde_json::json!([201, 201])
+        serde_json::json!([2, 2])
     );
     assert_eq!(list["sql_metrics_per_sample"].as_array().unwrap().len(), 2);
     assert!(
