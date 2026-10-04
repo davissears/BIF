@@ -16,6 +16,7 @@ pub mod rpc;
 pub mod rpc_mutation;
 pub mod rpc_read;
 pub mod storage;
+pub mod v2_response;
 
 #[cfg(test)]
 #[path = "../tests/support/mod.rs"]

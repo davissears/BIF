@@ -1,0 +1,68 @@
+{
+  "format": "bif-v2-phase-b-index-evidence-v1",
+  "measurement_window_utc": ["2026-10-04", "2026-10-04"],
+  "base_revision": "45ed7fcc85d5e0f9b2385a4a2198269154ce832c",
+  "dirty": true,
+  "rustc": "1.94.0 (4a4ef493e 2026-03-02)",
+  "sqlite": "3.51.1",
+  "profile": "release",
+  "hardware": "Apple M4, 16 GiB RAM",
+  "os": "Darwin 27.0.0 arm64",
+  "filesystem": "APFS",
+  "fixture_seed": 2003,
+  "fixture_items": 10000,
+  "fixture_logical_digest": "957657e192519763",
+  "cache_procedure": "Sequential warm-session reads after ANALYZE; no OS-cache eviction; startup, migration, backup, authorization and serialization excluded; prepared statement cache disabled",
+  "write_procedure": "30 authorized idempotent priority/assignee/note triages with fresh keys on one ready item per disposable copy; WAL and synchronous FULL; no timing assertion",
+  "source_sha256": {
+    "src/application/read_semantics.rs": "c862f127e583010af9c377ec143444e2382089ff5275aff6312d13c56faac186",
+    "src/storage/projection_reads.rs": "c434de2667d4a7fdb46a3e7c5be10c0710359a4667cddf44217a029b9a78e681",
+    "tests/v2_index_evidence.rs": "19e9e1a854550db08d446b149f1250904701e9a9136eb01dd10581d43e14c29a",
+    "migrations/0003_projection_read_indexes.sql": "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
+    "Cargo.lock": "2172fe64d42f0a2c678c0c69dbeea33eaad8242ec434520a949a93c29bea39d1"
+  },
+  "trials": {
+    "baseline": {
+      "reads": {
+        "all_list": {"plan":["SCAN i","USE TEMP B-TREE FOR ORDER BY"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":210924,"fullscan_steps":9999,"sorts":1},"nanosecond_samples":[7600041,7012834,6955000,7050042,7058042,6919250,6915208]},
+        "ready_next": {"plan":["SCAN i","USE TEMP B-TREE FOR ORDER BY"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":63747,"fullscan_steps":9999,"sorts":1},"nanosecond_samples":[750750,742334,714208,724708,706791,701125,703959]},
+        "active_list": {"plan":["SCAN i","USE TEMP B-TREE FOR ORDER BY"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":98230,"fullscan_steps":9999,"sorts":1},"nanosecond_samples":[2587541,2533917,2554959,2514542,2499125,2488167,2482000]},
+        "mine_list": {"plan":["SCAN i","USE TEMP B-TREE FOR ORDER BY"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":118029,"fullscan_steps":9999,"sorts":1},"nanosecond_samples":[2046958,2023709,2000208,1985250,1993750,1963042,1958583]},
+        "blocked_list": {"plan":["SCAN i","USE TEMP B-TREE FOR ORDER BY"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":50685,"fullscan_steps":9999,"sorts":1},"nanosecond_samples":[1098375,1082000,1063208,1055667,1046834,1034417,1033833]},
+        "sparse_text": {"plan":["SCAN i","CORRELATED SCALAR SUBQUERY 1","SEARCH c USING INDEX sqlite_autoindex_item_acceptance_criteria_1 (item_id=?)","USE TEMP B-TREE FOR ORDER BY"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":11,"vm_steps":418320,"fullscan_steps":9999,"sorts":1},"nanosecond_samples":[10923791,10925708,10606625,10414625,10366709,10331458,10340959]},
+        "ready_null_boundary": {"plan":["SCAN i","USE TEMP B-TREE FOR ORDER BY"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":105704,"fullscan_steps":9999,"sorts":1},"nanosecond_samples":[1094833,867542,859083,852333,847333,850000,846667]}
+      },
+      "allocated_bytes": 34037760,
+      "occupied_bytes": 32030720,
+      "write_nanosecond_samples": [469709,282167,329166,292958,349958,286959,341125,308209,291916,450042,277500,737625,326500,204166,215583,343792,234625,221291,248791,317375,217250,256792,312500,315708,362916,233750,229250,275959,280250,244042]
+    },
+    "two_indexes": {
+      "reads": {
+        "all_list": {"plan":["SCAN i USING INDEX idx_items_read_list"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":1428,"fullscan_steps":100,"sorts":0},"nanosecond_samples":[98334,97833,86500,85583,78542,80916,81541]},
+        "ready_next": {"plan":["SCAN i USING INDEX idx_items_read_ready"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":1529,"fullscan_steps":100,"sorts":0},"nanosecond_samples":[149375,89792,90875,88750,87750,87000,80084]},
+        "active_list": {"plan":["SCAN i USING INDEX idx_items_read_list"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":2776,"fullscan_steps":322,"sorts":0},"nanosecond_samples":[124625,113333,112500,107334,110125,109791,110333]},
+        "mine_list": {"plan":["SCAN i USING INDEX idx_items_read_list"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":6805,"fullscan_steps":591,"sorts":0},"nanosecond_samples":[190458,170875,164542,157833,163167,160083,159667]},
+        "blocked_list": {"plan":["SCAN i USING INDEX idx_items_read_list"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":5279,"fullscan_steps":1012,"sorts":0},"nanosecond_samples":[202583,179000,181708,181459,183875,188250,178583]},
+        "sparse_text": {"plan":["SCAN i USING INDEX idx_items_read_list","CORRELATED SCALAR SUBQUERY 1","SEARCH c USING INDEX sqlite_autoindex_item_acceptance_criteria_1 (item_id=?)"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":11,"vm_steps":428133,"fullscan_steps":9999,"sorts":0},"nanosecond_samples":[11688500,11486791,11396375,11287041,11268166,11225375,11234209]},
+        "ready_null_boundary": {"plan":["SCAN i USING INDEX idx_items_read_ready"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":21724,"fullscan_steps":1732,"sorts":0},"nanosecond_samples":[213667,181833,178416,176917,175625,175500,175000]}
+      },
+      "allocated_bytes": 34037760,
+      "occupied_bytes": 32636928,
+      "write_nanosecond_samples": [575500,378084,327708,269583,360583,434083,291375,289791,302834,562500,316333,341000,334709,226250,248625,382542,273834,231458,264625,294000,526208,275000,301375,289208,331167,259209,307459,311292,282833,251250]
+    },
+    "four_indexes": {
+      "reads": {
+        "all_list": {"plan":["SCAN i USING INDEX idx_items_read_list"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":1428,"fullscan_steps":100,"sorts":0},"nanosecond_samples":[96917,82500,83333,84541,82458,78625,81875]},
+        "ready_next": {"plan":["SCAN i USING INDEX idx_items_read_ready"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":1529,"fullscan_steps":100,"sorts":0},"nanosecond_samples":[154875,93125,86542,84792,87542,87459,87250]},
+        "active_list": {"plan":["SCAN i USING INDEX idx_items_read_active"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":1428,"fullscan_steps":100,"sorts":0},"nanosecond_samples":[93625,81792,84416,83417,83084,82791,83333]},
+        "mine_list": {"plan":["SEARCH i USING INDEX idx_items_read_mine (assignee=?)"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":1531,"fullscan_steps":0,"sorts":0},"nanosecond_samples":[106292,91500,89833,88792,89542,88666,88750]},
+        "blocked_list": {"plan":["SCAN i USING INDEX idx_items_read_list"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":5279,"fullscan_steps":1012,"sorts":0},"nanosecond_samples":[207125,188000,186083,183209,189792,186417,183292]},
+        "sparse_text": {"plan":["SCAN i USING INDEX idx_items_read_list","CORRELATED SCALAR SUBQUERY 1","SEARCH c USING INDEX sqlite_autoindex_item_acceptance_criteria_1 (item_id=?)"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":11,"vm_steps":428133,"fullscan_steps":9999,"sorts":0},"nanosecond_samples":[11546208,11654959,11587041,11383750,11273292,11246625,11284542]},
+        "ready_null_boundary": {"plan":["SCAN i USING INDEX idx_items_read_ready"],"work":{"total_statements":3,"data_statements":1,"row_callbacks":101,"vm_steps":21724,"fullscan_steps":1732,"sorts":0},"nanosecond_samples":[205250,177250,175542,173458,172500,179917,178000]}
+      },
+      "allocated_bytes": 34037760,
+      "occupied_bytes": 33169408,
+      "write_nanosecond_samples": [535542,432791,377166,320750,415833,318292,355458,354583,342083,353959,329792,384917,390208,274917,272042,304458,295209,268167,300208,328416,273500,294750,328083,325625,365958,299833,302250,344375,351959,318000]
+    }
+  }
+}

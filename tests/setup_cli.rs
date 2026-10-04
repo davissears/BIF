@@ -67,7 +67,7 @@ fn init_is_repeatable_and_doctor_reports_the_configured_store() {
     assert!(output.contains("version: 0.1.0\n"));
     assert!(output.contains(&format!("config: {}\n", config.display())));
     assert!(output.contains(&format!("store-id: {first_id}\n")));
-    assert!(output.contains("schema-version: 2\n"));
+    assert!(output.contains("schema-version: 3\n"));
     assert!(output.contains("project: bif-owned-test-directory-"));
 }
 
