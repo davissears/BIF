@@ -6,7 +6,8 @@ use bif::{
     application::{
         ItemAudit, ItemListFilters, ItemListOrdering, ItemProjection, ItemProjectionKind,
         ItemProjectionPageRequest, ItemProjectionStore, ItemReadKey, ItemStore, ItemSummary,
-        ItemWork, NamedViewStore, ProjectionGetRequest, ReadPageRequest,
+        ItemWork, NamedViewStore, PageOffset, PageSize, Pagination, ProjectionGetRequest,
+        ReadPageRequest,
     },
     domain::{ItemId, NamedView, ProjectId, RequesterId, Timestamp},
     storage::{self, ItemRepository, ItemStorageError, ProjectionRepository},
@@ -19,7 +20,8 @@ use rusqlite::{
 #[derive(Default)]
 struct Trace {
     statements: Vec<String>,
-    primary_rows: usize,
+    // SQLite ROW callbacks count the sentinel too, not just decoded payloads.
+    primary_sql_rows: usize,
     child_rows: usize,
 }
 
@@ -39,7 +41,7 @@ fn trace(event: TraceEvent<'_>) {
         TraceEvent::Row(statement) => TRACE.with(|trace| {
             let mut trace = trace.borrow_mut();
             if statement.sql().contains("FROM items AS i") {
-                trace.primary_rows += 1;
+                trace.primary_sql_rows += 1;
             } else if statement.sql().contains("FROM item_acceptance_criteria") {
                 trace.child_rows += 1;
             }
@@ -340,6 +342,184 @@ fn noncanonical_sentinel_errors_only_when_selected_by_continuation() {
     }
 }
 
+fn assert_blob_error(error: ItemStorageError, column: &str) {
+    assert!(
+        matches!(
+            error,
+            ItemStorageError::Sqlite(rusqlite::Error::InvalidColumnType(
+                _, ref name, rusqlite::types::Type::Blob
+            )) if name == column
+        ),
+        "expected BLOB type error for {column}, got {error:?}"
+    );
+}
+
+/// Corrupt child payloads make accidental sentinel hydration fail as well.
+fn corrupt_sentinel(connection: &Connection, table: &str, column: &str) {
+    connection
+        .execute(
+            &format!("UPDATE {table} SET {column} = x'FF' WHERE item_id = ?1"),
+            [id(2).to_string()],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE item_acceptance_criteria SET criterion = x'FF' WHERE item_id = ?1",
+            [id(2).to_string()],
+        )
+        .unwrap();
+}
+
+fn assert_content_sentinel(kind: ItemProjectionKind, table: &str, column: &str) {
+    let connection = storage::open(":memory:").unwrap();
+    seed(&connection, &[1, 2]); // 'z' sorts before 'Z' in NewestFirst.
+    let repo = ProjectionRepository::new(&connection);
+    let expected = repo
+        .read_projection(&ProjectionGetRequest {
+            item_id: id(1),
+            projection: kind,
+        })
+        .unwrap()
+        .unwrap();
+    let summaries = repo
+        .select_projection_page(&request(ItemProjectionKind::Summary, 2))
+        .unwrap();
+    corrupt_sentinel(&connection, table, column);
+
+    start_trace(&connection);
+    let mut page_request = request(kind, 1);
+    let page = repo.select_projection_page(&page_request).unwrap();
+    let trace = take_trace(&connection);
+    assert_eq!(page.records.len(), 1);
+    assert_eq!(page.records[0].item, expected);
+    assert!(page.has_more);
+    assert_eq!(trace.primary_sql_rows, 2);
+    assert_eq!(trace.child_rows, 2); // Only the returned item's children.
+    assert_eq!(
+        trace
+            .statements
+            .iter()
+            .filter(|sql| sql.starts_with("SELECT"))
+            .count(),
+        2
+    );
+    assert!(connection.is_autocommit());
+
+    // Summary ignores content, provenance and criteria even when selected.
+    assert_eq!(
+        repo.select_projection_page(&request(ItemProjectionKind::Summary, 2))
+            .unwrap(),
+        summaries
+    );
+    page_request.page.after = Some(page.records[0].key.clone());
+    assert_blob_error(
+        repo.select_projection_page(&page_request).unwrap_err(),
+        column,
+    );
+    assert_blob_error(
+        repo.read_projection(&ProjectionGetRequest {
+            item_id: id(2),
+            projection: kind,
+        })
+        .unwrap_err(),
+        column,
+    );
+    assert!(connection.is_autocommit());
+}
+
+#[test]
+fn work_sql_type_corrupt_content_sentinel_is_only_read_when_selected() {
+    assert_content_sentinel(ItemProjectionKind::Work, "items", "description");
+}
+
+#[test]
+fn audit_sql_type_corrupt_content_sentinel_is_only_read_when_selected() {
+    assert_content_sentinel(ItemProjectionKind::Audit, "items", "description");
+}
+
+#[test]
+fn audit_sql_type_corrupt_provenance_sentinel_is_only_read_when_selected() {
+    assert_content_sentinel(
+        ItemProjectionKind::Audit,
+        "item_provenance",
+        "context_excerpt",
+    );
+}
+
+#[test]
+fn sql_type_corrupt_summary_sentinel_is_only_read_when_selected() {
+    let connection = storage::open(":memory:").unwrap();
+    seed(&connection, &[1, 2]);
+    // A nonempty BLOB satisfies the schema's title check without bypassing it
+    // and does not participate in this page's membership or ordering.
+    corrupt_sentinel(&connection, "items", "title");
+    let repo = ProjectionRepository::new(&connection);
+    let mut request = request(ItemProjectionKind::Summary, 1);
+    start_trace(&connection);
+    let page = repo.select_projection_page(&request).unwrap();
+    let trace = take_trace(&connection);
+    assert_eq!(page.records.len(), 1);
+    assert_eq!(page.records[0].key.id, id(1));
+    assert!(page.has_more);
+    assert_eq!(trace.primary_sql_rows, 2);
+    assert_eq!(trace.child_rows, 0);
+    assert_eq!(
+        trace
+            .statements
+            .iter()
+            .filter(|sql| sql.starts_with("SELECT"))
+            .count(),
+        1
+    );
+    request.page.after = Some(page.records[0].key.clone());
+    assert_blob_error(repo.select_projection_page(&request).unwrap_err(), "title");
+    assert!(connection.is_autocommit());
+}
+
+fn assert_legacy_sentinel(table: &str, column: &str) {
+    let connection = storage::open(":memory:").unwrap();
+    seed(&connection, &[1, 2]);
+    let repo = ItemRepository::new(&connection);
+    let expected = repo.read_item(&id(1)).unwrap().unwrap();
+    corrupt_sentinel(&connection, table, column);
+    let select = |offset| {
+        repo.select_item_page(
+            NamedView::All,
+            &RequesterId::new("alice").unwrap(),
+            &ItemListFilters::default(),
+            ItemListOrdering::NewestFirst,
+            Pagination::new(PageSize::new(1).unwrap(), PageOffset::new(offset)),
+        )
+    };
+    start_trace(&connection);
+    let page = select(0).unwrap();
+    let trace = take_trace(&connection);
+    assert_eq!(page.items, [expected]); // Complete legacy Item, not a projection.
+    assert_eq!(page.next_offset, Some(PageOffset::new(1)));
+    assert_eq!(trace.primary_sql_rows, 2);
+    assert_eq!(trace.child_rows, 2);
+    assert_eq!(
+        trace
+            .statements
+            .iter()
+            .filter(|sql| sql.starts_with("SELECT"))
+            .count(),
+        2
+    );
+    assert_blob_error(select(1).unwrap_err(), column);
+    assert!(connection.is_autocommit());
+}
+
+#[test]
+fn legacy_offset_sql_type_corrupt_content_sentinel_is_only_read_when_selected() {
+    assert_legacy_sentinel("items", "description");
+}
+
+#[test]
+fn legacy_offset_sql_type_corrupt_provenance_sentinel_is_only_read_when_selected() {
+    assert_legacy_sentinel("item_provenance", "context_excerpt");
+}
+
 #[test]
 fn bounded_statement_and_row_counts_are_constant_and_sentinel_is_not_hydrated() {
     let connection = storage::open(":memory:").unwrap();
@@ -353,7 +533,7 @@ fn bounded_statement_and_row_counts_are_constant_and_sentinel_is_not_hydrated() 
             let trace = take_trace(&connection);
             assert_eq!(page.records.len(), limit);
             assert!(page.has_more);
-            assert_eq!(trace.primary_rows, limit + 1);
+            assert_eq!(trace.primary_sql_rows, limit + 1);
             assert_eq!(
                 trace.child_rows,
                 if kind == ItemProjectionKind::Summary {

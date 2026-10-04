@@ -79,13 +79,18 @@ impl ItemProjectionStore for ProjectionRepository<'_> {
         // Normalize before opening the snapshot, including invalid combinations.
         let query = page_query(request)?;
         let transaction = self.connection.unchecked_transaction()?;
-        let mut rows = primary_rows(&transaction, &query, request.projection)?;
-        let has_more = rows.len() > request.page.limit.get();
-        // Discard the lookahead before parsing payload or loading any children.
-        rows.truncate(request.page.limit.get());
-        let records = hydrate(&transaction, rows, request.projection)?;
+        let page = primary_page(
+            &transaction,
+            &query,
+            request.projection,
+            request.page.limit.get(),
+        )?;
+        let records = hydrate(&transaction, page.records, request.projection)?;
         transaction.commit()?;
-        Ok(ReadPage { records, has_more })
+        Ok(ReadPage {
+            records,
+            has_more: page.has_more,
+        })
     }
 }
 
@@ -456,6 +461,31 @@ fn primary_rows(
         .collect::<rusqlite::Result<_>>()?)
 }
 
+/// Both page APIs decode only returned payloads. Step the SQL limit+1 sentinel
+/// solely for existence, without getters, typed allocation or child hydration.
+fn primary_page(
+    connection: &Connection,
+    query: &Query,
+    kind: ItemProjectionKind,
+    limit: usize,
+) -> Result<ReadPage<PrimaryRow>, ItemStorageError> {
+    let mut statement = connection.prepare(&query.sql)?;
+    let mut rows = statement.query(params_from_iter(&query.parameters))?;
+    let mut records = Vec::new();
+    while records.len() < limit {
+        let Some(row) = rows.next()? else {
+            return Ok(ReadPage {
+                records,
+                has_more: false,
+            });
+        };
+        records.push(PrimaryRow::read(row, kind)?);
+    }
+    // Keep row-step failures visible even when stepping only the sentinel.
+    let has_more = rows.next()?.is_some();
+    Ok(ReadPage { records, has_more })
+}
+
 fn hydrate(
     connection: &Connection,
     rows: Vec<PrimaryRow>,
@@ -645,11 +675,15 @@ pub(super) fn legacy_page(
         offset,
     );
     let transaction = connection.unchecked_transaction()?;
-    let mut rows = primary_rows(&transaction, &query, ItemProjectionKind::Audit)?;
-    let has_more = rows.len() > pagination.limit.get();
-    rows.truncate(pagination.limit.get());
-    let mut criteria = load_criteria(&transaction, &rows)?;
-    let items = rows
+    let page = primary_page(
+        &transaction,
+        &query,
+        ItemProjectionKind::Audit,
+        pagination.limit.get(),
+    )?;
+    let mut criteria = load_criteria(&transaction, &page.records)?;
+    let items = page
+        .records
         .into_iter()
         .map(|row| {
             let children = criteria.remove(&row.item_id).unwrap_or_default();
@@ -657,8 +691,9 @@ pub(super) fn legacy_page(
         })
         .collect::<Result<_, _>>()?;
     transaction.commit()?;
-    let next_offset =
-        has_more.then(|| PageOffset::new(pagination.offset.get() + pagination.limit.get()));
+    let next_offset = page
+        .has_more
+        .then(|| PageOffset::new(pagination.offset.get() + pagination.limit.get()));
     Ok(ItemPage { items, next_offset })
 }
 
