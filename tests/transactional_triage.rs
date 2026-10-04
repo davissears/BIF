@@ -3,7 +3,7 @@ mod support;
 use std::{
     sync::{Arc, Barrier},
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use bif::{
@@ -388,10 +388,16 @@ fn writer_lock_maps_mutation_timeout_to_storage_busy() {
     let database = temp.path().join("bif.sqlite");
     let writer = storage::open(&database).unwrap();
     let id = seed(&writer);
+    let snapshot = mutation_state(&writer);
     let mut contender = storage::open(&database).unwrap();
+    // The connection tests cover the production timeout; contention only needs a real busy error.
+    contender.busy_timeout(Duration::ZERO).unwrap();
+    let busy_timeout_ms: i64 = contender
+        .query_row("PRAGMA busy_timeout", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(busy_timeout_ms, 0);
     writer.execute_batch("BEGIN IMMEDIATE").unwrap();
 
-    let started = Instant::now();
     let error = mutate_item(
         &mut MutationRepository::new(&mut contender),
         &mut FixedClock,
@@ -407,13 +413,18 @@ fn writer_lock_maps_mutation_timeout_to_storage_busy() {
         compound(),
     )
     .unwrap_err();
-    let elapsed = started.elapsed();
 
     assert_eq!(error.code(), "storage_busy");
-    assert!(std::error::Error::source(&error).is_some());
-    assert!(elapsed >= Duration::from_secs(4), "{elapsed:?}");
-    assert!(elapsed < Duration::from_secs(8), "{elapsed:?}");
+    let sqlite_source = std::error::Error::source(&error)
+        .unwrap()
+        .downcast_ref::<rusqlite::Error>()
+        .unwrap();
+    assert_eq!(
+        sqlite_source.sqlite_error_code(),
+        Some(rusqlite::ErrorCode::DatabaseBusy)
+    );
     writer.execute_batch("ROLLBACK").unwrap();
+    assert_eq!(mutation_state(&contender), snapshot);
 }
 
 fn mutation_state(connection: &rusqlite::Connection) -> (String, i64, String, i64, i64, i64) {
