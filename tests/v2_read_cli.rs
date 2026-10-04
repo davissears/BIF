@@ -6,15 +6,21 @@ use std::{fs, path::Path, process::Command};
 use support::OwnedTestDirectory;
 
 fn process<S: AsRef<std::ffi::OsStr>>(directory: &Path, args: &[S]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_bif"))
-        .args(args)
+    let mut command = Command::new(env!("CARGO_BIN_EXE_bif"));
+    configure_command(&mut command, directory);
+    command.args(args).output().unwrap()
+}
+
+/// Keeps every platform's config root inside the owned test directory.
+fn configure_command(command: &mut Command, directory: &Path) {
+    command
         .current_dir(directory)
         .env_remove("BIF_ROOT")
         .env_remove("BIF_REQUESTER")
         .env_remove("BIF_CONFIG")
-        .env("HOME", directory)
-        .output()
-        .unwrap()
+        .env("HOME", directory.join("home"))
+        .env("XDG_CONFIG_HOME", directory.join("config"))
+        .env("APPDATA", directory.join("appdata"));
 }
 
 fn envelope(output: std::process::Output, exit: i32) -> Value {
@@ -139,6 +145,111 @@ impl Fixture {
             .unwrap();
         transaction.commit().unwrap();
     }
+}
+
+#[test]
+fn subprocesses_isolate_poisoned_config_roots_for_uninitialized_and_explicit_requests() {
+    let directory = OwnedTestDirectory::new();
+    let poison = OwnedTestDirectory::new();
+    let home = poison.path().join("home");
+    let xdg = poison.path().join("xdg");
+    let appdata = poison.path().join("appdata");
+    let invalid = "deliberately invalid configuration\n";
+    let configs = [
+        // An empty HOME fallback distinguishes it from Linux's poisoned XDG config.
+        (home.join(".config/bif/config.toml"), ""),
+        (
+            home.join("Library/Application Support/BIF/config.toml"),
+            invalid,
+        ),
+        (xdg.join("bif/config.toml"), invalid),
+        (appdata.join("BIF/config.toml"), invalid),
+    ];
+    for (config, contents) in &configs {
+        fs::create_dir_all(config.parent().unwrap()).unwrap();
+        fs::write(config, contents).unwrap();
+    }
+
+    // Seed Command directly, not the process-global environment: safe in parallel tests.
+    let poisoned_command = || {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_bif"));
+        command
+            .current_dir(directory.path())
+            .env("HOME", &home)
+            .env("XDG_CONFIG_HOME", &xdg)
+            .env("APPDATA", &appdata)
+            .env("BIF_ROOT", poison.path().join("unused-root"))
+            .env("BIF_REQUESTER", "POISON")
+            .env("BIF_CONFIG", &configs[2].0);
+        command
+    };
+    let args = ["--api-version", "2", "list", "--project", "alpha", "--json"];
+
+    // Prove the disposable poison is selected by the actual platform resolver.
+    // On Linux, XDG must win over HOME's .config location.
+    let mut control = poisoned_command();
+    for key in ["BIF_ROOT", "BIF_REQUESTER", "BIF_CONFIG"] {
+        control.env_remove(key);
+    }
+    let error = envelope(control.args(args).output().unwrap(), 1);
+    assert_eq!(error["error"]["code"], "internal");
+    if !cfg!(any(target_os = "windows", target_os = "macos")) {
+        control.env_remove("XDG_CONFIG_HOME");
+        let fallback = envelope(control.output().unwrap(), 9);
+        assert_eq!(fallback["error"]["code"], "not_initialized");
+    }
+
+    let sandboxed_command = |root: &Path| {
+        let mut command = poisoned_command();
+        configure_command(&mut command, root);
+        let environment: std::collections::BTreeMap<_, _> = command.get_envs().collect();
+        // Check all platform roots even when only one resolver runs on this OS.
+        // Assert before executing so a broken helper never reaches host config.
+        for (key, relative) in [
+            ("XDG_CONFIG_HOME", "config"),
+            ("APPDATA", "appdata"),
+            ("HOME", "home"),
+        ] {
+            assert_eq!(
+                environment[std::ffi::OsStr::new(key)],
+                Some(root.join(relative).as_os_str()),
+                "{key}"
+            );
+        }
+        for key in ["BIF_ROOT", "BIF_REQUESTER", "BIF_CONFIG"] {
+            assert_eq!(environment[std::ffi::OsStr::new(key)], None, "{key}");
+        }
+        command
+    };
+    let uninitialized = envelope(
+        sandboxed_command(directory.path())
+            .args(args)
+            .output()
+            .unwrap(),
+        9,
+    );
+    assert_eq!(uninitialized["error"]["code"], "not_initialized");
+
+    let fixture = Fixture::new(1);
+    let explicit = envelope(
+        sandboxed_command(fixture.directory.path())
+            .args(args)
+            .arg("--config")
+            .arg(&fixture.config)
+            .output()
+            .unwrap(),
+        0,
+    );
+    assert_eq!(
+        explicit,
+        fixture.run(&["list", "--project", "alpha", "--json"], 0)
+    );
+    assert_eq!(explicit["result"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(explicit["result"]["items"][0]["id"], "DAVIS:alpha:001");
+    for (config, contents) in &configs {
+        assert_eq!(fs::read_to_string(config).unwrap(), *contents);
+    }
+    assert!(!poison.path().join("unused-root").exists());
 }
 
 #[test]
