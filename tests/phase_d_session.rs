@@ -320,6 +320,86 @@ fn identity_schema_and_migration_changes_require_restart_and_poison_session() {
     }
 }
 
+#[test]
+fn resolver_restart_remains_required_after_identity_or_schema_is_restored() {
+    for change in ["identity", "schema"] {
+        let fixture = Fixture::new();
+        let cwd = fixture.directory.path().canonicalize().unwrap();
+        fixture
+            .writer
+            .execute(
+                "INSERT INTO project_path_mappings VALUES (?1, 'alpha')",
+                [cwd.to_str().unwrap()],
+            )
+            .unwrap();
+        let store_id: String = fixture
+            .writer
+            .query_row("SELECT store_id FROM store_metadata", [], |row| row.get(0))
+            .unwrap();
+        let schema_version: i64 = fixture
+            .writer
+            .query_row("PRAGMA schema_version", [], |row| row.get(0))
+            .unwrap();
+        let mut session = fixture.session();
+        assert_eq!(
+            session.resolve_project(&cwd, None).unwrap(),
+            ProjectId::new("alpha").unwrap()
+        );
+        run(&mut session, page("alpha", None));
+
+        match change {
+            "identity" => {
+                fixture
+                    .writer
+                    .execute("UPDATE store_metadata SET store_id = 'changed'", [])
+                    .unwrap();
+            }
+            "schema" => fixture
+                .writer
+                .pragma_update(None, "schema_version", schema_version + 1)
+                .unwrap(),
+            _ => unreachable!(),
+        }
+        let expected = Err(ReadError::RestartRequired {
+            reason: "store_or_schema_changed".into(),
+        });
+        assert_eq!(session.resolve_project(&cwd, None), expected, "{change}");
+        assert!(session.is_autocommit());
+
+        // The separate writer restores every boundary value; only the observed
+        // restart requirement should keep this session from accepting requests.
+        fixture
+            .writer
+            .execute("UPDATE store_metadata SET store_id = ?1", [store_id])
+            .unwrap();
+        fixture
+            .writer
+            .pragma_update(None, "schema_version", schema_version)
+            .unwrap();
+        let mut fresh = fixture.session();
+        assert_eq!(
+            fresh.resolve_project(&cwd, None).unwrap(),
+            ProjectId::new("alpha").unwrap()
+        );
+        run(&mut fresh, page("alpha", None));
+
+        assert_eq!(
+            session.execute(
+                &authorization(),
+                page("alpha", None),
+                ResponseBudget::default()
+            ),
+            Err(ReadError::RestartRequired {
+                reason: "store_or_schema_changed".into(),
+            }),
+            "{change}"
+        );
+        assert!(session.is_autocommit());
+        assert_eq!(session.resolve_project(&cwd, None), expected, "{change}");
+        assert!(session.is_autocommit());
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn replacing_database_file_is_detected_even_when_store_identity_is_copied() {

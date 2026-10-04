@@ -112,6 +112,15 @@ impl ReadSession {
 
     /// Resolve current project registrations without caching or selecting one.
     pub fn resolve_project(
+        &mut self,
+        cwd: &Path,
+        git: Option<&GitMetadata>,
+    ) -> Result<ProjectId, ReadError> {
+        let result = self.resolve_project_checked(cwd, git);
+        self.invalidate_on_restart(result)
+    }
+
+    fn resolve_project_checked(
         &self,
         cwd: &Path,
         git: Option<&GitMetadata>,
@@ -145,6 +154,11 @@ impl ReadSession {
         budget: ResponseBudget,
     ) -> Result<Vec<u8>, ReadError> {
         let result = self.execute_checked(authorization, request, budget);
+        self.invalidate_on_restart(result)
+    }
+
+    /// Latch restart failures only after the checked call's transaction ends.
+    fn invalidate_on_restart<T>(&mut self, result: Result<T, ReadError>) -> Result<T, ReadError> {
         if let Err(ReadError::RestartRequired { reason }) = &result {
             self.restart_reason = Some(reason.clone());
             self.connection.flush_prepared_statement_cache();

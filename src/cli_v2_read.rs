@@ -332,12 +332,12 @@ fn execute(mut parsed: Parsed) -> Result<Vec<u8>, ReadError> {
     // Cursors supply only a boundary; authorization is reevaluated independently.
     application::authorize(&authorization).map_err(|_| ReadError::Unauthorized)?;
     let mut session = ReadSession::open(config)?;
-    if let ReadRequest::Page { filters, .. } = &mut parsed.command {
-        if filters.project.is_none() {
-            let cwd = env::current_dir().map_err(|_| ReadError::Internal)?;
-            filters.project =
-                Some(session.resolve_project(&cwd, super::cli::git_metadata(&cwd).as_ref())?);
-        }
+    if let ReadRequest::Page { filters, .. } = &mut parsed.command
+        && filters.project.is_none()
+    {
+        let cwd = env::current_dir().map_err(|_| ReadError::Internal)?;
+        filters.project =
+            Some(session.resolve_project(&cwd, super::cli::git_metadata(&cwd).as_ref())?);
     }
     session.execute(&authorization, parsed.command, ResponseBudget::default())
 }

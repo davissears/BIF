@@ -17,7 +17,9 @@ pub struct ConditionalGetRequest {
 }
 
 /// A hit contains no item payload; a miss is a complete replacement.
+/// Keep this single-record result inline rather than adding a box per miss.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum ConditionalReadOutcome {
     Modified {
         version: String,
@@ -165,7 +167,7 @@ fn hex(value: &str) -> String {
 }
 
 fn unhex(value: &str) -> Result<String, InvalidValidator> {
-    if value.len() % 2 != 0 {
+    if !value.len().is_multiple_of(2) {
         return Err(InvalidValidator);
     }
     let digit = |byte: u8| match byte {
@@ -182,7 +184,9 @@ fn unhex(value: &str) -> Result<String, InvalidValidator> {
 }
 
 /// Next ready work for an explicit project; never claims or mutates the item.
+/// One bounded record stays inline, matching the other projection read results.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum SelectedWorkOutcome {
     Selected(ItemProjection),
     Empty,

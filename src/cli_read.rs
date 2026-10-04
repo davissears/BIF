@@ -262,10 +262,10 @@ fn execute(mut parsed: Parsed) -> Result<String, ReadError> {
         }
     })?;
     let paths = config.store_paths().map_err(operation)?;
-    let mut connection = storage::open(&paths.database).map_err(operation)?;
+    let connection = storage::open(&paths.database).map_err(operation)?;
 
     if matches!(parsed.command, ReadCommand::List { .. }) && !parsed.explicit_project {
-        let projects = ProjectRepository::new(&mut connection);
+        let projects = ProjectRepository::new(&connection);
         let path_mappings = ProjectPathMappings::new(projects.list_paths().map_err(operation)?)
             .map_err(operation)?;
         let remote_mappings =

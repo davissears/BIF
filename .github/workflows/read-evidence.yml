@@ -1,0 +1,57 @@
+name: Disposable read evidence
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Generated 100 / 10k / 100k read comparison
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_TARGET_DIR: target/read-evidence
+      BIF_READ_COMPARISON_SIZES: "100,10000,100000"
+      BIF_READ_COMPARISON_SAMPLES: "20"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned Rust toolchain
+        run: rustup show
+      - name: Validate release-evidence registration
+        run: cargo test --locked --test read_release_manifest
+      - name: Compare production reads on generated disposable fixtures
+        # Existing harness generates seed-2003 fixtures, invokes both benchmark
+        # binaries and retains raw samples/source hashes. No active-store path.
+        run: |
+          cargo test --release --locked --test v2_read_comparison \
+            publish_phase_c_read_comparison -- --exact --ignored --nocapture
+      - name: Record build and workflow provenance
+        if: always()
+        run: |
+          mkdir -p target/read-evidence-provenance
+          {
+            printf 'workflow_revision=%s\nrun_id=%s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID"
+            printf 'profile=release\nsizes=%s\nsamples=%s\nseed=2003\n' \
+              "$BIF_READ_COMPARISON_SIZES" "$BIF_READ_COMPARISON_SAMPLES"
+            printf '%s\n' 'command=cargo test --release --locked --test v2_read_comparison publish_phase_c_read_comparison -- --exact --ignored --nocapture'
+            git rev-parse HEAD
+            git status --porcelain
+            rustc --version --verbose
+            cargo --version
+            uname -a
+            sha256sum Cargo.lock Cargo.toml rust-toolchain.toml
+          } > target/read-evidence-provenance/build.txt
+      - name: Retain raw JSON and provenance, never fixture stores
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: read-evidence-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            target/bif-phase-c-measurements/**/*.json
+            target/read-evidence-provenance/build.txt
+          if-no-files-found: error
+          retention-days: 30

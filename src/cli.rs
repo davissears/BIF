@@ -365,7 +365,7 @@ fn capture(options: CaptureOptions) -> Result<String, CliError> {
     let config = config::load(options.config)?;
     let paths = config.store_paths()?;
     let mut connection = storage::open(&paths.database)?;
-    let repository = ProjectRepository::new(&mut connection);
+    let repository = ProjectRepository::new(&connection);
     let path_mappings = ProjectPathMappings::new(repository.list_paths()?)?;
     let remote_mappings = ProjectRemoteMappings::new(repository.list_remotes()?)?;
     let working_directory = env::current_dir()?;
@@ -525,8 +525,8 @@ fn register(project: &str, path: &Path, config_path: Option<PathBuf>) -> Result<
     let paths = config.store_paths()?;
     let project = ProjectId::new(project)?;
     let mapping = ProjectPathMapping::new(project, path)?;
-    let mut connection = storage::open(&paths.database)?;
-    ProjectRepository::new(&mut connection).register_path(&mapping)?;
+    let connection = storage::open(&paths.database)?;
+    ProjectRepository::new(&connection).register_path(&mapping)?;
     Ok(format!(
         "Registered {} {}\n",
         mapping.project(),
@@ -540,8 +540,8 @@ fn list(config_path: Option<PathBuf>) -> Result<String, CliError> {
         ..ConfigOverrides::default()
     })?;
     let paths = config.store_paths()?;
-    let mut connection = storage::open(&paths.database)?;
-    let repository = ProjectRepository::new(&mut connection);
+    let connection = storage::open(&paths.database)?;
+    let repository = ProjectRepository::new(&connection);
     let mut output = String::new();
     for mapping in repository.list_paths()? {
         output.push_str(&format!(
@@ -566,7 +566,7 @@ fn list(config_path: Option<PathBuf>) -> Result<String, CliError> {
 fn doctor(overrides: ConfigOverrides) -> Result<String, CliError> {
     let config = config::load(overrides)?;
     let paths = config.store_paths()?;
-    let mut connection = storage::open(&paths.database)?;
+    let connection = storage::open(&paths.database)?;
     let store_id: String = connection.query_row(
         "SELECT store_id FROM store_metadata WHERE singleton = 1",
         [],
@@ -577,7 +577,7 @@ fn doctor(overrides: ConfigOverrides) -> Result<String, CliError> {
         [],
         |row| row.get(0),
     )?;
-    let repository = ProjectRepository::new(&mut connection);
+    let repository = ProjectRepository::new(&connection);
     let path_mappings = ProjectPathMappings::new(repository.list_paths()?)?;
     let remote_mappings = ProjectRemoteMappings::new(repository.list_remotes()?)?;
     let working_directory = env::current_dir()?;
