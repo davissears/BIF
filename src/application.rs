@@ -16,7 +16,8 @@ pub mod read_semantics;
 mod reads;
 
 pub use cursors::{
-    CursorContext, DecodedCursor, InvalidCursor, InvalidCursorReason, MAX_CURSOR_BYTES,
+    CursorContext, CursorEncodeError, DecodedCursor, InvalidCursor, InvalidCursorReason,
+    MAX_CURSOR_BYTES,
 };
 pub use projections::{ItemAudit, ItemSummary, ItemWork};
 pub use reads::*;

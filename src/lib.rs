@@ -13,6 +13,7 @@ mod cli_v2_read;
 pub mod config;
 pub mod domain;
 pub mod expose;
+pub mod limits;
 pub mod rpc;
 pub mod rpc_mutation;
 pub mod rpc_read;

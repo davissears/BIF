@@ -13,6 +13,12 @@ rejects a newer schema. Production connection opening automatically applies
 embedded migrations, including during ordinary reads and `doctor`. Do not
 point a candidate binary at the real store just to inspect it.
 
+The `bifc1.` hex cursor format is unchanged, but its encoded size ceiling is now
+1 MiB. Earlier binaries with a 16 KiB ceiling cannot resume larger continuations
+after rollback and may fail to generate continuations for supported long IDs.
+Restarting pagination does not remove that old-binary limitation; use a binary
+with the compatible cursor budget to traverse those records.
+
 Inventory the exact CLI executable paths, host launch commands, scheduled jobs,
 configuration files, root overrides, and all processes opening the store.
 Record binary hashes, source revisions, the database path, store ID, migration

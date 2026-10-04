@@ -1,7 +1,7 @@
 use bif::{
     application::{
-        CursorContext, DecodedCursor, HistoryOrdering, HistoryPageRequest, HistoryReadKey,
-        InvalidCursor, ItemListFilters, ItemListOrdering, ItemProjectionKind,
+        CursorContext, CursorEncodeError, DecodedCursor, HistoryOrdering, HistoryPageRequest,
+        HistoryReadKey, InvalidCursor, ItemListFilters, ItemListOrdering, ItemProjectionKind,
         ItemProjectionPageRequest, ItemReadKey, ItemTextFilter, MAX_CURSOR_BYTES, ReadPageRequest,
     },
     domain::{ItemId, NamedView, Priority, ProjectId, RequesterId, Revision, Status, Timestamp},
@@ -63,6 +63,21 @@ fn token_from_json(json: &str) -> String {
         token.push_str(&format!("{byte:02x}"));
     }
     token
+}
+
+#[test]
+fn legacy_bifc1_envelope_still_decodes_and_encodes_byte_for_byte() {
+    // Fixed pre-budget-change envelope, including the unchanged query binding.
+    let legacy = token_from_json(concat!(
+        r#"{"cursor_version":1,"kind":"list","store_id":"store","generation":null,"query_fingerprint":"#,
+        r#""ccef68ac438d83bc7206c51d844917b946d4a19ae066cc079e2e6a7fdcd1503d","order_version":1,"projection_schema_version":1,"boundary":{"item":{"requester":"ALICE","project":"bif","sequence":1,"captured_at":"opaque time\n雪","priority":null}}}"#,
+    ));
+    assert!(legacy.len() < 16_384);
+    let context =
+        CursorContext::item_page("store", &item_request(ItemListOrdering::NewestFirst)).unwrap();
+    let key = item_key(1, None);
+    assert_eq!(context.decode_item_key(&legacy).unwrap(), key);
+    assert_eq!(context.encode_item_key(&key).unwrap(), legacy);
 }
 
 #[test]
@@ -262,11 +277,17 @@ fn history_binds_item_and_rejects_item_cursor_swaps_and_wrong_encoding_api() {
         "wrong_kind",
     );
     assert_invalid(
-        history.encode_item_key(&item_key(1, None)).unwrap_err(),
+        match history.encode_item_key(&item_key(1, None)).unwrap_err() {
+            CursorEncodeError::InvalidContext(error) => error,
+            error => panic!("{error}"),
+        },
         "wrong_kind",
     );
     assert_invalid(
-        items.encode_history_key(&history_key).unwrap_err(),
+        match items.encode_history_key(&history_key).unwrap_err() {
+            CursorEncodeError::InvalidContext(error) => error,
+            error => panic!("{error}"),
+        },
         "wrong_kind",
     );
 }
@@ -478,7 +499,10 @@ fn rejects_malformed_and_oversized_tokens_and_bounds_encoding() {
     );
     let mut key = item_key(1, None);
     key.captured_at = Timestamp::new("x".repeat(MAX_CURSOR_BYTES));
-    assert_invalid(context.encode_item_key(&key).unwrap_err(), "oversized");
+    assert!(matches!(
+        context.encode_item_key(&key).unwrap_err(),
+        CursorEncodeError::TooLarge { .. }
+    ));
 }
 
 #[test]
@@ -497,7 +521,32 @@ fn exact_size_limit_is_supported_and_one_more_byte_is_rejected() {
         "oversized",
     );
     key.captured_at = Timestamp::new(format!("{}x", key.captured_at.as_str()));
-    assert_invalid(context.encode_item_key(&key).unwrap_err(), "oversized");
+    assert!(matches!(
+        context.encode_item_key(&key).unwrap_err(),
+        CursorEncodeError::TooLarge { encoded_token_bytes } if encoded_token_bytes == MAX_CURSOR_BYTES + 2
+    ));
+}
+
+#[test]
+fn generated_overflow_counts_the_complete_borrowed_envelope_exactly() {
+    assert_eq!(MAX_CURSOR_BYTES, 1_048_576);
+    let context =
+        CursorContext::item_page("store\n雪\"", &item_request(ItemListOrdering::NewestFirst))
+            .unwrap();
+    let mut key = item_key(u64::MAX, Some(Priority::P4));
+    let token = context.encode_item_key(&key).unwrap();
+    let mut oracle: serde_json::Value = serde_json::from_str(&token_json(&token)).unwrap();
+    // An early string-length shortcut would miss escaping, UTF-8 and the fields
+    // that follow the timestamp. The test-only oracle may allocate freely.
+    let timestamp = "雪\n\"\\".repeat(MAX_CURSOR_BYTES / 3);
+    key.captured_at = Timestamp::new(&timestamp);
+    oracle["boundary"]["item"]["captured_at"] = serde_json::json!(timestamp);
+    let expected = 6 + serde_json::to_vec(&oracle).unwrap().len() * 2;
+    assert!(expected > MAX_CURSOR_BYTES);
+    assert!(matches!(
+        context.encode_item_key(&key).unwrap_err(),
+        CursorEncodeError::TooLarge { encoded_token_bytes } if encoded_token_bytes == expected
+    ));
 }
 
 #[test]
