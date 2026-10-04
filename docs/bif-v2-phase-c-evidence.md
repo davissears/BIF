@@ -1,6 +1,6 @@
 # BIF v2 Phase C read-path comparison evidence
 
-**Status: V2-020 measured on the final integrated dirty production snapshot,
+**Status: V2-020 measured on the initial Phase C integrated dirty production snapshot,
 release profile, all three required scales.** The measurement gate passed:
 original logical digests, cursor/offset ID equivalence, bounded SELECT counts,
 unchanged source/metadata, and persistence checks. Batching and projections are
@@ -15,6 +15,15 @@ The original comparison point remains
 Phase B's index/serializer evidence remains separate in
 [`bif-v2-phase-b-evidence.md`](bif-v2-phase-b-evidence.md).
 Existing migration/status documents are not changed by this work.
+
+## Post-review correctness updates
+
+This report describes the implementation delivered in PR #3 (merge `474d826`),
+not the latest `main` indefinitely. Subsequent correctness fixes change measured
+implementation inputs. The raw artifacts and source hashes remain unchanged:
+they identify the historical snapshot, not new measurements of those fixes.
+Verify the recorded hashes against that snapshot and rerun the comparison before
+attributing these timing or allocation observations to a changed implementation.
 
 ## Reproducible comparison support
 

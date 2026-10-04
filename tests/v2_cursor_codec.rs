@@ -1,8 +1,8 @@
 use bif::{
     application::{
-        CursorContext, HistoryOrdering, HistoryPageRequest, HistoryReadKey, InvalidCursor,
-        ItemListFilters, ItemListOrdering, ItemProjectionKind, ItemProjectionPageRequest,
-        ItemReadKey, ItemTextFilter, MAX_CURSOR_BYTES, ReadPageRequest,
+        CursorContext, DecodedCursor, HistoryOrdering, HistoryPageRequest, HistoryReadKey,
+        InvalidCursor, ItemListFilters, ItemListOrdering, ItemProjectionKind,
+        ItemProjectionPageRequest, ItemReadKey, ItemTextFilter, MAX_CURSOR_BYTES, ReadPageRequest,
     },
     domain::{ItemId, NamedView, Priority, ProjectId, RequesterId, Revision, Status, Timestamp},
 };
@@ -80,6 +80,10 @@ fn round_trips_all_operations_and_full_width_keys() {
             ] {
                 let key = item_key(sequence, priority);
                 let token = context.encode_item_key(&key).unwrap();
+                let decoded = DecodedCursor::parse(&token).unwrap();
+                decoded.require_item_kind(ordering).unwrap();
+                assert_invalid(decoded.require_history_kind().unwrap_err(), "wrong_kind");
+                assert_eq!(context.bind_item_key(&decoded).unwrap(), key);
                 assert_eq!(context.decode_item_key(&token).unwrap(), key);
                 assert_eq!(context.encode_item_key(&key).unwrap(), token);
             }
@@ -91,6 +95,15 @@ fn round_trips_all_operations_and_full_width_keys() {
             item_revision: Revision::new(u64::MAX).unwrap(),
             event_index,
         };
+        let decoded = DecodedCursor::parse(&context.encode_history_key(&key).unwrap()).unwrap();
+        decoded.require_history_kind().unwrap();
+        assert_invalid(
+            decoded
+                .require_item_kind(ItemListOrdering::NewestFirst)
+                .unwrap_err(),
+            "wrong_kind",
+        );
+        assert_eq!(context.bind_history_key(&decoded).unwrap(), key);
         assert_eq!(
             context
                 .decode_history_key(&context.encode_history_key(&key).unwrap())
@@ -274,6 +287,10 @@ fn rejects_unsupported_envelope_order_projection_versions_and_generation() {
     ] {
         assert!(json.contains(from));
         assert_invalid(
+            DecodedCursor::parse(&token_from_json(&json.replace(from, to))).unwrap_err(),
+            "unsupported_version",
+        );
+        assert_invalid(
             context
                 .decode_item_key(&token_from_json(&json.replace(from, to)))
                 .unwrap_err(),
@@ -321,6 +338,10 @@ fn rejects_unknown_duplicate_missing_fields_wrong_types_and_overflow() {
         format!("{json} trailing"),
     ] {
         assert_invalid(
+            DecodedCursor::parse(&token_from_json(&changed)).unwrap_err(),
+            "malformed",
+        );
+        assert_invalid(
             context
                 .decode_item_key(&token_from_json(&changed))
                 .unwrap_err(),
@@ -341,6 +362,10 @@ fn rejects_unknown_duplicate_missing_fields_wrong_types_and_overflow() {
         json.replace("\"event_index\":0", "\"event_index\":18446744073709551616"),
         json.replace("\"event_index\":0", "\"event_index\":null"),
     ] {
+        assert_invalid(
+            DecodedCursor::parse(&token_from_json(&changed)).unwrap_err(),
+            "malformed",
+        );
         assert_invalid(
             history
                 .decode_history_key(&token_from_json(&changed))
@@ -389,6 +414,10 @@ fn rejects_positional_objects_and_object_form_unit_enums_for_item_cursors() {
             object_priority,
         ] {
             assert_invalid(
+                DecodedCursor::parse(&token_from_json(&changed.to_string())).unwrap_err(),
+                "malformed",
+            );
+            assert_invalid(
                 context
                     .decode_item_key(&token_from_json(&changed.to_string()))
                     .unwrap_err(),
@@ -413,6 +442,10 @@ fn rejects_positional_objects_and_object_form_kind_for_history_cursors() {
     let mut object_kind = envelope.clone();
     object_kind["kind"] = serde_json::json!({"history": null});
     for changed in [positional_history, object_kind] {
+        assert_invalid(
+            DecodedCursor::parse(&token_from_json(&changed.to_string())).unwrap_err(),
+            "malformed",
+        );
         assert_invalid(
             context
                 .decode_history_key(&token_from_json(&changed.to_string()))
@@ -538,18 +571,16 @@ fn decoded_and_modified_cursors_never_authorize_item_or_history_reads() {
     // No MAC is promised: a valid edited boundary is accepted as parameter data,
     // not as permission, and still cannot bypass the read authorization policy.
     let edited = token_from_json(&token_json(&token).replace("\"sequence\":1", "\"sequence\":2"));
-    items.page.after = Some(context.decode_item_key(&edited).unwrap());
+    let decoded = DecodedCursor::parse(&edited).unwrap();
+    items.page.after = Some(context.bind_item_key(&decoded).unwrap());
     assert_eq!(items.page.after.as_ref().unwrap().id.sequence(), 2);
     let context = CursorContext::history("store", &history);
     let key = HistoryReadKey {
         item_revision: Revision::new(1).unwrap(),
         event_index: 0,
     };
-    history.page.after = Some(
-        context
-            .decode_history_key(&context.encode_history_key(&key).unwrap())
-            .unwrap(),
-    );
+    let decoded = DecodedCursor::parse(&context.encode_history_key(&key).unwrap()).unwrap();
+    history.page.after = Some(context.bind_history_key(&decoded).unwrap());
     authorization.observed_execution = ObservedExecution::Agent {
         agent_id: "untrusted",
     };

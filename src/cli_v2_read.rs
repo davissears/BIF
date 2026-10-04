@@ -13,10 +13,10 @@ use serde_json::{Map, Value, json};
 
 use crate::{
     application::{
-        self, Actor, ActorKind, AuthorizationRequest, Command, CursorContext, Execution,
-        HistoryOrdering, HistoryPageRequest, HistoryReadKey, HumanAuthorization, ItemListFilters,
-        ItemListOrdering, ItemProjectionKind, ItemProjectionPageRequest, ObservedExecution,
-        ProjectionGetRequest, ReadPageRequest,
+        self, Actor, ActorKind, AuthorizationRequest, Command, CursorContext, DecodedCursor,
+        Execution, HistoryOrdering, HistoryPageRequest, HistoryReadKey, HumanAuthorization,
+        ItemListFilters, ItemListOrdering, ItemProjectionKind, ItemProjectionPageRequest,
+        ObservedExecution, ProjectionGetRequest, ReadPageRequest,
     },
     cli_read,
     config::{self, ConfigOverrides, ProjectPathMappings, ProjectRemoteMappings, resolve_project},
@@ -51,16 +51,15 @@ enum ReadCommand {
         projection: ItemProjectionKind,
         filters: ItemListFilters,
         limit: usize,
-        cursor: Option<String>,
     },
     History {
         request: HistoryPageRequest,
-        cursor: Option<String>,
     },
 }
 
 struct Parsed {
     command: ReadCommand,
+    cursor: Option<DecodedCursor>,
     overrides: ConfigOverrides,
 }
 
@@ -172,7 +171,6 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
         None => 20,
     };
     application::PageSize::new(limit).map_err(invalid)?;
-    let cursor = get("cursor").map(str::to_owned);
     let view_name = positional_view.or_else(|| get("view")).unwrap_or("all");
     let mut wire = Map::new();
     let command = match name {
@@ -189,7 +187,7 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
             let item_id = item_id.expect("validated item command");
             wire.insert("item_id".into(), json!(item_id.to_string()));
             wire.insert("limit".into(), json!(limit));
-            if let Some(cursor) = &cursor {
+            if let Some(cursor) = get("cursor") {
                 wire.insert("cursor".into(), json!(cursor));
             }
             ReadCommand::History {
@@ -198,7 +196,6 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
                     ordering: HistoryOrdering::RevisionThenEventIndex,
                     page: ReadPageRequest::new(limit, None).map_err(invalid)?,
                 },
-                cursor,
             }
         }
         "list" | "next" => {
@@ -264,20 +261,28 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
                 projection,
                 filters,
                 limit,
-                cursor,
             }
         }
         _ => unreachable!(),
     };
     serde_json::to_writer(&mut RequestByteCounter(0), &Value::Object(wire)).map_err(invalid)?;
-    if cursor_for(&command).is_some_and(|cursor| cursor.len() > application::MAX_CURSOR_BYTES) {
-        return Err(ReadError::InvalidCursor {
-            reason: "oversized".into(),
-            restart_required: true,
-        });
-    }
+    // Preserve request-budget priority, then parse once before config/storage.
+    // Binding to the authorized current store/query happens only in execute.
+    let cursor = get("cursor")
+        .map(|token| {
+            let cursor = DecodedCursor::parse(token)?;
+            match &command {
+                ReadCommand::Page { ordering, .. } => cursor.require_item_kind(*ordering)?,
+                ReadCommand::History { .. } => cursor.require_history_kind()?,
+                ReadCommand::Get(_) => unreachable!("get rejects the cursor option"),
+            }
+            Ok(cursor)
+        })
+        .transpose()
+        .map_err(cursor_error)?;
     Ok(Parsed {
         command,
+        cursor,
         overrides: ConfigOverrides {
             config: get("config").map(PathBuf::from),
             root: get("root").map(PathBuf::from),
@@ -285,13 +290,6 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
             requester: None,
         },
     })
-}
-
-fn cursor_for(command: &ReadCommand) -> Option<&str> {
-    match command {
-        ReadCommand::Get(_) => None,
-        ReadCommand::Page { cursor, .. } | ReadCommand::History { cursor, .. } => cursor.as_deref(),
-    }
 }
 
 /// Count escaped UTF-8 JSON, without constructing an unbounded encoded body.
@@ -392,7 +390,6 @@ fn execute(mut parsed: Parsed) -> Result<Vec<u8>, ReadError> {
             projection,
             filters,
             limit,
-            cursor,
         } => {
             let store_id =
                 storage::read_store_identity(&connection).map_err(|error| sqlite_error(&error))?;
@@ -405,9 +402,10 @@ fn execute(mut parsed: Parsed) -> Result<Vec<u8>, ReadError> {
                 page: ReadPageRequest::new(limit, None).map_err(invalid)?,
             };
             let context = CursorContext::item_page(store_id, &request).map_err(invalid)?;
-            request.page.after = cursor
-                .as_deref()
-                .map(|cursor| context.decode_item_key(cursor))
+            request.page.after = parsed
+                .cursor
+                .as_ref()
+                .map(|cursor| context.bind_item_key(cursor))
                 .transpose()
                 .map_err(cursor_error)?;
             let page = application::read_item_projection_page(
@@ -425,16 +423,14 @@ fn execute(mut parsed: Parsed) -> Result<Vec<u8>, ReadError> {
             })
             .map_err(encode_error)?;
         }
-        ReadCommand::History {
-            mut request,
-            cursor,
-        } => {
+        ReadCommand::History { mut request } => {
             let store_id =
                 storage::read_store_identity(&connection).map_err(|error| sqlite_error(&error))?;
             let context = CursorContext::history(store_id, &request);
-            request.page.after = cursor
-                .as_deref()
-                .map(|cursor| context.decode_history_key(cursor))
+            request.page.after = parsed
+                .cursor
+                .as_ref()
+                .map(|cursor| context.bind_history_key(cursor))
                 .transpose()
                 .map_err(cursor_error)?;
             let page = application::read_item_history_page(

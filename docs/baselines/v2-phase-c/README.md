@@ -7,6 +7,12 @@ dirty snapshot: 100 / 10,000 / 100,000 items, seed 2003, 20 warm samples per
 case plus separately recorded session-first observations. Original pre-B
 logical digests matched; source and metadata stayed unchanged.
 
+These artifacts describe PR #3's implementation (merge `474d826`). Later
+correctness fixes can change the recorded inputs; the hash verification below
+is for that historical snapshot, not an assertion that newer `main` is identical.
+Do not rewrite the preserved hashes or attribute these timings to changed code
+without rerunning the comparison.
+
 | Artifact | Contents |
 | --- | --- |
 | `generator-{100,10000,100000}.json` | Actual generator metadata: seed, logical digest, row counts/distributions, generation duration and integrity |
