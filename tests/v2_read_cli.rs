@@ -487,6 +487,291 @@ fn oversized_cursor_is_rejected_before_config_access() {
     assert!(!missing_config.exists());
 }
 
+/// Snapshot bytes and modification metadata without opening SQLite.
+fn filesystem_snapshot(
+    directory: &Path,
+) -> std::collections::BTreeMap<std::path::PathBuf, (bool, u64, std::time::SystemTime, Vec<u8>)> {
+    fn visit(
+        root: &Path,
+        path: &Path,
+        snapshot: &mut std::collections::BTreeMap<
+            std::path::PathBuf,
+            (bool, u64, std::time::SystemTime, Vec<u8>),
+        >,
+    ) {
+        let metadata = fs::metadata(path).unwrap();
+        let bytes = if metadata.is_file() {
+            fs::read(path).unwrap()
+        } else {
+            Vec::new()
+        };
+        snapshot.insert(
+            path.strip_prefix(root).unwrap().to_owned(),
+            (
+                metadata.is_dir(),
+                metadata.len(),
+                metadata.modified().unwrap(),
+                bytes,
+            ),
+        );
+        if metadata.is_dir() {
+            for child in fs::read_dir(path).unwrap() {
+                visit(root, &child.unwrap().path(), snapshot);
+            }
+        }
+    }
+    let mut snapshot = std::collections::BTreeMap::new();
+    visit(directory, directory, &mut snapshot);
+    snapshot
+}
+
+fn cursor_token(json: &str) -> String {
+    let mut token = String::from("bifc1.");
+    for byte in json.bytes() {
+        token.push_str(&format!("{byte:02x}"));
+    }
+    token
+}
+
+#[test]
+fn cursor_structure_and_kind_fail_before_config_or_any_storage_side_effects() {
+    let item = json!({
+        "cursor_version": 1, "kind": "list", "store_id": "unbound-store",
+        "generation": null, "query_fingerprint": "unbound-query",
+        "order_version": 1, "projection_schema_version": 1,
+        "boundary": {"item": {
+            "requester": "DAVIS", "project": "alpha", "sequence": u64::MAX,
+            "captured_at": "opaque time", "priority": "P1"
+        }}
+    });
+    let mut history = item.clone();
+    history["kind"] = json!("history");
+    history["boundary"] = json!({"history": {"item_revision": u64::MAX, "event_index": u64::MAX}});
+    let mut cases = vec![("broken".to_owned(), "malformed")];
+    for (pointer, value, reason) in [
+        ("/cursor_version", json!(2), "unsupported_version"),
+        ("/order_version", json!(2), "unsupported_version"),
+        (
+            "/projection_schema_version",
+            json!(2),
+            "unsupported_version",
+        ),
+        ("/generation", json!("reserved"), "unsupported_version"),
+        ("/kind", json!({"list": null}), "malformed"),
+        ("/store_id", json!(1), "malformed"),
+        ("/generation", json!(1), "malformed"),
+        ("/boundary/item/requester", json!("davis"), "malformed"),
+        ("/boundary/item/project", json!("ALPHA"), "malformed"),
+        (
+            "/boundary/item/sequence",
+            json!("18446744073709551615"),
+            "malformed",
+        ),
+        ("/boundary/item/sequence", json!(0), "malformed"),
+        ("/boundary/item/priority", json!({"P1": null}), "malformed"),
+        ("/boundary/item/captured_at", json!(3), "malformed"),
+        (
+            "/boundary/item",
+            json!(["DAVIS", "alpha", u64::MAX, "time", "P1"]),
+            "malformed",
+        ),
+    ] {
+        let mut value_copy = item.clone();
+        *value_copy.pointer_mut(pointer).unwrap() = value;
+        cases.push((cursor_token(&value_copy.to_string()), reason));
+    }
+    cases.push((
+        cursor_token(
+            &item
+                .to_string()
+                .replace("18446744073709551615", "18446744073709551616"),
+        ),
+        "malformed",
+    ));
+    for (pointer, value, reason) in [
+        ("/boundary/history/item_revision", json!(0), "malformed"),
+        (
+            "/boundary/history/event_index",
+            json!("18446744073709551615"),
+            "malformed",
+        ),
+        (
+            "/boundary/history",
+            json!([u64::MAX, u64::MAX]),
+            "malformed",
+        ),
+    ] {
+        let mut value_copy = history.clone();
+        *value_copy.pointer_mut(pointer).unwrap() = value;
+        cases.push((cursor_token(&value_copy.to_string()), reason));
+    }
+
+    // Cover absent default/explicit config, malformed config, and configured
+    // empty stores (with and without an existing zero-byte database file).
+    for config_state in [
+        "configured",
+        "zero-byte-db",
+        "default",
+        "missing",
+        "malformed",
+    ] {
+        let directory = OwnedTestDirectory::new();
+        let root = directory.path().join("root");
+        let bif = root.join(".bif");
+        fs::create_dir_all(&bif).unwrap();
+        let config = directory.path().join("config.toml");
+        if matches!(config_state, "configured" | "zero-byte-db") {
+            fs::write(
+                &config,
+                format!(
+                    "root = {}\nrequester = \"DAVIS\"\n",
+                    json!(root.to_str().unwrap())
+                ),
+            )
+            .unwrap();
+        } else if config_state == "malformed" {
+            fs::write(&config, "not valid config\n").unwrap();
+        }
+        if config_state == "zero-byte-db" {
+            fs::write(bif.join("bif.sqlite"), []).unwrap();
+        }
+        let before = filesystem_snapshot(directory.path());
+        for command in [
+            vec!["list", "--project", "alpha"],
+            vec!["next", "--project", "alpha"],
+            vec!["history", "DAVIS:alpha:001"],
+        ] {
+            let mut command_cases = cases.clone();
+            for valid in [&item, &history] {
+                if valid["kind"] != command[0] {
+                    command_cases.push((cursor_token(&valid.to_string()), "wrong_kind"));
+                }
+            }
+            for (token, reason) in command_cases {
+                let mut args = vec!["--api-version", "2"];
+                args.extend_from_slice(&command);
+                args.extend(["--cursor", &token, "--json"]);
+                if config_state != "default" {
+                    args.extend(["--config", config.to_str().unwrap()]);
+                }
+                let output = process(directory.path(), &args);
+                assert!(
+                    filesystem_snapshot(directory.path()) == before,
+                    "cursor {reason} changed config/storage for {config_state} {command:?}"
+                );
+                let error = envelope(output, 2);
+                assert_eq!(error["error"]["code"], "invalid_cursor");
+                assert_eq!(
+                    error["error"]["details"],
+                    json!({"reason":reason,"restart_required":true}),
+                    "{config_state} {command:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn full_width_structurally_valid_cursors_need_context_for_store_and_query_binding() {
+    use bif::{
+        application::{
+            CursorContext, HistoryOrdering, HistoryPageRequest, HistoryReadKey, ItemListFilters,
+            ItemListOrdering, ItemProjectionKind, ItemProjectionPageRequest, ItemReadKey,
+            ReadPageRequest,
+        },
+        domain::{ItemId, NamedView, RequesterId, Revision, Timestamp},
+    };
+    let fixture = Fixture::new(1);
+    let request = ItemProjectionPageRequest {
+        view: NamedView::All,
+        configured_requester: RequesterId::new("DAVIS").unwrap(),
+        filters: ItemListFilters::default(),
+        projection: ItemProjectionKind::Summary,
+        ordering: ItemListOrdering::NewestFirst,
+        page: ReadPageRequest::new(20, None).unwrap(),
+    };
+    let item_key = ItemReadKey {
+        id: ItemId::new(
+            RequesterId::new("DAVIS").unwrap(),
+            bif::domain::ProjectId::new("alpha").unwrap(),
+            u64::MAX,
+        )
+        .unwrap(),
+        captured_at: Timestamp::new("opaque time"),
+        priority: None,
+    };
+    let history_request = HistoryPageRequest {
+        item_id: item_key.id.clone(),
+        ordering: HistoryOrdering::RevisionThenEventIndex,
+        page: ReadPageRequest::new(20, None).unwrap(),
+    };
+    let store_id =
+        bif::storage::read_store_identity(&Connection::open(&fixture.database).unwrap()).unwrap();
+    let tokens = [
+        (
+            CursorContext::item_page("different-store", &request)
+                .unwrap()
+                .encode_item_key(&item_key)
+                .unwrap(),
+            vec!["list", "--project", "alpha"],
+            "wrong_store",
+        ),
+        (
+            CursorContext::history("different-store", &history_request)
+                .encode_history_key(&HistoryReadKey {
+                    item_revision: Revision::new(u64::MAX).unwrap(),
+                    event_index: u64::MAX,
+                })
+                .unwrap(),
+            vec!["history", "DAVIS:alpha:001"],
+            "wrong_store",
+        ),
+        (
+            CursorContext::item_page(&store_id, &request)
+                .unwrap()
+                .encode_item_key(&item_key)
+                .unwrap(),
+            vec!["list", "--project", "alpha"],
+            "wrong_query",
+        ),
+        (
+            CursorContext::history(&store_id, &history_request)
+                .encode_history_key(&HistoryReadKey {
+                    item_revision: Revision::new(u64::MAX).unwrap(),
+                    event_index: u64::MAX,
+                })
+                .unwrap(),
+            vec!["history", "DAVIS:alpha:001"],
+            "wrong_query",
+        ),
+    ];
+    let missing = OwnedTestDirectory::new();
+    let malformed_config = missing.path().join("malformed.toml");
+    fs::write(&malformed_config, "invalid configuration\n").unwrap();
+    let before = filesystem_snapshot(missing.path());
+    for (token, command, reason) in tokens {
+        let mut args = vec!["--api-version", "2"];
+        args.extend_from_slice(&command);
+        args.extend(["--cursor", &token, "--json"]);
+        let error = envelope(process(missing.path(), &args), 9);
+        assert_eq!(error["error"]["code"], "not_initialized");
+        args.extend(["--config", malformed_config.to_str().unwrap()]);
+        let error = envelope(process(missing.path(), &args), 1);
+        assert_eq!(error["error"]["code"], "internal");
+        assert!(filesystem_snapshot(missing.path()) == before);
+        let mut args = command;
+        args.extend(["--cursor", &token, "--json"]);
+        let error = fixture.run(&args, 2);
+        assert_eq!(error["error"]["code"], "invalid_cursor");
+        assert_eq!(
+            error["error"]["details"],
+            json!({
+                "reason": reason, "restart_required": true
+            })
+        );
+    }
+}
+
 #[test]
 fn explicit_requester_filter_does_not_override_configured_mine_identity() {
     let fixture = Fixture::new(2);
@@ -619,7 +904,16 @@ fn encoded_request_limit_counts_escaping_before_storage() {
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
     let exit = bif::cli::run(
-        ["--api-version", "2", "list", "--text", &text, "--json"],
+        [
+            "--api-version",
+            "2",
+            "list",
+            "--text",
+            &text,
+            "--cursor",
+            "broken",
+            "--json",
+        ],
         &mut stdout,
         &mut stderr,
     );

@@ -107,6 +107,109 @@ impl<'de> Deserialize<'de> for CursorKind {
     }
 }
 
+/// Structurally validated continuation data, still unbound and never authority.
+///
+/// Parse before config/storage access. The private typed boundary is available
+/// only after binding against the independently resolved current request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DecodedCursor {
+    kind: CursorKind,
+    store_id: String,
+    query_fingerprint: String,
+    boundary: DecodedBoundary,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum DecodedBoundary {
+    Item(ItemReadKey),
+    History(HistoryReadKey),
+}
+
+impl DecodedCursor {
+    /// Validate the bounded wire format and domain keys without expected context.
+    pub fn parse(token: &str) -> Result<Self, InvalidCursor> {
+        use InvalidCursorReason::*;
+        if token.len() > MAX_CURSOR_BYTES {
+            return Err(InvalidCursor(Oversized));
+        }
+        let hex = token.strip_prefix(PREFIX).ok_or(InvalidCursor(Malformed))?;
+        if hex.is_empty() || hex.len() % 2 != 0 {
+            return Err(InvalidCursor(Malformed));
+        }
+        let mut bytes = Vec::with_capacity(hex.len() / 2);
+        for pair in hex.as_bytes().chunks_exact(2) {
+            let high = hex_digit(pair[0]).ok_or(InvalidCursor(Malformed))?;
+            let low = hex_digit(pair[1]).ok_or(InvalidCursor(Malformed))?;
+            bytes.push(high * 16 + low);
+        }
+        let ObjectOnly(envelope): ObjectOnly<Envelope> =
+            serde_json::from_slice(&bytes).map_err(|_| InvalidCursor(Malformed))?;
+        if envelope.cursor_version != CURSOR_VERSION
+            || envelope.order_version != ORDER_VERSION
+            || envelope.projection_schema_version != PROJECTION_SCHEMA_VERSION
+            || envelope.generation.is_some()
+        {
+            return Err(InvalidCursor(UnsupportedVersion));
+        }
+        let boundary = match envelope.boundary {
+            Boundary::Item(key) => {
+                let malformed = || InvalidCursor(Malformed);
+                let requester = RequesterId::new(&key.requester).map_err(|_| malformed())?;
+                let project = ProjectId::new(&key.project).map_err(|_| malformed())?;
+                // Reject rather than silently repair noncanonical identities.
+                if requester.as_str() != key.requester || project.as_str() != key.project {
+                    return Err(malformed());
+                }
+                DecodedBoundary::Item(ItemReadKey {
+                    id: ItemId::new(requester, project, key.sequence).map_err(|_| malformed())?,
+                    captured_at: Timestamp::new(key.captured_at),
+                    priority: key.priority.map(Priority::from),
+                })
+            }
+            Boundary::History(key) => DecodedBoundary::History(HistoryReadKey {
+                item_revision: Revision::new(key.item_revision)
+                    .map_err(|_| InvalidCursor(Malformed))?,
+                event_index: key.event_index,
+            }),
+        };
+        if !matches!(
+            (&envelope.kind, &boundary),
+            (
+                CursorKind::List | CursorKind::Next,
+                DecodedBoundary::Item(_)
+            ) | (CursorKind::History, DecodedBoundary::History(_))
+        ) {
+            return Err(InvalidCursor(WrongKind));
+        }
+        Ok(Self {
+            kind: envelope.kind,
+            store_id: envelope.store_id,
+            query_fingerprint: envelope.query_fingerprint,
+            boundary,
+        })
+    }
+
+    /// Reject operation swaps before resolving store/query context.
+    pub fn require_item_kind(&self, ordering: ItemListOrdering) -> Result<(), InvalidCursor> {
+        self.require_kind(match ordering {
+            ItemListOrdering::NewestFirst => CursorKind::List,
+            ItemListOrdering::Next => CursorKind::Next,
+        })
+    }
+
+    pub fn require_history_kind(&self) -> Result<(), InvalidCursor> {
+        self.require_kind(CursorKind::History)
+    }
+
+    fn require_kind(&self, kind: CursorKind) -> Result<(), InvalidCursor> {
+        if self.kind == kind {
+            Ok(())
+        } else {
+            Err(InvalidCursor(InvalidCursorReason::WrongKind))
+        }
+    }
+}
+
 /// The expected operation/store/query, reconstructed from each current request.
 ///
 /// Page size and the existing boundary do not affect binding. This object never
@@ -189,21 +292,16 @@ impl CursorContext {
 
     pub fn decode_item_key(&self, token: &str) -> Result<ItemReadKey, InvalidCursor> {
         self.require_item_kind()?;
-        let Boundary::Item(key) = self.decode(token)? else {
+        self.bind_item_key(&DecodedCursor::parse(token)?)
+    }
+
+    /// Bind already parsed input; callers must still authorize the read use case.
+    pub fn bind_item_key(&self, cursor: &DecodedCursor) -> Result<ItemReadKey, InvalidCursor> {
+        self.require_item_kind()?;
+        let DecodedBoundary::Item(key) = self.bind(cursor)? else {
             return Err(InvalidCursor(InvalidCursorReason::WrongKind));
         };
-        let malformed = || InvalidCursor(InvalidCursorReason::Malformed);
-        let requester = RequesterId::new(&key.requester).map_err(|_| malformed())?;
-        let project = ProjectId::new(&key.project).map_err(|_| malformed())?;
-        // Reject rather than silently repair noncanonical boundary identities.
-        if requester.as_str() != key.requester || project.as_str() != key.project {
-            return Err(malformed());
-        }
-        Ok(ItemReadKey {
-            id: ItemId::new(requester, project, key.sequence).map_err(|_| malformed())?,
-            captured_at: Timestamp::new(key.captured_at),
-            priority: key.priority.map(Priority::from),
-        })
+        Ok(key.clone())
     }
 
     pub fn encode_history_key(&self, key: &HistoryReadKey) -> Result<String, InvalidCursor> {
@@ -216,14 +314,18 @@ impl CursorContext {
 
     pub fn decode_history_key(&self, token: &str) -> Result<HistoryReadKey, InvalidCursor> {
         self.require_history_kind()?;
-        let Boundary::History(key) = self.decode(token)? else {
+        self.bind_history_key(&DecodedCursor::parse(token)?)
+    }
+
+    pub fn bind_history_key(
+        &self,
+        cursor: &DecodedCursor,
+    ) -> Result<HistoryReadKey, InvalidCursor> {
+        self.require_history_kind()?;
+        let DecodedBoundary::History(key) = self.bind(cursor)? else {
             return Err(InvalidCursor(InvalidCursorReason::WrongKind));
         };
-        Ok(HistoryReadKey {
-            item_revision: Revision::new(key.item_revision)
-                .map_err(|_| InvalidCursor(InvalidCursorReason::Malformed))?,
-            event_index: key.event_index,
-        })
+        Ok(key.clone())
     }
 
     fn require_item_kind(&self) -> Result<(), InvalidCursor> {
@@ -269,40 +371,16 @@ impl CursorContext {
         Ok(token)
     }
 
-    fn decode(&self, token: &str) -> Result<Boundary, InvalidCursor> {
+    fn bind<'a>(&self, cursor: &'a DecodedCursor) -> Result<&'a DecodedBoundary, InvalidCursor> {
         use InvalidCursorReason::*;
-        if token.len() > MAX_CURSOR_BYTES {
-            return Err(InvalidCursor(Oversized));
-        }
-        let hex = token.strip_prefix(PREFIX).ok_or(InvalidCursor(Malformed))?;
-        if hex.is_empty() || hex.len() % 2 != 0 {
-            return Err(InvalidCursor(Malformed));
-        }
-        let mut bytes = Vec::with_capacity(hex.len() / 2);
-        for pair in hex.as_bytes().chunks_exact(2) {
-            let high = hex_digit(pair[0]).ok_or(InvalidCursor(Malformed))?;
-            let low = hex_digit(pair[1]).ok_or(InvalidCursor(Malformed))?;
-            bytes.push(high * 16 + low);
-        }
-        let ObjectOnly(envelope): ObjectOnly<Envelope> =
-            serde_json::from_slice(&bytes).map_err(|_| InvalidCursor(Malformed))?;
-        if envelope.cursor_version != CURSOR_VERSION
-            || envelope.order_version != ORDER_VERSION
-            || envelope.projection_schema_version != PROJECTION_SCHEMA_VERSION
-            || envelope.generation.is_some()
-        {
-            return Err(InvalidCursor(UnsupportedVersion));
-        }
-        if envelope.kind != self.kind {
-            return Err(InvalidCursor(WrongKind));
-        }
-        if envelope.store_id != self.store_id {
+        cursor.require_kind(self.kind)?;
+        if cursor.store_id != self.store_id {
             return Err(InvalidCursor(WrongStore));
         }
-        if envelope.query_fingerprint != self.query_fingerprint {
+        if cursor.query_fingerprint != self.query_fingerprint {
             return Err(InvalidCursor(WrongQuery));
         }
-        Ok(envelope.boundary)
+        Ok(&cursor.boundary)
     }
 }
 
