@@ -96,7 +96,7 @@ fn existing_v1_database_upgrades_and_repeat_startup_is_valid() {
             row.get(0)
         })
         .unwrap();
-    assert_eq!(migrations, 2);
+    assert_eq!(migrations, 3);
 
     insert_event_fixture(&connection);
     assert!(

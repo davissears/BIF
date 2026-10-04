@@ -1,11 +1,15 @@
 # BIF v2 read contract
 
-**Status:** Approved contract for V2-001; runtime implementation is deferred.
+**Status:** Approved contract for V2-001. Phase B implements application
+projections, bounded SQLite reads and serializers; Phase C's opaque cursors,
+paginated history storage, legacy read routing and v2 CLI remain unimplemented.
 
 This document freezes BIF v1 compatibility and the first BIF v2 read contract.
 Its machine-readable companion is
 [`fixtures/bif-v2-read-contract.json`](fixtures/bif-v2-read-contract.json).
 That fixture is normative where an example and prose could otherwise differ.
+The fixture preserves the V2-001 contract-only milestone; current delivery
+status is tracked in the [migration plan](bif-v2-migration-plan.md).
 
 ## Compatibility boundary
 

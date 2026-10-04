@@ -3,6 +3,9 @@
 //! This outer module may depend on the application and domain layers; those
 //! layers do not depend on storage.
 
+mod projection_reads;
+pub use projection_reads::ProjectionRepository;
+
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -25,6 +28,8 @@ use crate::domain::{
 const INITIAL_SCHEMA: &str = include_str!("../migrations/0001_initial.sql");
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 const IMMUTABLE_EVENTS: &str = include_str!("../migrations/0002_immutable_events.sql");
+const PROJECTION_READ_INDEXES: &str =
+    include_str!("../migrations/0003_projection_read_indexes.sql");
 
 const MIGRATIONS: &[Migration] = &[
     Migration {
@@ -38,6 +43,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "immutable_events",
         sql: IMMUTABLE_EVENTS,
         checksum: "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
+    },
+    Migration {
+        version: 3,
+        name: "projection_read_indexes",
+        sql: PROJECTION_READ_INDEXES,
+        checksum: "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
     },
 ];
 

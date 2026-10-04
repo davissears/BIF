@@ -10,6 +10,13 @@ use crate::domain::{
     ProjectId, Provenance, RequesterId, Revision, Timestamp,
 };
 
+mod projections;
+pub mod read_semantics;
+mod reads;
+
+pub use projections::{ItemAudit, ItemSummary, ItemWork};
+pub use reads::*;
+
 /// The principal requesting an operation.
 ///
 /// A human remains the actor when an agent executes that human's instruction.
