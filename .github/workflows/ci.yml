@@ -24,5 +24,9 @@ jobs:
         run: cargo fmt --all --check
       - name: Lint all targets
         run: cargo clippy --locked --all-targets
-      - name: Run deterministic regression tests
+      # The whole nonignored suite is the manifest's deterministic source of
+      # truth: read_release_manifest, read_release_rehearsal, structural query
+      # tests and the 100-item benchmark_harness instrumentation are included.
+      # Large timing comparisons live in the scheduled/manual read-evidence job.
+      - name: Run functional, structural and release-registration tests
         run: cargo test --locked
