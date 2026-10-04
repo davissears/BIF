@@ -141,11 +141,82 @@ pub fn open(path: impl AsRef<Path>) -> Result<Connection, MigrationError> {
 /// A missing or empty singleton is an integrity failure (`QueryReturnedNoRows`);
 /// invalid SQL types and busy errors remain native SQLite errors.
 pub fn read_store_identity(connection: &Connection) -> Result<String, rusqlite::Error> {
-    connection.query_row(
-        "SELECT store_id FROM store_metadata WHERE singleton = 1 AND length(store_id) > 0",
-        [],
-        |row| row.get(0),
-    )
+    connection
+        .prepare_cached(
+            "SELECT store_id FROM store_metadata WHERE singleton = 1 AND length(store_id) > 0",
+        )?
+        .query_row([], |row| row.get(0))
+}
+
+/// A pinned session boundary: changes to schema or migration bookkeeping must
+/// restart, rather than silently repairing/re-migrating a long-lived handle.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ReadStoreState {
+    pub store_id: String,
+    pub schema_version: i64,
+    migrations: Vec<(i64, String, String, String)>,
+}
+
+pub(crate) fn read_store_state(connection: &Connection) -> rusqlite::Result<ReadStoreState> {
+    let store_id = read_store_identity(connection)?;
+    let schema_version = connection
+        .prepare_cached("PRAGMA schema_version")?
+        .query_row([], |row| row.get(0))?;
+    let migrations = connection.prepare_cached(
+        "SELECT version, name, checksum, applied_at FROM schema_migrations ORDER BY version LIMIT ?1"
+    )?.query_map([(MIGRATIONS.len() + 1) as i64], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    if migrations.len() != MIGRATIONS.len()
+        || migrations
+            .iter()
+            .zip(MIGRATIONS)
+            .any(|((version, name, checksum, _), expected)| {
+                *version != expected.version
+                    || name != expected.name
+                    || checksum != expected.checksum
+            })
+    {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
+    Ok(ReadStoreState {
+        store_id,
+        schema_version,
+        migrations,
+    })
+}
+
+/// Repositories own a short snapshot when used standalone; a session can own
+/// the outer snapshot so identity checks and payload selection are atomic.
+pub(crate) enum ReadSnapshot<'connection> {
+    Owned(rusqlite::Transaction<'connection>),
+    Borrowed(&'connection Connection),
+}
+
+impl<'connection> ReadSnapshot<'connection> {
+    pub fn begin(connection: &'connection Connection) -> rusqlite::Result<Self> {
+        if connection.is_autocommit() {
+            Ok(Self::Owned(connection.unchecked_transaction()?))
+        } else {
+            Ok(Self::Borrowed(connection))
+        }
+    }
+
+    pub fn commit(self) -> rusqlite::Result<()> {
+        match self {
+            Self::Owned(transaction) => transaction.commit(),
+            Self::Borrowed(_) => Ok(()),
+        }
+    }
+}
+
+impl std::ops::Deref for ReadSnapshot<'_> {
+    type Target = Connection;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(transaction) => transaction,
+            Self::Borrowed(connection) => connection,
+        }
+    }
 }
 
 /// Opens and prepares a SQLite database while requesting no symbolic links in
@@ -1438,11 +1509,11 @@ fn insert_project_at(
 /// Mapping construction remains in [`crate::config`], so canonical-path and
 /// remote-normalization rules have one source of truth.
 pub struct ProjectRepository<'connection> {
-    connection: &'connection mut Connection,
+    connection: &'connection Connection,
 }
 
 impl<'connection> ProjectRepository<'connection> {
-    pub fn new(connection: &'connection mut Connection) -> Self {
+    pub fn new(connection: &'connection Connection) -> Self {
         Self { connection }
     }
 
@@ -1451,9 +1522,8 @@ impl<'connection> ProjectRepository<'connection> {
         &mut self,
         mapping: &ProjectPathMapping,
     ) -> Result<(), ProjectRegistrationError> {
-        let transaction = self
-            .connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let transaction =
+            rusqlite::Transaction::new_unchecked(self.connection, TransactionBehavior::Immediate)?;
         let path = mapping.path().to_str().ok_or_else(|| {
             ProjectRegistrationError::UnsupportedPathEncoding(mapping.path().to_path_buf())
         })?;
@@ -1488,9 +1558,8 @@ impl<'connection> ProjectRepository<'connection> {
         &mut self,
         mapping: &ProjectRemoteMapping,
     ) -> Result<(), ProjectRegistrationError> {
-        let transaction = self
-            .connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let transaction =
+            rusqlite::Transaction::new_unchecked(self.connection, TransactionBehavior::Immediate)?;
         let remote = mapping.identity().as_str();
         let existing: Option<String> = transaction
             .query_row(
@@ -1519,7 +1588,7 @@ impl<'connection> ProjectRepository<'connection> {
     }
 
     pub fn list_paths(&self) -> Result<Vec<ProjectPathMapping>, ProjectRegistrationError> {
-        let mut statement = self.connection.prepare(
+        let mut statement = self.connection.prepare_cached(
             "SELECT project_id, canonical_path
              FROM project_path_mappings ORDER BY canonical_path",
         )?;
@@ -1540,7 +1609,7 @@ impl<'connection> ProjectRepository<'connection> {
     }
 
     pub fn list_remotes(&self) -> Result<Vec<ProjectRemoteMapping>, ProjectRegistrationError> {
-        let mut statement = self.connection.prepare(
+        let mut statement = self.connection.prepare_cached(
             "SELECT project_id, normalized_remote
              FROM project_remote_mappings ORDER BY normalized_remote",
         )?;

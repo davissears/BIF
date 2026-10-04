@@ -14,6 +14,7 @@ pub mod config;
 pub mod domain;
 pub mod expose;
 pub mod limits;
+pub mod read_session;
 pub mod rpc;
 pub mod rpc_mutation;
 pub mod rpc_read;
