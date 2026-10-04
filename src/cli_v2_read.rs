@@ -13,21 +13,16 @@ use serde_json::{Map, Value, json};
 
 use crate::{
     application::{
-        self, Actor, ActorKind, AuthorizationRequest, Command, CursorContext, CursorEncodeError,
-        DecodedCursor, Execution, HistoryOrdering, HistoryPageRequest, HistoryReadKey,
+        self, Actor, ActorKind, AuthorizationRequest, Command, DecodedCursor, Execution,
         HumanAuthorization, ItemListFilters, ItemListOrdering, ItemProjectionKind,
-        ItemProjectionPageRequest, ObservedExecution, ProjectionGetRequest, ReadPageRequest,
+        ObservedExecution,
     },
     cli_read,
-    config::{self, ConfigOverrides, ProjectPathMappings, ProjectRemoteMappings, resolve_project},
+    config::{self, ConfigOverrides},
     domain::{AssigneeId, NamedView, ProjectId, RequesterId},
     limits::MAXIMUM_REQUEST_BYTES,
-    rpc_read::{ClassifyReadStorageError, ReadStorageErrorKind},
-    storage::{
-        self, ItemHistoryRepository, ProjectRegistrationError, ProjectRepository,
-        ProjectionRepository,
-    },
-    v2_response::{self, CursorCandidate, EncodeError, ReadError, ReadErrorCode, ResponseBudget},
+    read_session::{ReadRequest, ReadSession},
+    v2_response::{self, ReadError, ReadErrorCode, ResponseBudget},
 };
 
 const PAGE_OPTIONS: &[&str] = &[
@@ -43,23 +38,8 @@ const PAGE_OPTIONS: &[&str] = &[
     "cursor",
 ];
 
-enum ReadCommand {
-    Get(ProjectionGetRequest),
-    Page {
-        view: NamedView,
-        ordering: ItemListOrdering,
-        projection: ItemProjectionKind,
-        filters: ItemListFilters,
-        limit: usize,
-    },
-    History {
-        request: HistoryPageRequest,
-    },
-}
-
 struct Parsed {
-    command: ReadCommand,
-    cursor: Option<DecodedCursor>,
+    command: ReadRequest,
     overrides: ConfigOverrides,
 }
 
@@ -100,7 +80,7 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
         Some(_) => return Err(ReadError::UnsupportedVersion),
     }
     let name = arguments.get(2).ok_or(ReadError::InvalidInput)?.as_str();
-    if !matches!(name, "get" | "list" | "next" | "history") {
+    if !matches!(name, "get" | "list" | "next" | "history" | "selected-work") {
         return Err(ReadError::InvalidInput);
     }
     let mut position = 3;
@@ -129,17 +109,18 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
             .ok_or(ReadError::InvalidInput)?;
         let allowed = matches!(option, "config" | "root" | "json")
             || match name {
-                "get" => option == "projection",
+                "get" => matches!(option, "projection" | "conditional" | "known-version"),
                 "history" => matches!(option, "limit" | "cursor"),
                 "list" => option == "view" || PAGE_OPTIONS.contains(&option),
                 "next" => PAGE_OPTIONS.contains(&option),
+                "selected-work" => option == "project",
                 _ => false,
             };
         if !allowed || options.contains_key(option) {
             return Err(ReadError::InvalidInput);
         }
         position += 1;
-        let value = if matches!(option, "json" | "unassigned") {
+        let value = if matches!(option, "json" | "unassigned" | "conditional") {
             None
         } else {
             let value = arguments
@@ -178,10 +159,19 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
             let item_id = item_id.expect("validated item command");
             wire.insert("item_id".into(), json!(item_id.to_string()));
             wire.insert("projection".into(), json!(projection_name));
-            ReadCommand::Get(ProjectionGetRequest {
+            if let Some(version) = get("known-version") {
+                wire.insert("known_version".into(), json!(version));
+            }
+            let conditional = options.contains_key("conditional") || get("known-version").is_some();
+            if conditional {
+                wire.insert("conditional".into(), json!(true));
+            }
+            ReadRequest::Get {
                 item_id,
                 projection,
-            })
+                conditional,
+                known_version: get("known-version").map(str::to_owned),
+            }
         }
         "history" => {
             let item_id = item_id.expect("validated item command");
@@ -190,12 +180,10 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
             if let Some(cursor) = get("cursor") {
                 wire.insert("cursor".into(), json!(cursor));
             }
-            ReadCommand::History {
-                request: HistoryPageRequest {
-                    item_id,
-                    ordering: HistoryOrdering::RevisionThenEventIndex,
-                    page: ReadPageRequest::new(limit, None).map_err(invalid)?,
-                },
+            ReadRequest::History {
+                item_id,
+                limit,
+                cursor: get("cursor").map(str::to_owned),
             }
         }
         "list" | "next" => {
@@ -251,7 +239,7 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
             wire.insert("unassigned".into(), json!(filters.unassigned));
             wire.insert("projection".into(), json!(projection_name));
             wire.insert("limit".into(), json!(limit));
-            ReadCommand::Page {
+            ReadRequest::Page {
                 view,
                 ordering: if name == "next" {
                     ItemListOrdering::Next
@@ -261,20 +249,27 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
                 projection,
                 filters,
                 limit,
+                cursor: get("cursor").map(str::to_owned),
             }
+        }
+        "selected-work" => {
+            let project =
+                ProjectId::new(get("project").ok_or(ReadError::InvalidInput)?).map_err(invalid)?;
+            wire.insert("project".into(), json!(project.as_str()));
+            ReadRequest::SelectedWork { project }
         }
         _ => unreachable!(),
     };
     serde_json::to_writer(&mut RequestByteCounter(0), &Value::Object(wire)).map_err(invalid)?;
     // Preserve request-budget priority, then parse once before config/storage.
     // Binding to the authorized current store/query happens only in execute.
-    let cursor = get("cursor")
+    get("cursor")
         .map(|token| {
             let cursor = DecodedCursor::parse(token)?;
             match &command {
-                ReadCommand::Page { ordering, .. } => cursor.require_item_kind(*ordering)?,
-                ReadCommand::History { .. } => cursor.require_history_kind()?,
-                ReadCommand::Get(_) => unreachable!("get rejects the cursor option"),
+                ReadRequest::Page { ordering, .. } => cursor.require_item_kind(*ordering)?,
+                ReadRequest::History { .. } => cursor.require_history_kind()?,
+                _ => unreachable!("these commands reject the cursor option"),
             }
             Ok(cursor)
         })
@@ -282,7 +277,6 @@ fn parse(arguments: &[String]) -> Result<Parsed, ReadError> {
         .map_err(cursor_error)?;
     Ok(Parsed {
         command,
-        cursor,
         overrides: ConfigOverrides {
             config: get("config").map(PathBuf::from),
             root: get("root").map(PathBuf::from),
@@ -319,10 +313,11 @@ fn execute(mut parsed: Parsed) -> Result<Vec<u8>, ReadError> {
         config::ConfigError::NotInitialized => ReadError::NotInitialized,
         _ => ReadError::Internal,
     })?;
+    let requester = config.requester.clone();
     let authorization = AuthorizationRequest {
         actor: Actor {
             kind: ActorKind::Human,
-            id: config.requester.as_str(),
+            id: requester.as_str(),
             surface: "cli",
             host: "local",
         },
@@ -336,140 +331,15 @@ fn execute(mut parsed: Parsed) -> Result<Vec<u8>, ReadError> {
     };
     // Cursors supply only a boundary; authorization is reevaluated independently.
     application::authorize(&authorization).map_err(|_| ReadError::Unauthorized)?;
-    let paths = config.store_paths().map_err(|_| ReadError::Internal)?;
-    let mut connection = storage::open(&paths.database).map_err(|error| match error {
-        storage::MigrationError::NewerSchema { .. } => ReadError::UnsupportedVersion,
-        storage::MigrationError::Sqlite(error) => sqlite_error(&error),
-        _ => ReadError::Internal,
-    })?;
-    if let ReadCommand::Page { filters, .. } = &mut parsed.command {
+    let mut session = ReadSession::open(config)?;
+    if let ReadRequest::Page { filters, .. } = &mut parsed.command {
         if filters.project.is_none() {
-            let projects = ProjectRepository::new(&mut connection);
-            let path_mappings = ProjectPathMappings::new(
-                projects.list_paths().map_err(project_registration_error)?,
-            )
-            .map_err(|_| ReadError::Internal)?;
-            let remote_mappings = ProjectRemoteMappings::new(
-                projects
-                    .list_remotes()
-                    .map_err(project_registration_error)?,
-            )
-            .map_err(|_| ReadError::Internal)?;
             let cwd = env::current_dir().map_err(|_| ReadError::Internal)?;
-            filters.project = Some(
-                resolve_project(
-                    None,
-                    &cwd,
-                    super::cli::git_metadata(&cwd).as_ref(),
-                    &path_mappings,
-                    &remote_mappings,
-                )
-                .map_err(|_| ReadError::Internal)?,
-            );
+            filters.project =
+                Some(session.resolve_project(&cwd, super::cli::git_metadata(&cwd).as_ref())?);
         }
     }
-    let mut output = Vec::new();
-    let budget = ResponseBudget::default();
-    match parsed.command {
-        ReadCommand::Get(request) => {
-            let item = application::read_item_projection(
-                &ProjectionRepository::new(&connection),
-                &authorization,
-                &request,
-            )
-            .map_err(|error| match error {
-                application::ReadItemError::NotFound => ReadError::NotFound,
-                application::ReadItemError::Unauthorized(_) => ReadError::Unauthorized,
-                application::ReadItemError::Storage(error) => storage_error(&error),
-            })?;
-            v2_response::write_get(&mut output, &item, budget).map_err(encode_error)?;
-        }
-        ReadCommand::Page {
-            view,
-            ordering,
-            projection,
-            filters,
-            limit,
-        } => {
-            let store_id =
-                storage::read_store_identity(&connection).map_err(|error| sqlite_error(&error))?;
-            let mut request = ItemProjectionPageRequest {
-                view,
-                configured_requester: config.requester.clone(),
-                filters,
-                projection,
-                ordering,
-                page: ReadPageRequest::new(limit, None).map_err(invalid)?,
-            };
-            let context = CursorContext::item_page(store_id, &request).map_err(invalid)?;
-            request.page.after = parsed
-                .cursor
-                .as_ref()
-                .map(|cursor| context.bind_item_key(cursor))
-                .transpose()
-                .map_err(cursor_error)?;
-            let page = application::read_item_projection_page(
-                &ProjectionRepository::new(&connection),
-                &authorization,
-                &request,
-            )
-            .map_err(|error| match error {
-                application::ProjectionPageError::InvalidFilters(_) => ReadError::InvalidInput,
-                application::ProjectionPageError::Unauthorized(_) => ReadError::Unauthorized,
-                application::ProjectionPageError::Storage(error) => storage_error(&error),
-            })?;
-            v2_response::write_item_page_candidates(&mut output, &page, budget, |row| {
-                generated_cursor(context.encode_item_key(&row.key))
-            })
-            .map_err(encode_error)?;
-        }
-        ReadCommand::History { mut request } => {
-            let store_id =
-                storage::read_store_identity(&connection).map_err(|error| sqlite_error(&error))?;
-            let context = CursorContext::history(store_id, &request);
-            request.page.after = parsed
-                .cursor
-                .as_ref()
-                .map(|cursor| context.bind_history_key(cursor))
-                .transpose()
-                .map_err(cursor_error)?;
-            let page = application::read_item_history_page(
-                &ItemHistoryRepository::new(&connection),
-                &authorization,
-                &request,
-            )
-            .map_err(|error| match error {
-                application::ItemHistoryError::NotFound => ReadError::NotFound,
-                application::ItemHistoryError::Unauthorized(_) => ReadError::Unauthorized,
-                application::ItemHistoryError::InvalidPersistedData(_) => ReadError::Internal,
-                application::ItemHistoryError::Storage(error) => storage_error(&error),
-            })?;
-            v2_response::write_history_page_candidates(
-                &mut output,
-                &request.item_id,
-                &page,
-                budget,
-                |event| generated_cursor(context.encode_history_key(&HistoryReadKey::from(event))),
-            )
-            .map_err(encode_error)?;
-        }
-    }
-    Ok(output)
-}
-
-/// Oversized generated boundaries are page candidates, not invalid input.
-fn generated_cursor(
-    result: Result<String, CursorEncodeError>,
-) -> Result<CursorCandidate, ReadError> {
-    match result {
-        Ok(token) => Ok(CursorCandidate::Token(token)),
-        Err(CursorEncodeError::TooLarge {
-            encoded_token_bytes,
-        }) => Ok(CursorCandidate::Oversized {
-            encoded_token_bytes,
-        }),
-        Err(_) => Err(ReadError::Internal),
-    }
+    session.execute(&authorization, parsed.command, ResponseBudget::default())
 }
 
 fn invalid(_: impl std::fmt::Display) -> ReadError {
@@ -483,44 +353,6 @@ fn cursor_error(error: application::InvalidCursor) -> ReadError {
     }
 }
 
-fn storage_error(error: &impl ClassifyReadStorageError) -> ReadError {
-    match error.rpc_read_kind() {
-        ReadStorageErrorKind::Busy => ReadError::StorageBusy,
-        ReadStorageErrorKind::InvalidPersistedData | ReadStorageErrorKind::Other => {
-            ReadError::Internal
-        }
-    }
-}
-
-/// Preserve native SQLite contention when resolving implicit project metadata.
-fn project_registration_error(error: ProjectRegistrationError) -> ReadError {
-    match error {
-        ProjectRegistrationError::Sqlite(error) => sqlite_error(&error),
-        _ => ReadError::Internal,
-    }
-}
-
-fn sqlite_error(error: &rusqlite::Error) -> ReadError {
-    match error {
-        rusqlite::Error::SqliteFailure(error, _)
-            if matches!(
-                error.code,
-                rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked
-            ) =>
-        {
-            ReadError::StorageBusy
-        }
-        _ => ReadError::Internal,
-    }
-}
-
-fn encode_error(error: EncodeError) -> ReadError {
-    match error {
-        EncodeError::Read(error) => error,
-        _ => ReadError::Internal,
-    }
-}
-
 fn exit_code(code: ReadErrorCode) -> i32 {
     match code {
         ReadErrorCode::InvalidInput | ReadErrorCode::InvalidCursor => 2,
@@ -530,56 +362,7 @@ fn exit_code(code: ReadErrorCode) -> i32 {
         ReadErrorCode::NotInitialized => 9,
         ReadErrorCode::StorageBusy => 10,
         ReadErrorCode::PayloadTooLarge => 11,
+        ReadErrorCode::RestartRequired => 12,
         ReadErrorCode::Internal => 1,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn project_metadata_preserves_busy_and_locked_sqlite_errors() {
-        for code in [rusqlite::ffi::SQLITE_BUSY, rusqlite::ffi::SQLITE_LOCKED] {
-            let error = ProjectRegistrationError::Sqlite(rusqlite::Error::SqliteFailure(
-                rusqlite::ffi::Error::new(code),
-                None,
-            ));
-            let classified = project_registration_error(error);
-            assert_eq!(classified.code(), ReadErrorCode::StorageBusy);
-            assert_eq!(exit_code(classified.code()), 10);
-        }
-    }
-
-    #[test]
-    fn other_project_metadata_errors_remain_internal() {
-        let existing = ProjectId::new("alpha").unwrap();
-        let requested = ProjectId::new("beta").unwrap();
-        for error in [
-            ProjectRegistrationError::Sqlite(rusqlite::Error::SqliteFailure(
-                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CORRUPT),
-                None,
-            )),
-            ProjectRegistrationError::Sqlite(rusqlite::Error::InvalidQuery),
-            ProjectRegistrationError::InvalidStoredRegistration {
-                field: "project_id",
-                value: "invalid project".into(),
-            },
-            ProjectRegistrationError::PathConflict {
-                path: PathBuf::from("/project"),
-                existing: existing.clone(),
-                requested: requested.clone(),
-            },
-            ProjectRegistrationError::RemoteConflict {
-                remote: "example.com/project".into(),
-                existing,
-                requested,
-            },
-            ProjectRegistrationError::UnsupportedPathEncoding(PathBuf::from("/project")),
-        ] {
-            let classified = project_registration_error(error);
-            assert_eq!(classified.code(), ReadErrorCode::Internal);
-            assert_eq!(exit_code(classified.code()), 1);
-        }
     }
 }

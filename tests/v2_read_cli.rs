@@ -54,6 +54,121 @@ struct Fixture {
     database: std::path::PathBuf,
 }
 
+#[test]
+fn conditional_get_preserves_plain_get_and_binds_the_requested_projection() {
+    let fixture = Fixture::new(1);
+    let plain = fixture.run(&["get", "DAVIS:alpha:001", "--json"], 0);
+    assert!(plain["result"].get("outcome").is_none());
+    let initial = fixture.run(&["get", "DAVIS:alpha:001", "--conditional", "--json"], 0);
+    assert_eq!(initial["result"]["outcome"], "modified");
+    assert_eq!(initial["result"]["item"], plain["result"]["item"]);
+    let version = initial["result"]["version"].as_str().unwrap();
+    let unchanged = fixture.run(
+        &[
+            "get",
+            "DAVIS:alpha:001",
+            "--known-version",
+            version,
+            "--json",
+        ],
+        0,
+    );
+    assert_eq!(unchanged["result"]["outcome"], "not_modified");
+    assert!(unchanged["result"]["item"].is_null());
+    assert_eq!(unchanged["result"]["version"], version);
+    let work = fixture.run(
+        &[
+            "get",
+            "DAVIS:alpha:001",
+            "--projection",
+            "work",
+            "--known-version",
+            version,
+            "--json",
+        ],
+        0,
+    );
+    assert_eq!(work["result"]["outcome"], "modified");
+    assert_eq!(work["result"]["item"]["description"], "description");
+    assert_ne!(work["result"]["version"], version);
+    fixture.event(0, "a new revision");
+    let changed = fixture.run(
+        &[
+            "get",
+            "DAVIS:alpha:001",
+            "--known-version",
+            version,
+            "--json",
+        ],
+        0,
+    );
+    assert_eq!(changed["result"]["outcome"], "modified");
+    assert_ne!(changed["result"]["version"], version);
+}
+
+#[test]
+fn conditional_cli_checks_existence_and_rejects_invalid_options() {
+    let fixture = Fixture::new(1);
+    let malformed = fixture.run(
+        &["get", "DAVIS:alpha:001", "--known-version", "bad", "--json"],
+        2,
+    );
+    assert_eq!(malformed["error"]["code"], "invalid_input");
+    let missing = fixture.run(
+        &["get", "DAVIS:alpha:999", "--known-version", "bad", "--json"],
+        3,
+    );
+    assert_eq!(missing["error"]["code"], "not_found");
+    for args in [
+        vec!["get", "DAVIS:alpha:001", "--conditional"],
+        vec!["list", "--conditional", "--json"],
+        vec![
+            "history",
+            "DAVIS:alpha:001",
+            "--known-version",
+            "bad",
+            "--json",
+        ],
+        vec!["selected-work", "--json"],
+        vec![
+            "selected-work",
+            "--project",
+            "alpha",
+            "--limit",
+            "2",
+            "--json",
+        ],
+    ] {
+        assert_eq!(fixture.run(&args, 2)["error"]["code"], "invalid_input");
+    }
+}
+
+#[test]
+fn selected_work_matches_next_work_without_claiming_the_item() {
+    let fixture = Fixture::new(2);
+    let next = fixture.run(
+        &[
+            "next",
+            "--project",
+            "alpha",
+            "--projection",
+            "work",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        0,
+    );
+    let selected = fixture.run(&["selected-work", "--project", "alpha", "--json"], 0);
+    assert_eq!(selected["result"]["outcome"], "selected");
+    assert_eq!(selected["result"]["item"], next["result"]["items"][0]);
+    assert_eq!(selected["result"]["item"]["revision"], 1);
+    assert_eq!(selected["result"]["item"]["status"], "ready");
+    let empty = fixture.run(&["selected-work", "--project", "empty", "--json"], 0);
+    assert_eq!(empty["result"]["outcome"], "empty");
+    assert!(empty["result"]["item"].is_null());
+}
+
 impl Fixture {
     fn new(count: usize) -> Self {
         let directory = OwnedTestDirectory::new();

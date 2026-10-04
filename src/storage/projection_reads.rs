@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use rusqlite::{Connection, Row, params_from_iter, types::Value};
+use rusqlite::{Connection, OptionalExtension, Row, params_from_iter, types::Value};
 
 use crate::{
     application::{
@@ -20,7 +20,14 @@ use crate::{
     },
 };
 
-use super::{ItemStorageError, invalid_item, parse_priority, parse_source_host, parse_status};
+use super::{
+    ItemStorageError, ReadSnapshot, invalid_item, parse_priority, parse_source_host, parse_status,
+};
+
+use crate::application::{
+    ConditionalGetRequest, ConditionalProjectionStore, ConditionalReadError,
+    ConditionalReadOutcome, ProjectionValidator,
+};
 
 /// SQLite adapter for summary/work/audit reads; never reconstructs a full Item.
 pub struct ProjectionRepository<'connection> {
@@ -56,7 +63,7 @@ impl ItemProjectionStore for ProjectionRepository<'_> {
         &self,
         request: &ProjectionGetRequest,
     ) -> Result<Option<ItemProjection>, Self::Error> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = ReadSnapshot::begin(self.connection)?;
         let query = Query {
             sql: format!(
                 "{} WHERE i.item_id = ?1 COLLATE BINARY LIMIT 1",
@@ -78,7 +85,7 @@ impl ItemProjectionStore for ProjectionRepository<'_> {
     ) -> Result<ReadPage<ProjectedItemRow>, Self::Error> {
         // Normalize before opening the snapshot, including invalid combinations.
         let query = page_query(request)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = ReadSnapshot::begin(self.connection)?;
         let page = primary_page(
             &transaction,
             &query,
@@ -91,6 +98,70 @@ impl ItemProjectionStore for ProjectionRepository<'_> {
             records,
             has_more: page.has_more,
         })
+    }
+}
+
+impl ConditionalProjectionStore for ProjectionRepository<'_> {
+    type Error = ItemStorageError;
+
+    fn read_conditional_projection(
+        &self,
+        request: &ConditionalGetRequest,
+    ) -> Result<ConditionalReadOutcome, ConditionalReadError<Self::Error>> {
+        let sqlite = |error| ConditionalReadError::Storage(ItemStorageError::Sqlite(error));
+        let transaction = ReadSnapshot::begin(self.connection).map_err(sqlite)?;
+        // This narrow query intentionally touches neither criteria nor provenance.
+        let revision: Option<i64> = transaction
+            .prepare_cached("SELECT revision FROM items WHERE item_id = ?1 COLLATE BINARY")
+            .map_err(sqlite)?
+            .query_row([request.item_id.to_string()], |row| row.get(0))
+            .optional()
+            .map_err(sqlite)?;
+        let revision = revision.ok_or(ConditionalReadError::NotFound)?;
+        let revision = u64::try_from(revision)
+            .ok()
+            .and_then(|value| Revision::new(value).ok())
+            .ok_or_else(|| {
+                ConditionalReadError::Storage(invalid_item(
+                    &request.item_id.to_string(),
+                    "invalid revision",
+                ))
+            })?;
+        let store = super::read_store_identity(&transaction).map_err(sqlite)?;
+        let schema = transaction
+            .prepare_cached("PRAGMA schema_version")
+            .map_err(sqlite)?
+            .query_row([], |row| row.get(0))
+            .map_err(sqlite)?;
+        let validator = ProjectionValidator::new(
+            &store,
+            schema,
+            &request.item_id,
+            request.projection,
+            revision,
+        );
+        let hit = request
+            .known_version
+            .as_deref()
+            .map(|known| validator.matches(known))
+            .transpose()
+            .map_err(|_| ConditionalReadError::InvalidValidator)?
+            .unwrap_or(false);
+        let version = validator.into_string();
+        let result = if hit {
+            ConditionalReadOutcome::NotModified { version }
+        } else {
+            let item = self
+                .read_projection(&ProjectionGetRequest {
+                    item_id: request.item_id.clone(),
+                    projection: request.projection,
+                })
+                .map_err(ConditionalReadError::Storage)?
+                .ok_or(ConditionalReadError::NotFound)?;
+            ConditionalReadOutcome::Modified { version, item }
+        };
+        transaction.commit().map_err(sqlite)?;
+        Ok(result)
     }
 }
 
@@ -453,7 +524,7 @@ fn primary_rows(
     query: &Query,
     kind: ItemProjectionKind,
 ) -> Result<Vec<PrimaryRow>, ItemStorageError> {
-    let mut statement = connection.prepare(&query.sql)?;
+    let mut statement = connection.prepare_cached(&query.sql)?;
     Ok(statement
         .query_map(params_from_iter(&query.parameters), |row| {
             PrimaryRow::read(row, kind)
@@ -469,7 +540,7 @@ fn primary_page(
     kind: ItemProjectionKind,
     limit: usize,
 ) -> Result<ReadPage<PrimaryRow>, ItemStorageError> {
-    let mut statement = connection.prepare(&query.sql)?;
+    let mut statement = connection.prepare_cached(&query.sql)?;
     let mut rows = statement.query(params_from_iter(&query.parameters))?;
     let mut records = Vec::new();
     while records.len() < limit {
@@ -514,7 +585,7 @@ fn load_criteria(
         let placeholders = std::iter::repeat_n("?", rows.len())
             .collect::<Vec<_>>()
             .join(", ");
-        let mut statement = connection.prepare(&format!(
+        let mut statement = connection.prepare_cached(&format!(
             "SELECT item_id, criterion FROM item_acceptance_criteria \
              WHERE item_id IN ({placeholders}) ORDER BY item_id COLLATE BINARY, criterion_index"
         ))?;

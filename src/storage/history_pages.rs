@@ -7,7 +7,8 @@ use crate::application::{
 };
 
 use super::{
-    ItemHistoryRepository, ItemHistoryStorageError, history_event, history_sqlite, read_history_row,
+    ItemHistoryRepository, ItemHistoryStorageError, ReadSnapshot, history_event, history_sqlite,
+    read_history_row,
 };
 
 struct HistoryQuery {
@@ -77,16 +78,11 @@ impl ItemHistoryPageStore for ItemHistoryRepository<'_> {
         request: &HistoryPageRequest,
     ) -> Result<ReadPage<crate::application::ItemHistoryEvent>, ItemHistoryStoreError<Self::Error>>
     {
-        let transaction = self
-            .connection
-            .unchecked_transaction()
-            .map_err(history_sqlite)?;
+        let transaction = ReadSnapshot::begin(self.connection).map_err(history_sqlite)?;
         let exists = transaction
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM items WHERE item_id = ?1)",
-                [request.item_id.to_string()],
-                |row| row.get::<_, bool>(0),
-            )
+            .prepare_cached("SELECT EXISTS(SELECT 1 FROM items WHERE item_id = ?1)")
+            .map_err(history_sqlite)?
+            .query_row([request.item_id.to_string()], |row| row.get::<_, bool>(0))
             .map_err(history_sqlite)?;
         if !exists {
             return Err(ItemHistoryStoreError::NotFound);
@@ -94,7 +90,9 @@ impl ItemHistoryPageStore for ItemHistoryRepository<'_> {
         let query = selection(request);
         let mut records = Vec::with_capacity(request.page.limit.get());
         let has_more = {
-            let mut statement = transaction.prepare(&query.sql).map_err(history_sqlite)?;
+            let mut statement = transaction
+                .prepare_cached(&query.sql)
+                .map_err(history_sqlite)?;
             let mut rows = statement
                 .query(params_from_iter(query.parameters))
                 .map_err(history_sqlite)?;
