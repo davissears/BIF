@@ -58,11 +58,15 @@ where
     I: IntoIterator<Item = S>,
     S: Into<OsString>,
 {
+    let arguments: Vec<OsString> = arguments.into_iter().map(Into::into).collect();
+    // The selector is a compatibility boundary, not a global v1 option.
+    if arguments.first().map(OsString::as_os_str) == Some(std::ffi::OsStr::new("--api-version")) {
+        return crate::cli_v2_read::run(arguments, stdout, stderr);
+    }
     let arguments = match arguments
         .into_iter()
         .map(|value| {
             value
-                .into()
                 .into_string()
                 .map_err(|_| CliError::Usage("arguments must be valid UTF-8".into()))
         })

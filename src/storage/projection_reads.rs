@@ -1,5 +1,5 @@
 //! Direct bounded current-state reads. Selection and child hydration share one
-//! short SQLite snapshot; v1's complete-item loaders remain independent.
+//! short SQLite snapshot; legacy offset pages reuse selection and batch loading.
 
 use std::collections::HashMap;
 
@@ -7,16 +7,16 @@ use rusqlite::{Connection, Row, params_from_iter, types::Value};
 
 use crate::{
     application::{
-        ItemAudit, ItemProjection, ItemProjectionKind, ItemProjectionPageRequest,
-        ItemProjectionStore, ItemReadKey, ItemSummary, ItemWork, ProjectedItemRow,
-        ProjectionGetRequest, ReadPage,
+        ItemAudit, ItemListFilters, ItemListOrdering, ItemPage, ItemProjection, ItemProjectionKind,
+        ItemProjectionPageRequest, ItemProjectionStore, ItemReadKey, ItemSummary, ItemWork,
+        PageOffset, Pagination, ProjectedItemRow, ProjectionGetRequest, ReadPage,
         read_semantics::{
             AssigneeFilter, EffectiveItemFilters, ItemSortField, SortDirection, priority_rank,
         },
     },
     domain::{
-        AssigneeId, ItemId, MessageId, ProjectId, Provenance, RepositoryReference, RequesterId,
-        Revision, RevisionReference, SourceUrl, ThreadId, Timestamp,
+        AssigneeId, Item, ItemId, MessageId, NamedView, ProjectId, Provenance, RepositoryReference,
+        RequesterId, Revision, RevisionReference, SourceUrl, ThreadId, Timestamp,
     },
 };
 
@@ -222,6 +222,13 @@ fn page_query(request: &ItemProjectionPageRequest) -> Result<Query, ItemStorageE
                 SortDirection::Ascending => ">",
                 SortDirection::Descending => "<",
             };
+            if equal_prefix.is_empty() {
+                // Give SQLite one contiguous leading-index range, then apply
+                // the strict mixed-direction predicate within that range.
+                // Otherwise its MULTI-INDEX OR plan can gather/sort the entire
+                // remaining queue before LIMIT rather than walk index order.
+                predicates.push(format!("{column} {operator}= {parameter}"));
+            }
             let mut branch = equal_prefix.clone();
             branch.push(format!("{column} {operator} {parameter}"));
             alternatives.push(format!("({})", branch.join(" AND ")));
@@ -454,8 +461,26 @@ fn hydrate(
     rows: Vec<PrimaryRow>,
     kind: ItemProjectionKind,
 ) -> Result<Vec<ProjectedItemRow>, ItemStorageError> {
+    let mut criteria = if kind == ItemProjectionKind::Summary {
+        HashMap::new()
+    } else {
+        load_criteria(connection, &rows)?
+    };
+    rows.into_iter()
+        .map(|row| {
+            let children = criteria.remove(&row.item_id).unwrap_or_default();
+            row.project(kind, children)
+        })
+        .collect()
+}
+
+/// One indexed child query for the selected page, never for the sentinel.
+fn load_criteria(
+    connection: &Connection,
+    rows: &[PrimaryRow],
+) -> Result<HashMap<String, Vec<String>>, ItemStorageError> {
     let mut criteria = HashMap::<String, Vec<String>>::new();
-    if kind != ItemProjectionKind::Summary && !rows.is_empty() {
+    if !rows.is_empty() {
         let placeholders = std::iter::repeat_n("?", rows.len())
             .collect::<Vec<_>>()
             .join(", ");
@@ -472,10 +497,204 @@ fn hydrate(
                 .push(child.get(1)?);
         }
     }
-    rows.into_iter()
+    Ok(criteria)
+}
+
+/// v1 orders decoded identity, not the potentially noncanonical raw columns.
+/// The legacy decoder requires reconstructed id.to_string() == item_id, so
+/// its colon-delimited segments are canonical without duplicating normalization.
+fn legacy_coordinate(field: ItemSortField) -> &'static str {
+    match field {
+        ItemSortField::Requester => {
+            "substr(i.item_id, 1, instr(i.item_id, ':') - 1) COLLATE BINARY"
+        }
+        ItemSortField::Project => {
+            "substr(i.item_id, instr(i.item_id, ':') + 1, \
+             instr(substr(i.item_id, instr(i.item_id, ':') + 1), ':') - 1) COLLATE BINARY"
+        }
+        // Sequence must remain numeric: display-ID order fails at 999/1000,
+        // as well as when one requester/project name is another's prefix.
+        _ => coordinate(field),
+    }
+}
+
+/// Legacy-only query semantics mirror ItemRepository::select_items: raw
+/// membership/filter predicates, then decoded identity order before SQL paging.
+/// Canonical tie expressions can require sorting within leading index groups;
+/// they do not change v2's canonical indexed keyset query.
+fn legacy_page_query(
+    view: NamedView,
+    configured_requester: &RequesterId,
+    filters: &ItemListFilters,
+    ordering: ItemListOrdering,
+    pagination: Pagination,
+    offset: i64,
+) -> Query {
+    let mut query = Query {
+        sql: select(ItemProjectionKind::Audit),
+        parameters: Vec::new(),
+    };
+    let predicate = match view {
+        NamedView::Proposed => "i.status = 'proposed'".to_owned(),
+        NamedView::Ready => "i.status = 'ready'".to_owned(),
+        NamedView::Active => "i.status IN ('in_progress', 'blocked')".to_owned(),
+        NamedView::Blocked => "i.status = 'blocked'".to_owned(),
+        NamedView::Done => "i.status = 'done'".to_owned(),
+        NamedView::Rejected => "i.status = 'rejected'".to_owned(),
+        NamedView::Mine => {
+            let assignee = query.bind(configured_requester.as_str().to_ascii_lowercase());
+            // Unknown nonterminal status must reach the legacy decoder and
+            // fail, not silently disappear through a closed-enum IN predicate.
+            format!("i.status NOT IN ('done', 'rejected') AND i.assignee = {assignee}")
+        }
+        NamedView::All => "1 = 1".to_owned(),
+    };
+    let mut predicates = vec![predicate];
+    for (column, value) in [
+        (
+            "i.project_id",
+            filters.project.as_ref().map(ToString::to_string),
+        ),
+        (
+            "i.requester",
+            filters.requester.as_ref().map(ToString::to_string),
+        ),
+        (
+            "i.assignee",
+            filters.assignee.as_ref().map(ToString::to_string),
+        ),
+        (
+            "i.status",
+            filters
+                .status
+                .map(|status| super::status(status).to_owned()),
+        ),
+        (
+            "i.priority",
+            filters
+                .priority
+                .map(|priority| super::priority(priority).to_owned()),
+        ),
+    ] {
+        if let Some(value) = value {
+            let parameter = query.bind(value);
+            predicates.push(format!("{column} = {parameter}"));
+        }
+    }
+    if filters.unassigned {
+        predicates.push("i.assignee IS NULL".to_owned());
+    }
+    if let Some(text) = &filters.text {
+        let parameter = query.bind(text.as_str().to_owned());
+        predicates.push(format!(
+            "(instr(lower(i.title), lower({parameter})) > 0 \
+              OR instr(lower(coalesce(i.description, '')), lower({parameter})) > 0 \
+              OR EXISTS (SELECT 1 FROM item_acceptance_criteria AS c \
+                         WHERE c.item_id = i.item_id \
+                         AND instr(lower(c.criterion), lower({parameter})) > 0))"
+        ));
+    }
+    let order = ordering
+        .sort_spec()
+        .iter()
+        .map(|term| {
+            format!(
+                "{} {}",
+                legacy_coordinate(term.field),
+                match term.direction {
+                    SortDirection::Ascending => "ASC",
+                    SortDirection::Descending => "DESC",
+                }
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let limit = query
+        .bind(i64::try_from(pagination.limit.get() + 1).expect("validated page size fits SQLite"));
+    let offset = query.bind(offset);
+    query.sql.push_str(&format!(
+        " WHERE {} ORDER BY {order} LIMIT {limit} OFFSET {offset}",
+        predicates.join(" AND ")
+    ));
+    query
+}
+
+/// SQL-bound v1 offset pages retain complete Items and the legacy decoder.
+pub(super) fn legacy_page(
+    connection: &Connection,
+    view: NamedView,
+    configured_requester: &RequesterId,
+    filters: &ItemListFilters,
+    ordering: ItemListOrdering,
+    pagination: Pagination,
+) -> Result<ItemPage, ItemStorageError> {
+    // The old usize iterator skip returned an empty page above SQLite's signed
+    // range. Preserve that behavior rather than narrowing or rejecting offsets.
+    let Ok(offset) = i64::try_from(pagination.offset.get()) else {
+        return Ok(ItemPage {
+            items: Vec::new(),
+            next_offset: None,
+        });
+    };
+    let query = legacy_page_query(
+        view,
+        configured_requester,
+        filters,
+        ordering,
+        pagination,
+        offset,
+    );
+    let transaction = connection.unchecked_transaction()?;
+    let mut rows = primary_rows(&transaction, &query, ItemProjectionKind::Audit)?;
+    let has_more = rows.len() > pagination.limit.get();
+    rows.truncate(pagination.limit.get());
+    let mut criteria = load_criteria(&transaction, &rows)?;
+    let items = rows
+        .into_iter()
         .map(|row| {
             let children = criteria.remove(&row.item_id).unwrap_or_default();
-            row.project(kind, children)
+            row.legacy_item(children)
         })
-        .collect()
+        .collect::<Result<_, _>>()?;
+    transaction.commit()?;
+    let next_offset =
+        has_more.then(|| PageOffset::new(pagination.offset.get() + pagination.limit.get()));
+    Ok(ItemPage { items, next_offset })
+}
+
+impl PrimaryRow {
+    fn legacy_item(self, criteria: Vec<String>) -> Result<Item, ItemStorageError> {
+        let audit = self.audit.expect("legacy selection requests audit columns");
+        if audit.provenance_id.is_none() {
+            return Err(invalid_item(
+                &self.item_id,
+                "item disappeared during named view selection",
+            ));
+        }
+        super::decode_item(
+            &self.item_id,
+            (
+                self.requester,
+                self.project,
+                self.sequence,
+                self.title,
+                self.description,
+                self.status,
+                self.priority,
+                self.assignee,
+                self.status_reason,
+                self.revision,
+                self.captured_at,
+                audit.updated_at,
+                audit.source_host,
+                audit.thread_id,
+                audit.message_id,
+                audit.url,
+                audit.repository_reference,
+                audit.revision_reference,
+                audit.context_excerpt,
+            ),
+            criteria,
+        )
+    }
 }

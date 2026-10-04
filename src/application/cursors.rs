@@ -4,9 +4,12 @@
 //! even a modified, valid cursor only supplies a bound SQL parameter. Every read
 //! must still validate its request and re-evaluate authorization independently.
 
-use std::{error::Error, fmt, io};
+use std::{error::Error, fmt, io, marker::PhantomData};
 
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{
+    Deserialize, Deserializer, Serialize,
+    de::{self, MapAccess, Visitor, value::MapAccessDeserializer},
+};
 
 use crate::domain::{ItemId, NamedView, Priority, ProjectId, RequesterId, Revision, Timestamp};
 
@@ -82,12 +85,26 @@ impl fmt::Display for InvalidCursor {
 
 impl Error for InvalidCursor {}
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum CursorKind {
     List,
     Next,
     History,
+}
+
+impl<'de> Deserialize<'de> for CursorKind {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        match String::deserialize(deserializer)?.as_str() {
+            "list" => Ok(Self::List),
+            "next" => Ok(Self::Next),
+            "history" => Ok(Self::History),
+            value => Err(de::Error::unknown_variant(
+                value,
+                &["list", "next", "history"],
+            )),
+        }
+    }
 }
 
 /// The expected operation/store/query, reconstructed from each current request.
@@ -267,7 +284,7 @@ impl CursorContext {
             let low = hex_digit(pair[1]).ok_or(InvalidCursor(Malformed))?;
             bytes.push(high * 16 + low);
         }
-        let envelope: Envelope =
+        let ObjectOnly(envelope): ObjectOnly<Envelope> =
             serde_json::from_slice(&bytes).map_err(|_| InvalidCursor(Malformed))?;
         if envelope.cursor_version != CURSOR_VERSION
             || envelope.order_version != ORDER_VERSION
@@ -289,6 +306,38 @@ impl CursorContext {
     }
 }
 
+/// Constrains the outer JSON value without replacing derived field validation.
+struct ObjectOnly<T>(T);
+
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for ObjectOnly<T> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        object_only(deserializer).map(Self)
+    }
+}
+
+/// Derived structs also accept positional arrays; cursor objects must be maps.
+fn object_only<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    struct ObjectVisitor<T>(PhantomData<T>);
+
+    impl<'de, T: Deserialize<'de>> Visitor<'de> for ObjectVisitor<T> {
+        type Value = T;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("a cursor object")
+        }
+
+        fn visit_map<M: MapAccess<'de>>(self, map: M) -> Result<T, M::Error> {
+            T::deserialize(MapAccessDeserializer::new(map))
+        }
+    }
+
+    deserializer.deserialize_map(ObjectVisitor(PhantomData))
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Envelope {
@@ -307,8 +356,8 @@ struct Envelope {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum Boundary {
-    Item(ItemBoundary),
-    History(HistoryBoundary),
+    Item(#[serde(deserialize_with = "object_only")] ItemBoundary),
+    History(#[serde(deserialize_with = "object_only")] HistoryBoundary),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -335,13 +384,29 @@ struct HistoryBoundary {
     event_index: u64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 enum WirePriority {
     P0,
     P1,
     P2,
     P3,
     P4,
+}
+
+impl<'de> Deserialize<'de> for WirePriority {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        match String::deserialize(deserializer)?.as_str() {
+            "P0" => Ok(Self::P0),
+            "P1" => Ok(Self::P1),
+            "P2" => Ok(Self::P2),
+            "P3" => Ok(Self::P3),
+            "P4" => Ok(Self::P4),
+            value => Err(de::Error::unknown_variant(
+                value,
+                &["P0", "P1", "P2", "P3", "P4"],
+            )),
+        }
+    }
 }
 
 impl From<Priority> for WirePriority {

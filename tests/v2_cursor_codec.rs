@@ -46,7 +46,7 @@ fn assert_invalid(error: InvalidCursor, reason: &str) {
     assert!(error.to_string().contains("restart"));
 }
 
-// Tests inspect the local codec representation, never using a dynamic JSON tree.
+// Tests inspect the local codec representation.
 fn token_json(token: &str) -> String {
     let hex = token.strip_prefix("bifc1.").unwrap();
     let bytes: Vec<_> = hex
@@ -70,7 +70,14 @@ fn round_trips_all_operations_and_full_width_keys() {
     for ordering in [ItemListOrdering::NewestFirst, ItemListOrdering::Next] {
         let context = CursorContext::item_page("store", &item_request(ordering)).unwrap();
         for sequence in [999, 1000, (1_u64 << 53) + 1, u64::MAX] {
-            for priority in [None, Some(Priority::P0), Some(Priority::P4)] {
+            for priority in [
+                None,
+                Some(Priority::P0),
+                Some(Priority::P1),
+                Some(Priority::P2),
+                Some(Priority::P3),
+                Some(Priority::P4),
+            ] {
                 let key = item_key(sequence, priority);
                 let token = context.encode_item_key(&key).unwrap();
                 assert_eq!(context.decode_item_key(&token).unwrap(), key);
@@ -337,6 +344,78 @@ fn rejects_unknown_duplicate_missing_fields_wrong_types_and_overflow() {
         assert_invalid(
             history
                 .decode_history_key(&token_from_json(&changed))
+                .unwrap_err(),
+            "malformed",
+        );
+    }
+}
+
+#[test]
+fn rejects_positional_objects_and_object_form_unit_enums_for_item_cursors() {
+    for ordering in [ItemListOrdering::NewestFirst, ItemListOrdering::Next] {
+        let context = CursorContext::item_page("store", &item_request(ordering)).unwrap();
+        let key = item_key(1, None);
+        let token = context.encode_item_key(&key).unwrap();
+        assert_eq!(context.decode_item_key(&token).unwrap(), key);
+        let envelope: serde_json::Value = serde_json::from_str(&token_json(&token)).unwrap();
+        let item = &envelope["boundary"]["item"];
+        // Match the struct field order: these arrays previously decoded successfully.
+        let positional_envelope = serde_json::json!([
+            envelope["cursor_version"],
+            envelope["kind"],
+            envelope["store_id"],
+            envelope["generation"],
+            envelope["query_fingerprint"],
+            envelope["order_version"],
+            envelope["projection_schema_version"],
+            envelope["boundary"],
+        ]);
+        let mut positional_item = envelope.clone();
+        positional_item["boundary"]["item"] = serde_json::json!([
+            item["requester"],
+            item["project"],
+            item["sequence"],
+            item["captured_at"],
+            item["priority"],
+        ]);
+        let mut object_kind = envelope.clone();
+        object_kind["kind"] = serde_json::json!({ (envelope["kind"].as_str().unwrap()): null });
+        let mut object_priority = envelope.clone();
+        object_priority["boundary"]["item"]["priority"] = serde_json::json!({"P0": null});
+        for changed in [
+            positional_envelope,
+            positional_item,
+            object_kind,
+            object_priority,
+        ] {
+            assert_invalid(
+                context
+                    .decode_item_key(&token_from_json(&changed.to_string()))
+                    .unwrap_err(),
+                "malformed",
+            );
+        }
+    }
+}
+
+#[test]
+fn rejects_positional_objects_and_object_form_kind_for_history_cursors() {
+    let context = CursorContext::history("store", &history_request(1));
+    let key = HistoryReadKey {
+        item_revision: Revision::new(1).unwrap(),
+        event_index: 0,
+    };
+    let token = context.encode_history_key(&key).unwrap();
+    assert_eq!(context.decode_history_key(&token).unwrap(), key);
+    let envelope: serde_json::Value = serde_json::from_str(&token_json(&token)).unwrap();
+    let mut positional_history = envelope.clone();
+    positional_history["boundary"]["history"] = serde_json::json!([1, 0]);
+    let mut object_kind = envelope.clone();
+    object_kind["kind"] = serde_json::json!({"history": null});
+    for changed in [positional_history, object_kind] {
+        assert_invalid(
+            context
+                .decode_history_key(&token_from_json(&changed.to_string()))
                 .unwrap_err(),
             "malformed",
         );
