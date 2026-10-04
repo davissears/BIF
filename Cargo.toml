@@ -13,6 +13,10 @@ name = "bif"
 path = "src/main.rs"
 
 [[bin]]
+name = "bif-mcp"
+path = "src/bin/bif-mcp.rs"
+
+[[bin]]
 name = "bif-benchmark-store"
 path = "src/bin/bif-benchmark-store.rs"
 
