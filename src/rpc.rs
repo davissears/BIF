@@ -4,13 +4,10 @@
 //! module owns framing and the protocol envelope, but does not implement any
 //! read or mutation operation.
 
-use std::collections::{BTreeMap, HashSet};
-use std::fmt;
 use std::io::{self, Read, Write};
 
-use serde::de::{MapAccess, SeqAccess, Visitor};
-use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::{Map, Number, Value, json};
+use serde::Serialize;
+use serde_json::{Map, Value, json};
 
 use crate::domain::{
     AssigneeId, Item, MessageId, RepositoryReference, RevisionReference, SourceUrl, ThreadId,
@@ -253,14 +250,7 @@ where
 }
 
 fn parse_request(bytes: &[u8]) -> Result<Request, (Option<String>, RpcError)> {
-    let text = std::str::from_utf8(bytes).map_err(|_| (None, RpcError::invalid_input()))?;
-    let mut deserializer = serde_json::Deserializer::from_str(text);
-    let strict = StrictValue::deserialize(&mut deserializer)
-        .map_err(|_| (None, RpcError::invalid_input()))?;
-    deserializer
-        .end()
-        .map_err(|_| (None, RpcError::invalid_input()))?;
-    let value = strict.into_value();
+    let value = crate::strict_json::parse(bytes).map_err(|_| (None, RpcError::invalid_input()))?;
     let object = value
         .as_object()
         .ok_or_else(|| (None, RpcError::invalid_input()))?;
@@ -309,96 +299,4 @@ fn parse_request(bytes: &[u8]) -> Result<Request, (Option<String>, RpcError)> {
         operation,
         params,
     })
-}
-
-/// A JSON value deserializer that rejects duplicate keys at every depth.
-struct StrictValue(Value);
-
-impl StrictValue {
-    fn into_value(self) -> Value {
-        self.0
-    }
-}
-
-impl<'de> Deserialize<'de> for StrictValue {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_any(StrictValueVisitor)
-    }
-}
-
-struct StrictValueVisitor;
-
-impl<'de> Visitor<'de> for StrictValueVisitor {
-    type Value = StrictValue;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("a JSON value without duplicate object keys")
-    }
-
-    fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E> {
-        Ok(StrictValue(Value::Bool(value)))
-    }
-
-    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E> {
-        Ok(StrictValue(Value::Number(Number::from(value))))
-    }
-
-    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> {
-        Ok(StrictValue(Value::Number(Number::from(value))))
-    }
-
-    fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Number::from_f64(value)
-            .map(Value::Number)
-            .map(StrictValue)
-            .ok_or_else(|| E::custom("non-finite JSON number"))
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> {
-        Ok(StrictValue(Value::String(value.to_owned())))
-    }
-
-    fn visit_string<E>(self, value: String) -> Result<Self::Value, E> {
-        Ok(StrictValue(Value::String(value)))
-    }
-
-    fn visit_none<E>(self) -> Result<Self::Value, E> {
-        Ok(StrictValue(Value::Null))
-    }
-
-    fn visit_unit<E>(self) -> Result<Self::Value, E> {
-        Ok(StrictValue(Value::Null))
-    }
-
-    fn visit_seq<A>(self, mut sequence: A) -> Result<Self::Value, A::Error>
-    where
-        A: SeqAccess<'de>,
-    {
-        let mut values = Vec::new();
-        while let Some(value) = sequence.next_element::<StrictValue>()? {
-            values.push(value.into_value());
-        }
-        Ok(StrictValue(Value::Array(values)))
-    }
-
-    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-    where
-        A: MapAccess<'de>,
-    {
-        let mut keys = HashSet::new();
-        let mut values = BTreeMap::new();
-        while let Some(key) = map.next_key::<String>()? {
-            if !keys.insert(key.clone()) {
-                return Err(serde::de::Error::custom("duplicate object key"));
-            }
-            values.insert(key, map.next_value::<StrictValue>()?.into_value());
-        }
-        Ok(StrictValue(Value::Object(values.into_iter().collect())))
-    }
 }
