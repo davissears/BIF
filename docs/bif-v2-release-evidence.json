@@ -75,18 +75,23 @@
     },
     "phase_d": {
       "required": true,
-      "status": "pending",
+      "status": "recorded",
       "scope": "Persistent-process startup versus one-shot CLI; warm mixed calls, concurrent CLI writes, RSS/WAL observations and cursor/validator restart, 100/10k/100k seed 2003. Custom process instrumentation is not a configured MCP host smoke.",
-      "reason": "Parent executes and reviews the Phase D release harness; no measurements have been invented.",
-      "expected_report": "docs/bif-v2-phase-d-evidence.md",
-      "expected_artifacts": [
+      "report": "docs/bif-v2-phase-d-evidence.md",
+      "artifacts": [
         "docs/baselines/v2-phase-d/mcp-100.json",
         "docs/baselines/v2-phase-d/mcp-10000.json",
         "docs/baselines/v2-phase-d/mcp-100000.json"
       ],
-      "artifacts": [],
-      "provenance": [],
-      "required_provenance_pointers": ["/format", "/source_revision", "/source_dirty", "/binary_sha256/bif", "/binary_sha256/bif-mcp", "/binary_sha256/bif-benchmark-store", "/environment/rust", "/environment/platform", "/environment/build_profile", "/fixture/seed", "/fixture/logical_digest", "/protocol_version", "/limitations"]
+      "provenance": [
+        "docs/baselines/v2-phase-d/mcp-100.json",
+        "docs/baselines/v2-phase-d/mcp-10000.json",
+        "docs/baselines/v2-phase-d/mcp-100000.json"
+      ],
+      "build_provenance": "docs/baselines/v2-phase-d/build-provenance.json",
+      "harness": "docs/baselines/v2-phase-d/measure.py",
+      "source_disclosure": "Measured dirty c5605ce8611ece07f0c64e7ff09cd97eec1b0407 plus the exact parent src/mcp.rs typed optional error-ID fix and final src/mcp/tools.rs live-pagination descriptions. Each artifact includes unchanged start/end production input hashes and executable hashes. These are final planned production-code measurements, not a clean final Git revision claim or a measurement of later edits.",
+      "required_provenance_pointers": ["/format", "/source_revision", "/source_dirty", "/git_status_porcelain", "/source_inputs_sha256", "/source_end/source_inputs_sha256", "/harness_sha256", "/argv", "/raw_samples", "/binary_sha256/bif", "/binary_sha256/bif-mcp", "/binary_sha256/bif-benchmark-store", "/environment/rust", "/environment/platform", "/environment/build_profile", "/environment/production_sqlite", "/fixture/seed", "/fixture/logical_digest", "/protocol_version", "/limitations"]
     }
   },
   "real_configured_mcp_host": {
@@ -109,8 +114,13 @@
     "source": "tests/read_release_rehearsal.rs",
     "later_writes": "The candidate-only write is absent after rollback. Restoring a pre-upgrade backup discards later writes unless separately preserved/reconciled.",
     "old_binary": {
-      "status": "not_executed",
-      "gap": "The restored schema-2 database is reopened with raw SQLite and verified for integrity, foreign keys, identity, schema and durable rows. No historical BIF executable was built/launched to verify its schema-2 startup, CLI read or write behavior."
+      "status": "recorded",
+      "revision": "45ed7fcc85d5e0f9b2385a4a2198269154ce832c",
+      "evidence": "docs/baselines/v2-phase-d/old-binary-rehearsal.json",
+      "build_provenance": "docs/baselines/v2-phase-d/build-provenance.json",
+      "harness": "docs/baselines/v2-phase-d/rehearse.py",
+      "scope": "Archived historical schema-2 source built in the attached worktree; real old/candidate executable CLI get/history, capture replay, revision-checked approval and write/read reopening on disposable roots. Old executable refuses upgraded schema 3; pristine backup restores schema 2 and pre-upgrade content.",
+      "gap": "45ed7fc is the historical schema-2 baseline identified by the existing runbook, not a retained operator-approved production executable. No approved-production old revision was supplied. Operators must still inventory/rehearse their actual retained binary/configuration before a live rollout."
     },
     "operator_only": "Inventory and stop live writers/servers; obtain explicit authorization for any real-store upgrade or replacement; verify backups and restart configured hosts. This automated rehearsal never replaces an active store or performs in-place downmigration."
   },
@@ -118,7 +128,7 @@
     "status": "blocked",
     "approved": false,
     "approval": null,
-    "blocked_by": ["phase_d_measurements", "real_configured_mcp_host"],
+    "blocked_by": ["real_configured_mcp_host"],
     "policy": "Required recorded timing provenance plus a real configured host make the candidate reviewable, not automatically approved. Operator review of compatibility, evidence and the per-release runbook remains required."
   }
 }

@@ -1,0 +1,439 @@
+{
+  "format": "bif-phase-d-old-binary-rehearsal-v1",
+  "old_revision": "45ed7fcc85d5e0f9b2385a4a2198269154ce832c",
+  "executed_at_unix_seconds": 1791162133,
+  "harness_sha256": "0de1e13e92cfaee57b55794983157b13c36f952fbee948b2089c1311f13b7733",
+  "candidate_source": {
+    "source_revision": "c5605ce8611ece07f0c64e7ff09cd97eec1b0407",
+    "source_dirty": true,
+    "git_status_porcelain": "M README.md\n M docs/bif-upgrade-runbook.md\n M docs/bif-v2-migration-plan.md\n M docs/bif-v2-read-contract.md\n M docs/bif-v2-release-evidence.json\n M src/mcp.rs\n M src/mcp/tools.rs\n?? docs/baselines/v2-phase-d/\n?? docs/bif-mcp.md\n?? docs/bif-v2-phase-d-evidence.md",
+    "source_inputs_sha256": {
+      "Cargo.lock": "2172fe64d42f0a2c678c0c69dbeea33eaad8242ec434520a949a93c29bea39d1",
+      "Cargo.toml": "47db8d698fb63a1d75064d922bbe8df92b1d92d724f50b613498da64ab8606a7",
+      "migrations/0001_initial.sql": "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
+      "migrations/0002_immutable_events.sql": "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
+      "migrations/0003_projection_read_indexes.sql": "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
+      "rust-toolchain.toml": "dd510b4a3ab011309bb12f6fc3450596da2080670bd4f922eaff7cad1ca65794",
+      "src/application/conditional_reads.rs": "111275cabf13e42d92f9fc1cb1ad54a9b847e78e2f43ebedb31a659f13148daa",
+      "src/application/cursors.rs": "4b0aaaef08695c9fbf00db8dec03490a17a851c08f3cea018878dbf5ef358b93",
+      "src/application/projections.rs": "298ba861e83406d57ddd02c776fa158db93f3f5d447b2391f3f218bd44417f56",
+      "src/application/read_semantics.rs": "c862f127e583010af9c377ec143444e2382089ff5275aff6312d13c56faac186",
+      "src/application/reads.rs": "7c9d9b6a83f4c222d2d98ef284f133edfede7deb81dad3872c40ece2b1d5d000",
+      "src/application.rs": "9aec1462ed0a346eddc59f63c4d52cf493a17597f539825e68527115b07c27b5",
+      "src/benchmark_fixture.rs": "51be34bbf78d651b98636a9770f53191fe833ce4dd8db668875ebd4e6fcc1ab2",
+      "src/bin/bif-benchmark-store.rs": "8404420887be51593281849b987e3c77f34148924742b10931e173338f0babba",
+      "src/bin/bif-benchmark.rs": "29ee2280f9d838d3dfa90b1e4c00ea829c035d0b55ee330e8723ecc832618848",
+      "src/bin/bif-mcp.rs": "ed7f2e0573f52eeaec37dc5d39e0a24f57e2b698b2c565b5e4a2d3b26f6c1d9f",
+      "src/cli.rs": "f3cdef39da75700091b3be8542e6613d25c1617127356a0a474b4b0217b73b4a",
+      "src/cli_mutation.rs": "2a97f7cd6d076edd258435f3f3400304c8ae433f6151fe602ddbfb84360de04d",
+      "src/cli_read.rs": "00d6f6a792979497bae78b29f2b531788b742fadb7ac6d019e56b5f7dcbbb6b0",
+      "src/cli_v2_read.rs": "c2038bd835f26a256a57baad08bb13c33c60a7e3ca612313e14ba0d7607e28ad",
+      "src/config.rs": "94d81f81c4d2c424d183525f603beeec434587fcf06ab09d2c5b1d989bf8a662",
+      "src/domain.rs": "ba1a00fba2a50b41188ad983ab71d85abae811d7db00cf471077f418678a7671",
+      "src/expose.rs": "01394b1e23bfd1138e13f0824fee5627c1717bf541966814bbdf0a76348add95",
+      "src/lib.rs": "d64516cf9edd42b26c3d464b976ddea318b5642d66868254996f09e75dfc90d8",
+      "src/limits.rs": "49e3a49aee3b017ce07d322d9cdef5907257dba1a630f3b8c41f8efe1214c435",
+      "src/main.rs": "6e9dede1e91f54f78505140bd32e27d113499dc77bde8b6c22474633e0bd5743",
+      "src/mcp/tools.rs": "a6c67b28988857aefb3e77aceaf99fbb7e17f20eb436c999063f8ebc7d4e0f14",
+      "src/mcp.rs": "3b0085ac130239603eb73c7ab1918abd72888b5da3487875295635fff56d6a4a",
+      "src/read_session.rs": "19db084d89e8d0a21a3d993dbaf1d5ba97dd0b601ec6d41f56743a16c613db3c",
+      "src/rpc.rs": "41024dfe1751ddff6c0f6c7027e51ffab6ebc653794b461d1e8737d723857481",
+      "src/rpc_mutation.rs": "74ee0dac4bf8299ada94bc5b691e7cb35bd83e42b11ab0424554257b11bfe3af",
+      "src/rpc_read.rs": "18d92cbcc6f4fc6848d75c9972af99f0132f7e9584c64cccab6a6b8fe58fb266",
+      "src/storage/history_pages.rs": "4a0247a2bbf7566f1d414e3d8d81ce786d4a46ee650b96c2ab52ebaeebaf7565",
+      "src/storage/projection_reads.rs": "7edbe98f09a551f2ee79b4913cc4f741423e9e650fe0b0d44051992ee26aed0f",
+      "src/storage.rs": "85a0d49c9b77a0bb054ee76590de5f48a284212f7c8ec15617ae756022f64a5d",
+      "src/strict_json.rs": "296faa5a6d84ea398a9b7925fa1ff9cd75c6b1622eedeeabf46aa94b73c7ae87",
+      "src/v2_response.rs": "a59c4bbc6e53c7cb16299ce5f7bfbb8048b8e03a43bb74c326b7a3e5d0989bac"
+    }
+  },
+  "candidate_source_end": {
+    "source_revision": "c5605ce8611ece07f0c64e7ff09cd97eec1b0407",
+    "source_dirty": true,
+    "git_status_porcelain": "M README.md\n M docs/bif-upgrade-runbook.md\n M docs/bif-v2-migration-plan.md\n M docs/bif-v2-read-contract.md\n M docs/bif-v2-release-evidence.json\n M src/mcp.rs\n M src/mcp/tools.rs\n?? docs/baselines/v2-phase-d/\n?? docs/bif-mcp.md\n?? docs/bif-v2-phase-d-evidence.md",
+    "source_inputs_sha256": {
+      "Cargo.lock": "2172fe64d42f0a2c678c0c69dbeea33eaad8242ec434520a949a93c29bea39d1",
+      "Cargo.toml": "47db8d698fb63a1d75064d922bbe8df92b1d92d724f50b613498da64ab8606a7",
+      "migrations/0001_initial.sql": "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
+      "migrations/0002_immutable_events.sql": "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
+      "migrations/0003_projection_read_indexes.sql": "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
+      "rust-toolchain.toml": "dd510b4a3ab011309bb12f6fc3450596da2080670bd4f922eaff7cad1ca65794",
+      "src/application/conditional_reads.rs": "111275cabf13e42d92f9fc1cb1ad54a9b847e78e2f43ebedb31a659f13148daa",
+      "src/application/cursors.rs": "4b0aaaef08695c9fbf00db8dec03490a17a851c08f3cea018878dbf5ef358b93",
+      "src/application/projections.rs": "298ba861e83406d57ddd02c776fa158db93f3f5d447b2391f3f218bd44417f56",
+      "src/application/read_semantics.rs": "c862f127e583010af9c377ec143444e2382089ff5275aff6312d13c56faac186",
+      "src/application/reads.rs": "7c9d9b6a83f4c222d2d98ef284f133edfede7deb81dad3872c40ece2b1d5d000",
+      "src/application.rs": "9aec1462ed0a346eddc59f63c4d52cf493a17597f539825e68527115b07c27b5",
+      "src/benchmark_fixture.rs": "51be34bbf78d651b98636a9770f53191fe833ce4dd8db668875ebd4e6fcc1ab2",
+      "src/bin/bif-benchmark-store.rs": "8404420887be51593281849b987e3c77f34148924742b10931e173338f0babba",
+      "src/bin/bif-benchmark.rs": "29ee2280f9d838d3dfa90b1e4c00ea829c035d0b55ee330e8723ecc832618848",
+      "src/bin/bif-mcp.rs": "ed7f2e0573f52eeaec37dc5d39e0a24f57e2b698b2c565b5e4a2d3b26f6c1d9f",
+      "src/cli.rs": "f3cdef39da75700091b3be8542e6613d25c1617127356a0a474b4b0217b73b4a",
+      "src/cli_mutation.rs": "2a97f7cd6d076edd258435f3f3400304c8ae433f6151fe602ddbfb84360de04d",
+      "src/cli_read.rs": "00d6f6a792979497bae78b29f2b531788b742fadb7ac6d019e56b5f7dcbbb6b0",
+      "src/cli_v2_read.rs": "c2038bd835f26a256a57baad08bb13c33c60a7e3ca612313e14ba0d7607e28ad",
+      "src/config.rs": "94d81f81c4d2c424d183525f603beeec434587fcf06ab09d2c5b1d989bf8a662",
+      "src/domain.rs": "ba1a00fba2a50b41188ad983ab71d85abae811d7db00cf471077f418678a7671",
+      "src/expose.rs": "01394b1e23bfd1138e13f0824fee5627c1717bf541966814bbdf0a76348add95",
+      "src/lib.rs": "d64516cf9edd42b26c3d464b976ddea318b5642d66868254996f09e75dfc90d8",
+      "src/limits.rs": "49e3a49aee3b017ce07d322d9cdef5907257dba1a630f3b8c41f8efe1214c435",
+      "src/main.rs": "6e9dede1e91f54f78505140bd32e27d113499dc77bde8b6c22474633e0bd5743",
+      "src/mcp/tools.rs": "a6c67b28988857aefb3e77aceaf99fbb7e17f20eb436c999063f8ebc7d4e0f14",
+      "src/mcp.rs": "3b0085ac130239603eb73c7ab1918abd72888b5da3487875295635fff56d6a4a",
+      "src/read_session.rs": "19db084d89e8d0a21a3d993dbaf1d5ba97dd0b601ec6d41f56743a16c613db3c",
+      "src/rpc.rs": "41024dfe1751ddff6c0f6c7027e51ffab6ebc653794b461d1e8737d723857481",
+      "src/rpc_mutation.rs": "74ee0dac4bf8299ada94bc5b691e7cb35bd83e42b11ab0424554257b11bfe3af",
+      "src/rpc_read.rs": "18d92cbcc6f4fc6848d75c9972af99f0132f7e9584c64cccab6a6b8fe58fb266",
+      "src/storage/history_pages.rs": "4a0247a2bbf7566f1d414e3d8d81ce786d4a46ee650b96c2ab52ebaeebaf7565",
+      "src/storage/projection_reads.rs": "7edbe98f09a551f2ee79b4913cc4f741423e9e650fe0b0d44051992ee26aed0f",
+      "src/storage.rs": "85a0d49c9b77a0bb054ee76590de5f48a284212f7c8ec15617ae756022f64a5d",
+      "src/strict_json.rs": "296faa5a6d84ea398a9b7925fa1ff9cd75c6b1622eedeeabf46aa94b73c7ae87",
+      "src/v2_response.rs": "a59c4bbc6e53c7cb16299ce5f7bfbb8048b8e03a43bb74c326b7a3e5d0989bac"
+    }
+  },
+  "environment": {
+    "rust": "rustc 1.94.0 (4a4ef493e 2026-03-02)",
+    "cargo": "cargo 1.94.0 (85eff7c80 2026-01-15)",
+    "platform": "Darwin Daviss-Mac-mini.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:02:57 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8132 arm64",
+    "build_profile": "release",
+    "cpu": "Apple M4",
+    "memory_bytes": 17179869184,
+    "filesystem_type": "apfs"
+  },
+  "candidate_revision": "c5605ce8611ece07f0c64e7ff09cd97eec1b0407",
+  "candidate_dirty": true,
+  "binary_sha256": {
+    "old_bif": "828157f672951331e80d029e56fde74c80a0cb8cfd35ace78e687c52dc2fd247",
+    "candidate_bif": "863139b0a60ac97088b1b7c939cf234d035c3b63bafdbca7f6a1f62f2919fcc3"
+  },
+  "sqlite_backup_version": "3.54.0",
+  "fixture_seed": 2003,
+  "fixture_items_before_probe": 100,
+  "baseline": {
+    "integrity": "ok",
+    "foreign_keys": [],
+    "store_id": "benchmark-00000000000007d3-100",
+    "migrations": [
+      [
+        1,
+        "initial",
+        "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e"
+      ],
+      [
+        2,
+        "immutable_events",
+        "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced"
+      ]
+    ],
+    "counts": {
+      "items": 101,
+      "item_acceptance_criteria": 339,
+      "item_provenance": 101,
+      "operations": 517,
+      "events": 517,
+      "mutation_receipts": 1
+    }
+  },
+  "upgraded_before_writes": {
+    "integrity": "ok",
+    "foreign_keys": [],
+    "store_id": "benchmark-00000000000007d3-100",
+    "migrations": [
+      [
+        1,
+        "initial",
+        "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e"
+      ],
+      [
+        2,
+        "immutable_events",
+        "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced"
+      ],
+      [
+        3,
+        "projection_read_indexes",
+        "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5"
+      ]
+    ],
+    "counts": {
+      "items": 101,
+      "item_acceptance_criteria": 339,
+      "item_provenance": 101,
+      "operations": 517,
+      "events": 517,
+      "mutation_receipts": 1
+    }
+  },
+  "candidate_after_writes": {
+    "integrity": "ok",
+    "foreign_keys": [],
+    "store_id": "benchmark-00000000000007d3-100",
+    "migrations": [
+      [
+        1,
+        "initial",
+        "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e"
+      ],
+      [
+        2,
+        "immutable_events",
+        "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced"
+      ],
+      [
+        3,
+        "projection_read_indexes",
+        "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5"
+      ]
+    ],
+    "counts": {
+      "items": 101,
+      "item_acceptance_criteria": 339,
+      "item_provenance": 101,
+      "operations": 518,
+      "events": 518,
+      "mutation_receipts": 2
+    }
+  },
+  "restored_after_writes": {
+    "integrity": "ok",
+    "foreign_keys": [],
+    "store_id": "benchmark-00000000000007d3-100",
+    "migrations": [
+      [
+        1,
+        "initial",
+        "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e"
+      ],
+      [
+        2,
+        "immutable_events",
+        "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced"
+      ]
+    ],
+    "counts": {
+      "items": 101,
+      "item_acceptance_criteria": 339,
+      "item_provenance": 101,
+      "operations": 518,
+      "events": 518,
+      "mutation_receipts": 2
+    }
+  },
+  "read_evidence": {
+    "baseline_get": {
+      "acceptance_criteria": [],
+      "assignee": null,
+      "captured_at": "2026-10-05T01:02:13Z",
+      "description": "Generated disposable rehearsal only",
+      "id": "BENCH:phase-d:001",
+      "priority": null,
+      "project": "phase-d",
+      "provenance": {
+        "context_excerpt": null,
+        "message_id": null,
+        "repository_reference": null,
+        "revision_reference": null,
+        "source_host": "local",
+        "thread_id": null,
+        "url": null
+      },
+      "requester": "BENCH",
+      "revision": 1,
+      "sequence": 1,
+      "status": "proposed",
+      "status_reason": null,
+      "title": "Phase D rollback probe",
+      "updated_at": "2026-10-05T01:02:13Z"
+    },
+    "baseline_history": {
+      "events": [
+        {
+          "actor": {
+            "host": "local",
+            "id": "BENCH",
+            "kind": "human",
+            "surface": "cli"
+          },
+          "after": null,
+          "before": null,
+          "event_id": "cli-event-000000000000000018db7c78828e1730-0000000000000000",
+          "event_index": 0,
+          "event_type": "captured",
+          "execution": {
+            "host": "local",
+            "kind": "direct",
+            "surface": "cli"
+          },
+          "item_revision": 1,
+          "note": null,
+          "occurred_at": "2026-10-05T01:02:13Z",
+          "operation_id": "cli-000000000000000018db7c78828e1730-0000000000000000",
+          "reason": null,
+          "schema_version": 1
+        }
+      ]
+    },
+    "candidate_after_write_get": {
+      "acceptance_criteria": [],
+      "assignee": null,
+      "captured_at": "2026-10-05T01:02:13Z",
+      "description": "Generated disposable rehearsal only",
+      "id": "BENCH:phase-d:001",
+      "priority": null,
+      "project": "phase-d",
+      "provenance": {
+        "context_excerpt": null,
+        "message_id": null,
+        "repository_reference": null,
+        "revision_reference": null,
+        "source_host": "local",
+        "thread_id": null,
+        "url": null
+      },
+      "requester": "BENCH",
+      "revision": 2,
+      "sequence": 1,
+      "status": "ready",
+      "status_reason": null,
+      "title": "Phase D rollback probe",
+      "updated_at": "2026-10-05T01:02:13Z"
+    },
+    "candidate_after_write_history": {
+      "events": [
+        {
+          "actor": {
+            "host": "local",
+            "id": "BENCH",
+            "kind": "human",
+            "surface": "cli"
+          },
+          "after": null,
+          "before": null,
+          "event_id": "cli-event-000000000000000018db7c78828e1730-0000000000000000",
+          "event_index": 0,
+          "event_type": "captured",
+          "execution": {
+            "host": "local",
+            "kind": "direct",
+            "surface": "cli"
+          },
+          "item_revision": 1,
+          "note": null,
+          "occurred_at": "2026-10-05T01:02:13Z",
+          "operation_id": "cli-000000000000000018db7c78828e1730-0000000000000000",
+          "reason": null,
+          "schema_version": 1
+        },
+        {
+          "actor": {
+            "host": "local",
+            "id": "BENCH",
+            "kind": "human",
+            "surface": "cli"
+          },
+          "after": "ready",
+          "before": "proposed",
+          "event_id": "cli-mutation-event-000000000000000018db7c788472ffe8-0000000000000000-0",
+          "event_index": 0,
+          "event_type": "approved",
+          "execution": {
+            "host": "local",
+            "kind": "direct",
+            "surface": "cli"
+          },
+          "item_revision": 2,
+          "note": null,
+          "occurred_at": "2026-10-05T01:02:13Z",
+          "operation_id": "cli-mutation-000000000000000018db7c788472ffe8-0000000000000000",
+          "reason": null,
+          "schema_version": 1
+        }
+      ]
+    },
+    "restored_after_write_get": {
+      "acceptance_criteria": [],
+      "assignee": null,
+      "captured_at": "2026-10-05T01:02:13Z",
+      "description": "Generated disposable rehearsal only",
+      "id": "BENCH:phase-d:001",
+      "priority": null,
+      "project": "phase-d",
+      "provenance": {
+        "context_excerpt": null,
+        "message_id": null,
+        "repository_reference": null,
+        "revision_reference": null,
+        "source_host": "local",
+        "thread_id": null,
+        "url": null
+      },
+      "requester": "BENCH",
+      "revision": 2,
+      "sequence": 1,
+      "status": "ready",
+      "status_reason": null,
+      "title": "Phase D rollback probe",
+      "updated_at": "2026-10-05T01:02:13Z"
+    },
+    "restored_after_write_history": {
+      "events": [
+        {
+          "actor": {
+            "host": "local",
+            "id": "BENCH",
+            "kind": "human",
+            "surface": "cli"
+          },
+          "after": null,
+          "before": null,
+          "event_id": "cli-event-000000000000000018db7c78828e1730-0000000000000000",
+          "event_index": 0,
+          "event_type": "captured",
+          "execution": {
+            "host": "local",
+            "kind": "direct",
+            "surface": "cli"
+          },
+          "item_revision": 1,
+          "note": null,
+          "occurred_at": "2026-10-05T01:02:13Z",
+          "operation_id": "cli-000000000000000018db7c78828e1730-0000000000000000",
+          "reason": null,
+          "schema_version": 1
+        },
+        {
+          "actor": {
+            "host": "local",
+            "id": "BENCH",
+            "kind": "human",
+            "surface": "cli"
+          },
+          "after": "ready",
+          "before": "proposed",
+          "event_id": "cli-mutation-event-000000000000000018db7c788827f198-0000000000000000-0",
+          "event_index": 0,
+          "event_type": "approved",
+          "execution": {
+            "host": "local",
+            "kind": "direct",
+            "surface": "cli"
+          },
+          "item_revision": 2,
+          "note": null,
+          "occurred_at": "2026-10-05T01:02:13Z",
+          "operation_id": "cli-mutation-000000000000000018db7c788827f198-0000000000000000",
+          "reason": null,
+          "schema_version": 1
+        }
+      ]
+    },
+    "old_binary_new_schema_exit": 1,
+    "old_binary_new_schema_stderr": "error: database schema version 3 is newer than supported version 2\n"
+  },
+  "old_binary_rejects_new_schema": true,
+  "candidate_v1_get_history_equivalent": true,
+  "candidate_replays_old_capture": true,
+  "old_binary_restored_get_history_replay_and_mutation": true,
+  "rollback_discards_candidate_writes": true,
+  "real_store_touched": false
+}

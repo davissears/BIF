@@ -5,6 +5,10 @@ projections, bounded SQLite reads and serializers. Phase C adds opaque cursors,
 paginated history, bounded legacy routing, and explicit v2 CLI reads. The
 [Phase C evidence report](bif-v2-phase-c-evidence.md) records integrated
 verification, three-scale release measurements, and remaining limitations.
+Phase D adds explicit conditional/selected-work reads and the separate
+[read-only MCP contract](bif-mcp.md). Its
+[evidence report](bif-v2-phase-d-evidence.md) records local measurements and
+historical-binary rehearsal; real configured-host approval remains blocked.
 
 This document freezes BIF v1 compatibility and the first BIF v2 read contract.
 Its machine-readable companion is
@@ -204,7 +208,8 @@ V2 read error codes are the exact values:
 
 ```text
 invalid_input, not_found, unauthorized, unsupported_version,
-not_initialized, storage_busy, invalid_cursor, payload_too_large, internal
+not_initialized, storage_busy, invalid_cursor, payload_too_large,
+restart_required, internal
 ```
 
 The JSON error object always contains exactly `code`, `message`, and `details`.
@@ -214,8 +219,11 @@ Validation failures occur before storage access; authorization is re-evaluated
 for every request, including cursor continuation.
 
 Existing error exit codes stay unchanged. `invalid_cursor` exits 2 because it
-is invalid request input; `payload_too_large` exits 11. Error responses recover
-no request ID because the v2 CLI has no request-ID field.
+is invalid request input; `payload_too_large` exits 11. The Phase D session
+extension `restart_required` exits 12 and has details
+`{"reason":"DIAGNOSTIC_REASON","restart_required":true}`. It means the pinned
+store/schema/file identity changed; restart the process, not merely the query.
+Error responses recover no request ID because the v2 CLI has no request-ID field.
 
 The maximum encoded v2 request and response are each 1,048,576 bytes, measured
 as UTF-8 bytes. Item count remains capped at 100. Implementations select at
@@ -239,3 +247,35 @@ the expected error's `minimum_required_bytes`.
 
 These are adapter-boundary rules only. V2-001 deliberately adds no runtime
 projection, serialization, pagination, or query implementation.
+
+## Phase D opt-in extensions
+
+The original v2 fixture remains the baseline for plain get, page, and history
+results. No existing result gains extra fields. The following **named** read
+extensions use the same `api_version: 2`, `schema_version: 1` envelope; callers
+select them explicitly rather than guessing from unknown fields:
+
+| Operation | Exact result fields | Outcomes |
+| --- | --- | --- |
+| Conditional get (`get --conditional` or `--known-version TOKEN`) | `outcome`, `version`, `item` | `modified` includes a complete requested projection; `not_modified` has `item: null`. |
+| `selected-work --project PROJECT` | `outcome`, `item` | `selected` includes one complete work projection; `empty` has `item: null`. |
+
+Conditional get validates permission and existence first, then accepts a
+bounded opaque validator bound to store, item, projection/schema and revision.
+Malformed/unknown-version validators are `invalid_input`; well-formed
+incompatible bindings are misses. Hits avoid criteria/provenance hydration.
+Validators are not authenticated capabilities. Selected work uses the unchanged
+next-ready queue policy, does not mutate, and cannot prevent a revision conflict
+at a later start.
+
+The separate [MCP adapter](bif-mcp.md) exposes these extensions with explicit
+project scope. Its complete JSON-RPC wire limit includes duplicated text and
+structured output, so its inner BIF response budget is smaller than the CLI's.
+Byte-limited pages remain complete and resume from the last emitted record.
+The new `restart_required` error is a session-safety extension; existing CLI/RPC
+v1 framing and errors remain unchanged.
+
+There is no restore generation yet. Stop warm servers before restoring a store;
+restart them and invalidate validators/cursors afterward, even if store ID and
+revisions match.
+Generation-bound tokens and supported restore handling belong to Phase E.

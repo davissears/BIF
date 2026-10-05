@@ -12,7 +12,9 @@ evidence used before the read-path migration.
 
 The repository provides a `bif` command-line tool and a Rust library. It also
 exposes **BIF RPC v1**, a one-shot JSON interface for automation and agent
-integrations. This is a custom protocol, not JSON-RPC 2.0.
+integrations. This is a custom protocol, not JSON-RPC 2.0. The separate
+`bif-mcp` executable provides persistent, read-only MCP over stdio; see the
+[MCP contract and host setup](docs/bif-mcp.md).
 
 ## Install
 
@@ -220,6 +222,56 @@ individual record that cannot fit returns `payload_too_large`, never truncated
 content. See the [read contract](docs/bif-v2-read-contract.md) for exact schemas,
 errors, compatibility, and pagination rules.
 
+### Refresh retained content or select work in one call
+
+Conditional reads are an explicit extension; plain v2 `get` keeps its existing
+shape. Retain the returned `result.version` alongside the requested projection:
+
+```sh
+bif --api-version 2 get ITEM_ID --projection work --conditional --json
+bif --api-version 2 get ITEM_ID --projection work --known-version TOKEN --json
+
+# Read the next ready task with complete work content, without claiming it.
+bif --api-version 2 selected-work --project my-project --json
+```
+
+A conditional read returns `result.outcome` as `modified` with the complete
+`item`, or `not_modified` with `item: null`. Validators are opaque and bound to
+the store, item, projection, schema and revision. A summary validator cannot
+suppress a first work read. Missing items are still `not_found`.
+`selected-work` returns `selected` with one work item or `empty` with
+`item: null`; start it separately using the returned revision. Another writer
+may change the task before that mutation, producing the usual revision conflict.
+
+### Use a persistent read-only MCP server
+
+Configure an MCP host to launch the installed executable with an explicit
+configuration path:
+
+```json
+{
+  "mcpServers": {
+    "bif": {
+      "command": "/absolute/path/to/bif-mcp",
+      "args": ["--config", "/absolute/path/to/config.toml"]
+    }
+  }
+}
+```
+
+The host-specific configuration location varies. This is a launch example, not
+evidence of a verified host integration. The tools are `bif_list`, `bif_get`,
+`bif_history`, and `bif_selected_work`. Every call supplies `project`; get and
+history also require an item ID in that project. There is no selected-project
+state and no MCP mutation authorization bridge. Use the existing CLI/RPC for
+mutations.
+
+Restart the host's BIF server after changing configuration, upgrading schema,
+or restoring/replacing the database. Normal restart preserves cursor and
+validator meaning. The read release has no persisted restore generation yet:
+invalidate retained validators and restart pagination after restore, even if
+the store ID and revision numbers were preserved.
+
 ### Preserve context across an agent handoff
 
 When an agent captures work from a conversation, attach source provenance so a
@@ -261,6 +313,9 @@ Codex-originated work or `--source-host local` for other local capture.
 | `start`, `block`, `resume`, `finish` | Record progress through the lifecycle. |
 | `triage` | Apply lifecycle, priority, assignee, and note changes atomically. |
 | `rpc` | Read one BIF RPC v1 request from stdin and write one response to stdout. |
+| `--api-version 2 selected-work` | Read one ready work projection, without assignment or claim. |
+
+`bif-mcp` is a separate MCP stdio executable, not a `bif rpc` mode.
 
 Read commands (`get`, `list`, `next`, and `history`) support `--json`. List
 filters include `--project`, `--requester`, `--assignee`, `--status`,
