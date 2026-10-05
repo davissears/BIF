@@ -234,7 +234,7 @@ pub fn tool_catalog() -> Value {
     json!([
         tool(
             "bif_list",
-            "Read a bounded named-view page in an explicit project.",
+            "Read a bounded named-view page in an explicit project. Continuation uses live pagination, not a snapshot.",
             list_schema(json!({
                 "project":identifier,"view":{"type":"string","enum":["proposed","ready","active","blocked","done","rejected","mine","all"],"default":"all"},
                 "ordering":{"type":"string","enum":["newest_first","next"],"default":"newest_first"},
@@ -258,7 +258,7 @@ pub fn tool_catalog() -> Value {
         ),
         tool(
             "bif_history",
-            "Read a bounded audit-event page for an item in an explicit project.",
+            "Read a bounded audit-event page for an item in an explicit project. Continuation uses live pagination, not a snapshot.",
             schema(
                 json!({
                     "project":identifier,"item_id":item_id,"limit":limit,"cursor":cursor

@@ -119,8 +119,9 @@ struct Output {
 fn frame(value: Value) -> Vec<u8> {
     let mut bytes = serde_json::to_vec(&value).expect("JSON value serialization");
     if bytes.len() >= MAXIMUM_WIRE_BYTES {
+        let id = value.get("id").and_then(Id::parse);
         bytes = serde_json::to_vec(&rpc_error(
-            value.get("id").cloned().unwrap_or(Value::Null),
+            id.as_ref(),
             -32603,
             "Response exceeds the wire budget",
         ))
@@ -130,8 +131,13 @@ fn frame(value: Value) -> Vec<u8> {
     bytes
 }
 
-fn rpc_error(id: Value, code: i32, message: &str) -> Value {
-    json!({"jsonrpc":"2.0","id":id,"error":{"code":code,"message":message}})
+/// MCP error IDs are optional string/integer IDs; uncorrelated errors omit them.
+fn rpc_error(id: Option<&Id>, code: i32, message: &str) -> Value {
+    let mut response = json!({"jsonrpc":"2.0","error":{"code":code,"message":message}});
+    if let Some(id) = id {
+        response["id"] = id.value();
+    }
+    response
 }
 
 fn rpc_result(id: &Id, result: Value) -> Value {
@@ -154,7 +160,7 @@ fn error(output: &SyncSender<Output>, shared: &Shared, id: &Id, code: i32, messa
     emit(
         output,
         shared,
-        rpc_error(id.value(), code, message),
+        rpc_error(Some(id), code, message),
         Some(id.clone()),
     );
 }
@@ -211,24 +217,23 @@ struct Envelope {
     params: Option<Value>,
 }
 
-fn envelope(value: Value) -> Result<Envelope, Value> {
+fn envelope(value: Value) -> Result<Envelope, Option<Id>> {
     let Some(object) = value.as_object() else {
-        return Err(Value::Null);
+        return Err(None);
     };
     let id = match object.get("id") {
-        Some(value) => Some(Id::parse(value).ok_or(Value::Null)?),
+        Some(value) => Some(Id::parse(value).ok_or(None)?),
         None => None,
     };
-    let error_id = id.as_ref().map(Id::value).unwrap_or(Value::Null);
     if object.get("jsonrpc") != Some(&json!("2.0"))
         || object
             .keys()
             .any(|key| !["jsonrpc", "id", "method", "params"].contains(&key.as_str()))
     {
-        return Err(error_id);
+        return Err(id);
     }
     let Some(Value::String(method)) = object.get("method") else {
-        return Err(error_id);
+        return Err(id);
     };
     Ok(Envelope {
         id,
@@ -319,7 +324,7 @@ fn reader(shared: Shared, jobs: SyncSender<Job>, output: SyncSender<Output>) {
                 emit(
                     &output,
                     &shared,
-                    rpc_error(Value::Null, -32600, "Input exceeds the frame budget"),
+                    rpc_error(None, -32600, "Input exceeds the frame budget"),
                     None,
                 );
                 continue;
@@ -337,7 +342,7 @@ fn reader(shared: Shared, jobs: SyncSender<Job>, output: SyncSender<Output>) {
                     emit(
                         &output,
                         &shared,
-                        rpc_error(id, -32600, "Invalid request"),
+                        rpc_error(id.as_ref(), -32600, "Invalid request"),
                         None,
                     );
                     continue;
@@ -349,12 +354,7 @@ fn reader(shared: Shared, jobs: SyncSender<Job>, output: SyncSender<Output>) {
                 } else {
                     (-32700, "Parse error")
                 };
-                emit(
-                    &output,
-                    &shared,
-                    rpc_error(Value::Null, code, message),
-                    None,
-                );
+                emit(&output, &shared, rpc_error(None, code, message), None);
                 continue;
             }
         };
@@ -378,7 +378,7 @@ fn reader(shared: Shared, jobs: SyncSender<Job>, output: SyncSender<Output>) {
                 emit(
                     &output,
                     &shared,
-                    rpc_error(id.value(), -32600, "Duplicate outstanding request ID"),
+                    rpc_error(Some(&id), -32600, "Duplicate outstanding request ID"),
                     None,
                 );
                 continue;
@@ -388,7 +388,7 @@ fn reader(shared: Shared, jobs: SyncSender<Job>, output: SyncSender<Output>) {
                 emit(
                     &output,
                     &shared,
-                    rpc_error(id.value(), -32000, "Too many outstanding requests"),
+                    rpc_error(Some(&id), -32000, "Too many outstanding requests"),
                     None,
                 );
                 continue;
@@ -688,13 +688,20 @@ mod tests {
 
     #[test]
     fn exact_wire_overflow_replaces_success_before_any_output() {
-        let encoded = frame(json!({"jsonrpc":"2.0","id":1,"result":{
-            "large":"x".repeat(MAXIMUM_WIRE_BYTES)}}));
-        assert!(encoded.len() <= MAXIMUM_WIRE_BYTES);
-        assert_eq!(encoded.last(), Some(&b'\n'));
-        let response: Value = serde_json::from_slice(&encoded).unwrap();
-        assert_eq!(response["error"]["code"], -32603);
-        assert!(response.get("result").is_none());
+        for id in [Some(json!(1)), Some(json!("known")), None] {
+            let mut value = json!({"jsonrpc":"2.0","result":{
+                "large":"x".repeat(MAXIMUM_WIRE_BYTES)}});
+            if let Some(id) = &id {
+                value["id"] = id.clone();
+            }
+            let encoded = frame(value);
+            assert!(encoded.len() <= MAXIMUM_WIRE_BYTES);
+            assert_eq!(encoded.last(), Some(&b'\n'));
+            let response: Value = serde_json::from_slice(&encoded).unwrap();
+            assert_eq!(response.get("id"), id.as_ref());
+            assert_eq!(response["error"]["code"], -32603);
+            assert!(response.get("result").is_none());
+        }
     }
 
     #[test]

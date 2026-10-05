@@ -19,6 +19,12 @@ fn discovery_is_small_read_only_and_has_strict_schemas() {
         );
         assert!(tool.get("outputSchema").is_none());
     }
+    for name in ["bif_list", "bif_history"] {
+        let tool = tools.iter().find(|tool| tool["name"] == name).unwrap();
+        let description = tool["description"].as_str().unwrap();
+        assert!(description.contains("live pagination"));
+        assert!(description.contains("not a snapshot"));
+    }
     let catalog_bytes = serde_json::to_vec(&catalog).unwrap().len();
     let schema_bytes: usize = tools
         .iter()
@@ -26,7 +32,7 @@ fn discovery_is_small_read_only_and_has_strict_schemas() {
         .sum();
     println!("tool catalog: {catalog_bytes} bytes; four input schemas: {schema_bytes} bytes");
     assert!(catalog_bytes < 8_000);
-    assert!(TOOL_RESPONSE_BUDGET_BYTES * 7 + 16_384 < MAXIMUM_WIRE_BYTES);
+    const { assert!(TOOL_RESPONSE_BUDGET_BYTES * 7 + 16_384 < MAXIMUM_WIRE_BYTES) };
 }
 
 #[test]

@@ -10,6 +10,21 @@ use std::{
 use serde_json::{Value, json};
 use support::OwnedTestDirectory;
 
+/// The pinned MCP schema allows an absent ID, but never a null error-response ID.
+/// https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-11-25/schema.ts
+fn assert_rpc_error(response: &Value, id: Option<&Value>, code: i64) {
+    assert!(response.is_object(), "{response}");
+    assert_eq!(response["jsonrpc"], "2.0", "{response}");
+    if let Some(actual) = response.get("id") {
+        assert!(actual.is_string() || actual.is_number(), "{response}");
+    }
+    assert_eq!(response.get("id"), id, "{response}");
+    assert!(response["error"].is_object(), "{response}");
+    assert_eq!(response["error"]["code"].as_i64(), Some(code), "{response}");
+    assert!(response["error"]["message"].is_string(), "{response}");
+    assert!(response.get("result").is_none(), "{response}");
+}
+
 struct Server {
     child: Child,
     input: Option<ChildStdin>,
@@ -82,7 +97,7 @@ impl Server {
             std::thread::spawn(move || {
                 for line in BufReader::new(output).lines() {
                     let line = line.unwrap();
-                    assert!(line.len() + 1 <= bif::mcp::MAXIMUM_WIRE_BYTES);
+                    assert!(line.len() < bif::mcp::MAXIMUM_WIRE_BYTES);
                     let value: Value =
                         serde_json::from_str(&line).expect("stdout is compact JSON only");
                     if send.send(value).is_err() {
@@ -229,24 +244,53 @@ fn malformed_frames_bad_ids_batches_and_unknown_methods_are_protocol_errors() {
             "{\"jsonrpc\":\"2.0\",\"id\":true,\"method\":\"ping\"}\n",
             -32600,
         ),
+        (
+            "{\"jsonrpc\":\"2.0\",\"id\":{},\"method\":\"ping\"}\n",
+            -32600,
+        ),
+        (
+            "{\"jsonrpc\":\"2.0\",\"id\":[],\"method\":\"ping\"}\n",
+            -32600,
+        ),
+        ("{\"jsonrpc\":\"2.0\"}\n", -32600),
     ] {
         server.raw(line);
-        assert_eq!(server.receive()["error"]["code"], code);
+        assert_rpc_error(&server.receive(), None, code);
     }
+    server.send(json!({"jsonrpc":"2.0","id":"x".repeat(1_025),"method":"ping"}));
+    assert_rpc_error(&server.receive(), None, -32600);
     server.initialize();
     server.send(json!({"jsonrpc":"2.0","id":"unknown","method":"mutate"}));
-    assert_eq!(server.receive()["error"]["code"], -32601);
+    assert_rpc_error(&server.receive(), Some(&json!("unknown")), -32601);
     server.send(
         json!({"jsonrpc":"2.0","id":"unknown-tool","method":"tools/call",
         "params":{"name":"bif_capture","arguments":{}}}),
     );
-    assert_eq!(server.receive()["error"]["code"], -32602);
+    assert_rpc_error(&server.receive(), Some(&json!("unknown-tool")), -32602);
     server.send(json!({"jsonrpc":"2.0","id":"forged","method":"tools/call",
         "params":{"name":"bif_list","arguments":{"project":"widgets","actor":"evil"}}}));
-    assert_eq!(server.receive()["error"]["code"], -32602);
+    assert_rpc_error(&server.receive(), Some(&json!("forged")), -32602);
     server.send(json!({"jsonrpc":"2.0","id":"scope","method":"tools/call",
         "params":{"name":"bif_get","arguments":{"project":"other","item_id":"DAVIS:widgets:001"}}}));
-    assert_eq!(server.receive()["error"]["code"], -32602);
+    assert_rpc_error(&server.receive(), Some(&json!("scope")), -32602);
+}
+
+#[test]
+fn readable_error_ids_are_preserved_for_malformed_envelopes_and_registered_requests() {
+    let mut server = Server::start();
+    for id in [json!("malformed"), json!(0), json!(-42), json!(u64::MAX)] {
+        server.send(json!({"jsonrpc":"invalid","id":id,"method":"ping"}));
+        assert_rpc_error(&server.receive(), Some(&id), -32600);
+    }
+    server.send(json!({"jsonrpc":"2.0","id":"missing-method"}));
+    assert_rpc_error(&server.receive(), Some(&json!("missing-method")), -32600);
+    server.send(json!({"jsonrpc":"2.0","id":"before-init","method":"tools/list"}));
+    assert_rpc_error(&server.receive(), Some(&json!("before-init")), -32600);
+    server.initialize();
+    server.send(json!({"jsonrpc":"2.0","id":0,"method":"unknown"}));
+    assert_rpc_error(&server.receive(), Some(&json!(0)), -32601);
+    server.send(json!({"jsonrpc":"2.0","id":-42,"method":"ping","params":[]}));
+    assert_rpc_error(&server.receive(), Some(&json!(-42)), -32602);
 }
 
 #[test]
@@ -256,7 +300,7 @@ fn oversized_input_is_drained_and_next_frame_survives() {
         "{}\n",
         "x".repeat(bif::limits::MAXIMUM_REQUEST_BYTES + 1)
     ));
-    assert_eq!(server.receive()["error"]["code"], -32600);
+    assert_rpc_error(&server.receive(), None, -32600);
     server.initialize();
     server.send(json!({"jsonrpc":"2.0","id":4,"method":"ping"}));
     assert_eq!(server.receive()["id"], 4);
@@ -277,7 +321,7 @@ fn cancellation_duplicate_ids_and_later_calls_do_not_poison_session() {
     server.send(call("queued"));
     server.send(call("active"));
     let duplicate = server.receive();
-    assert_eq!(duplicate["error"]["code"], -32600, "{duplicate}");
+    assert_rpc_error(&duplicate, Some(&json!("active")), -32600);
     // Cancel the queued call first: otherwise interrupting the active query can
     // let the queued call start before its cancellation frame arrives.
     for id in ["queued", "active"] {
@@ -479,8 +523,7 @@ fn full_read_queue_reports_overload_and_controls_remain_responsive() {
     }
     server.send(call("overload"));
     let overload = server.receive();
-    assert_eq!(overload["id"], "overload");
-    assert_eq!(overload["error"]["code"], -32000);
+    assert_rpc_error(&overload, Some(&json!("overload")), -32000);
     server.send(json!({"jsonrpc":"2.0","id":"control","method":"ping"}));
     assert_eq!(server.receive()["id"], "control");
     // Dropping stdin while SQLite is active must also interrupt and exit.
@@ -517,8 +560,7 @@ fn duplicate_json_keys_are_rejected_at_every_depth() {
     ] {
         server.raw(&format!("{raw}\n"));
         let response = server.receive();
-        assert_eq!(response["error"]["code"], -32600, "{response}");
-        assert!(response["id"].is_null());
+        assert_rpc_error(&response, None, -32600);
     }
 }
 
