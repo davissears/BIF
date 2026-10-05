@@ -1,0 +1,1904 @@
+{
+  "kind": "independent_official_sdk_client",
+  "status": "passed",
+  "executed_at": "2026-10-05T02:40:55.948117+00:00",
+  "limitations": [
+    "Official SDK stdio client, not native Delta tool registration or an application-host approval.",
+    "No actual model tool selection, model/token accounting, or operator-approved live rollout.",
+    "Disposable generated fixture only; no real ledger, credentials, or mutation calls over MCP.",
+    "SDK validates MCP response models. Server advertises no outputSchema; BIF envelope checks are explicit assertions.",
+    "Raw malformed-frame tests are not repeated; no replacement of the SDK transport/parser.",
+    "Read-only logical inventory covers schema, every table/row, and user/application versions, not physical SQLite/WAL bytes.",
+    "SDK owns process cleanup; distinct OS process IDs/exits are additionally observed through ps."
+  ],
+  "assertions": [
+    {
+      "name": "official SDK exact pin",
+      "passed": true
+    },
+    {
+      "name": "official SDK latest protocol matches pinned server",
+      "passed": true
+    },
+    {
+      "name": "initialize-1: negotiated pinned protocol",
+      "passed": true
+    },
+    {
+      "name": "initialize-1: exactly one actual server process",
+      "passed": true
+    },
+    {
+      "name": "discovery: exactly four read tools",
+      "passed": true
+    },
+    {
+      "name": "bif_list: strict project schema and read-only annotation",
+      "passed": true
+    },
+    {
+      "name": "bif_get: strict project schema and read-only annotation",
+      "passed": true
+    },
+    {
+      "name": "bif_history: strict project schema and read-only annotation",
+      "passed": true
+    },
+    {
+      "name": "bif_selected_work: strict project schema and read-only annotation",
+      "passed": true
+    },
+    {
+      "name": "bif_list: live-pagination description",
+      "passed": true
+    },
+    {
+      "name": "bif_history: live-pagination description",
+      "passed": true
+    },
+    {
+      "name": "list-first: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "list: bounded summary page",
+      "passed": true
+    },
+    {
+      "name": "list: actual continuation token",
+      "passed": true
+    },
+    {
+      "name": "get-summary: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "get: complete summary modified",
+      "passed": true
+    },
+    {
+      "name": "known-version-hit: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "conditional: matching projection hit",
+      "passed": true
+    },
+    {
+      "name": "projection-mismatch: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "conditional: summary token cannot suppress work",
+      "passed": true
+    },
+    {
+      "name": "get-work: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "get: work equality",
+      "passed": true
+    },
+    {
+      "name": "selected-work: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "next-ready: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "selected-work: actual selected complete work, same next policy",
+      "passed": true
+    },
+    {
+      "name": "other-project: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "scope: different project's records",
+      "passed": true
+    },
+    {
+      "name": "core-after-other: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "scope: core unchanged after other project",
+      "passed": true
+    },
+    {
+      "name": "list-continuation: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "list: actual next bounded, disjoint page",
+      "passed": true
+    },
+    {
+      "name": "history-first: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "history: actual bounded continuation",
+      "passed": true
+    },
+    {
+      "name": "history-continuation: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "history: actual different next events",
+      "passed": true
+    },
+    {
+      "name": "missing-item: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "missing-item: application error code",
+      "passed": true
+    },
+    {
+      "name": "invalid-cursor: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "invalid-cursor: application error code",
+      "passed": true
+    },
+    {
+      "name": "invalid-known-version: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "invalid-known-version: application error code",
+      "passed": true
+    },
+    {
+      "name": "missing-project: SDK raised JSON-RPC invalid params",
+      "passed": true
+    },
+    {
+      "name": "invalid-limit: SDK raised JSON-RPC invalid params",
+      "passed": true
+    },
+    {
+      "name": "unknown-tool: SDK raised JSON-RPC invalid params",
+      "passed": true
+    },
+    {
+      "name": "scope-mismatch: SDK raised JSON-RPC invalid params",
+      "passed": true
+    },
+    {
+      "name": "reject-actor: SDK raised JSON-RPC invalid params",
+      "passed": true
+    },
+    {
+      "name": "reject-execution: SDK raised JSON-RPC invalid params",
+      "passed": true
+    },
+    {
+      "name": "reject-authorization: SDK raised JSON-RPC invalid params",
+      "passed": true
+    },
+    {
+      "name": "reject-root: SDK raised JSON-RPC invalid params",
+      "passed": true
+    },
+    {
+      "name": "reject-config: SDK raised JSON-RPC invalid params",
+      "passed": true
+    },
+    {
+      "name": "success-after-errors: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "SDK and server recover after both error layers",
+      "passed": true
+    },
+    {
+      "name": "session-1: server process stopped",
+      "passed": true
+    },
+    {
+      "name": "initialize-2: negotiated pinned protocol",
+      "passed": true
+    },
+    {
+      "name": "initialize-2: exactly one actual server process",
+      "passed": true
+    },
+    {
+      "name": "restart: new OS process",
+      "passed": true
+    },
+    {
+      "name": "restart-list: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "restart: list continuation equal on unchanged store",
+      "passed": true
+    },
+    {
+      "name": "restart-history: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "restart: history continuation equal on unchanged store",
+      "passed": true
+    },
+    {
+      "name": "restart-validator: text equals structured BIF v2 envelope",
+      "passed": true
+    },
+    {
+      "name": "restart: old validator still hits",
+      "passed": true
+    },
+    {
+      "name": "session-2: server process stopped",
+      "passed": true
+    },
+    {
+      "name": "read-only: entire SQLite logical inventory unchanged",
+      "passed": true
+    },
+    {
+      "name": "source and binaries unchanged during SDK workflow",
+      "passed": true
+    }
+  ],
+  "transcript": [
+    {
+      "step": "production-fixture-generator",
+      "argv": [
+        "<WORKTREE>/target/release/bif-benchmark-store",
+        "100",
+        "--seed",
+        "2003",
+        "--output",
+        "<RUN>/.bif/bif.sqlite"
+      ],
+      "stdout_json": {
+        "format": "bif-v2-benchmark-store-v1",
+        "logical_digest_algorithm": "fnv1a64-framed-canonical-tables-v2",
+        "seed": 2003,
+        "items": 100,
+        "database": "<RUN>/.bif/bif.sqlite",
+        "logical_digest": "b819125481255ec7",
+        "elapsed_milliseconds": 63,
+        "row_counts": {
+          "events": 516,
+          "item_acceptance_criteria": 339,
+          "item_provenance": 100,
+          "items": 100,
+          "operations": 516,
+          "projects": 5,
+          "requester_project_counters": 13,
+          "store_metadata": 1
+        },
+        "distributions": {
+          "assignees": {
+            "alice": 18,
+            "benchmark-agent": 21,
+            "bob": 32,
+            "null": 29
+          },
+          "priorities": {
+            "P0": 9,
+            "P1": 12,
+            "P2": 13,
+            "P3": 21,
+            "P4": 29,
+            "null": 16
+          },
+          "projects": {
+            "agent-tools": 11,
+            "core": 63,
+            "desktop": 13,
+            "docs": 12,
+            "rare-project": 1
+          },
+          "sparse_markers": {
+            "absent": 99,
+            "present": 1
+          },
+          "statuses": {
+            "blocked": 9,
+            "done": 23,
+            "in_progress": 15,
+            "proposed": 14,
+            "ready": 29,
+            "rejected": 10
+          }
+        },
+        "samples_verified": [
+          "CODEX:core:001",
+          "BENCH:agent-tools:003",
+          "DELTA:core:019"
+        ],
+        "integrity_check": "ok"
+      }
+    },
+    {
+      "step": "production-init",
+      "argv": [
+        "<WORKTREE>/target/release/bif",
+        "init",
+        "--root",
+        "<RUN>",
+        "--requester",
+        "BENCH",
+        "--config",
+        "<RUN>/config.toml"
+      ],
+      "stdout": "Initialized BIF\nconfig: <RUN>/config.toml\nstore: <RUN>/.bif/bif.sqlite\nrequester: BENCH\n"
+    },
+    {
+      "step": "initialize-1",
+      "sdk_response": {
+        "protocolVersion": "2025-11-25",
+        "capabilities": {
+          "tools": {}
+        },
+        "serverInfo": {
+          "name": "bif-mcp",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "step": "process-1",
+      "pid": 40876
+    },
+    {
+      "step": "tools/list",
+      "sdk_response": {
+        "tools": [
+          {
+            "name": "bif_list",
+            "description": "Read a bounded named-view page in an explicit project. Continuation uses live pagination, not a snapshot.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "not": {
+                "properties": {
+                  "unassigned": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "assignee",
+                  "unassigned"
+                ]
+              },
+              "properties": {
+                "assignee": {
+                  "pattern": "[A-Za-z0-9]",
+                  "type": "string"
+                },
+                "cursor": {
+                  "description": "Opaque continuation from the previous page; repeat all other arguments.",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 20,
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "ordering": {
+                  "default": "newest_first",
+                  "enum": [
+                    "newest_first",
+                    "next"
+                  ],
+                  "type": "string"
+                },
+                "priority": {
+                  "enum": [
+                    "P0",
+                    "P1",
+                    "P2",
+                    "P3",
+                    "P4"
+                  ],
+                  "type": "string"
+                },
+                "project": {
+                  "pattern": "[A-Za-z0-9]",
+                  "type": "string"
+                },
+                "projection": {
+                  "default": "summary",
+                  "enum": [
+                    "summary",
+                    "work",
+                    "audit"
+                  ],
+                  "type": "string"
+                },
+                "requester": {
+                  "pattern": "[A-Za-z0-9]",
+                  "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "proposed",
+                    "ready",
+                    "in_progress",
+                    "blocked",
+                    "done",
+                    "rejected"
+                  ],
+                  "type": "string"
+                },
+                "text": {
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "unassigned": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "view": {
+                  "default": "all",
+                  "enum": [
+                    "proposed",
+                    "ready",
+                    "active",
+                    "blocked",
+                    "done",
+                    "rejected",
+                    "mine",
+                    "all"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "project"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "bif_get",
+            "description": "Read one complete projection, or not_modified when known_version matches.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "item_id": {
+                  "pattern": "^[^:]*[A-Za-z0-9][^:]*:[^:]*[A-Za-z0-9][^:]*:[0-9]*[1-9][0-9]*$",
+                  "type": "string"
+                },
+                "known_version": {
+                  "description": "Opaque version from a previous get of this projection.",
+                  "type": "string"
+                },
+                "project": {
+                  "pattern": "[A-Za-z0-9]",
+                  "type": "string"
+                },
+                "projection": {
+                  "default": "summary",
+                  "enum": [
+                    "summary",
+                    "work",
+                    "audit"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "project",
+                "item_id"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "bif_history",
+            "description": "Read a bounded audit-event page for an item in an explicit project. Continuation uses live pagination, not a snapshot.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "cursor": {
+                  "description": "Opaque continuation from the previous page; repeat all other arguments.",
+                  "type": "string"
+                },
+                "item_id": {
+                  "pattern": "^[^:]*[A-Za-z0-9][^:]*:[^:]*[A-Za-z0-9][^:]*:[0-9]*[1-9][0-9]*$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 20,
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "project": {
+                  "pattern": "[A-Za-z0-9]",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "project",
+                "item_id"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "bif_selected_work",
+            "description": "Read the selected ready work projection or an explicit empty outcome.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "project": {
+                  "pattern": "[A-Za-z0-9]",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "project"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "step": "list-first",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "limit": 3
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"items\":[{\"id\":\"BENCH:core:025\",\"title\":\"Improve core workflow component 96\",\"status\":\"ready\",\"priority\":null,\"assignee\":null,\"revision\":2},{\"id\":\"BENCH:core:026\",\"title\":\"Improve core workflow component 98\",\"status\":\"in_progress\",\"priority\":\"P1\",\"assignee\":null,\"revision\":4},{\"id\":\"DELTA:core:019\",\"title\":\"Improve core workflow component 99\",\"status\":\"blocked\",\"priority\":\"P4\",\"assignee\":\"alice\",\"revision\":8}],\"next_cursor\":\"bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2236643938383739316663303561636439313963393965376264373137656666366363616235303537353536346236646638643664613461303437353364383063222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2244454c5441222c2270726f6a656374223a22636f7265222c2273657175656e6365223a31392c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31322e3030305a222c227072696f72697479223a225034227d7d7d\"}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "items": [
+              {
+                "assignee": null,
+                "id": "BENCH:core:025",
+                "priority": null,
+                "revision": 2,
+                "status": "ready",
+                "title": "Improve core workflow component 96"
+              },
+              {
+                "assignee": null,
+                "id": "BENCH:core:026",
+                "priority": "P1",
+                "revision": 4,
+                "status": "in_progress",
+                "title": "Improve core workflow component 98"
+              },
+              {
+                "assignee": "alice",
+                "id": "DELTA:core:019",
+                "priority": "P4",
+                "revision": 8,
+                "status": "blocked",
+                "title": "Improve core workflow component 99"
+              }
+            ],
+            "next_cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2236643938383739316663303561636439313963393965376264373137656666366363616235303537353536346236646638643664613461303437353364383063222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2244454c5441222c2270726f6a656374223a22636f7265222c2273657175656e6365223a31392c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31322e3030305a222c227072696f72697479223a225034227d7d7d"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "get-summary",
+      "tool": "bif_get",
+      "arguments": {
+        "project": "core",
+        "item_id": "BENCH:core:025"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"outcome\":\"modified\",\"version\":\"bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.summary.18.2\",\"item\":{\"id\":\"BENCH:core:025\",\"title\":\"Improve core workflow component 96\",\"status\":\"ready\",\"priority\":null,\"assignee\":null,\"revision\":2}}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "item": {
+              "assignee": null,
+              "id": "BENCH:core:025",
+              "priority": null,
+              "revision": 2,
+              "status": "ready",
+              "title": "Improve core workflow component 96"
+            },
+            "outcome": "modified",
+            "version": "bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.summary.18.2"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "known-version-hit",
+      "tool": "bif_get",
+      "arguments": {
+        "project": "core",
+        "item_id": "BENCH:core:025",
+        "known_version": "bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.summary.18.2"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"outcome\":\"not_modified\",\"version\":\"bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.summary.18.2\",\"item\":null}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "item": null,
+            "outcome": "not_modified",
+            "version": "bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.summary.18.2"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "projection-mismatch",
+      "tool": "bif_get",
+      "arguments": {
+        "project": "core",
+        "item_id": "BENCH:core:025",
+        "known_version": "bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.summary.18.2",
+        "projection": "work"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"outcome\":\"modified\",\"version\":\"bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.work.18.2\",\"item\":{\"id\":\"BENCH:core:025\",\"title\":\"Improve core workflow component 96\",\"status\":\"ready\",\"priority\":null,\"assignee\":null,\"revision\":2,\"description\":\"Investigate scenario 7920 and preserve supported behavior across local developer workflows.\",\"acceptance_criteria\":[],\"status_reason\":null}}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "item": {
+              "acceptance_criteria": [],
+              "assignee": null,
+              "description": "Investigate scenario 7920 and preserve supported behavior across local developer workflows.",
+              "id": "BENCH:core:025",
+              "priority": null,
+              "revision": 2,
+              "status": "ready",
+              "status_reason": null,
+              "title": "Improve core workflow component 96"
+            },
+            "outcome": "modified",
+            "version": "bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.work.18.2"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "get-work",
+      "tool": "bif_get",
+      "arguments": {
+        "project": "core",
+        "item_id": "BENCH:core:025",
+        "projection": "work"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"outcome\":\"modified\",\"version\":\"bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.work.18.2\",\"item\":{\"id\":\"BENCH:core:025\",\"title\":\"Improve core workflow component 96\",\"status\":\"ready\",\"priority\":null,\"assignee\":null,\"revision\":2,\"description\":\"Investigate scenario 7920 and preserve supported behavior across local developer workflows.\",\"acceptance_criteria\":[],\"status_reason\":null}}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "item": {
+              "acceptance_criteria": [],
+              "assignee": null,
+              "description": "Investigate scenario 7920 and preserve supported behavior across local developer workflows.",
+              "id": "BENCH:core:025",
+              "priority": null,
+              "revision": 2,
+              "status": "ready",
+              "status_reason": null,
+              "title": "Improve core workflow component 96"
+            },
+            "outcome": "modified",
+            "version": "bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.work.18.2"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "selected-work",
+      "tool": "bif_selected_work",
+      "arguments": {
+        "project": "core"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"outcome\":\"selected\",\"item\":{\"id\":\"DELTA:core:004\",\"title\":\"Improve core workflow component 16\",\"status\":\"ready\",\"priority\":\"P1\",\"assignee\":\"benchmark-agent\",\"revision\":4,\"description\":\"Investigate scenario 9256 and preserve supported behavior across local developer workflows.\",\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 1992\",\"Criterion 2 verifies deterministic behavior for scenario 1992\",\"Criterion 3 verifies deterministic behavior for scenario 1992\",\"Criterion 4 verifies deterministic behavior for scenario 1992\",\"Criterion 5 verifies deterministic behavior for scenario 1992\",\"Criterion 6 verifies deterministic behavior for scenario 1992\"],\"status_reason\":null}}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "item": {
+              "acceptance_criteria": [
+                "Criterion 1 verifies deterministic behavior for scenario 1992",
+                "Criterion 2 verifies deterministic behavior for scenario 1992",
+                "Criterion 3 verifies deterministic behavior for scenario 1992",
+                "Criterion 4 verifies deterministic behavior for scenario 1992",
+                "Criterion 5 verifies deterministic behavior for scenario 1992",
+                "Criterion 6 verifies deterministic behavior for scenario 1992"
+              ],
+              "assignee": "benchmark-agent",
+              "description": "Investigate scenario 9256 and preserve supported behavior across local developer workflows.",
+              "id": "DELTA:core:004",
+              "priority": "P1",
+              "revision": 4,
+              "status": "ready",
+              "status_reason": null,
+              "title": "Improve core workflow component 16"
+            },
+            "outcome": "selected"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "next-ready",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "view": "ready",
+        "ordering": "next",
+        "projection": "work",
+        "limit": 1
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"items\":[{\"id\":\"DELTA:core:004\",\"title\":\"Improve core workflow component 16\",\"status\":\"ready\",\"priority\":\"P1\",\"assignee\":\"benchmark-agent\",\"revision\":4,\"description\":\"Investigate scenario 9256 and preserve supported behavior across local developer workflows.\",\"acceptance_criteria\":[\"Criterion 1 verifies deterministic behavior for scenario 1992\",\"Criterion 2 verifies deterministic behavior for scenario 1992\",\"Criterion 3 verifies deterministic behavior for scenario 1992\",\"Criterion 4 verifies deterministic behavior for scenario 1992\",\"Criterion 5 verifies deterministic behavior for scenario 1992\",\"Criterion 6 verifies deterministic behavior for scenario 1992\"],\"status_reason\":null}],\"next_cursor\":\"bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226e657874222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2234383063393465623864336339393864646430306436326363666539363664383964626365613937646530343032653232613861313530623534323932656233222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2244454c5441222c2270726f6a656374223a22636f7265222c2273657175656e6365223a342c2263617074757265645f6174223a22323032352d30312d30315430303a30303a30322e3030305a222c227072696f72697479223a225031227d7d7d\"}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "items": [
+              {
+                "acceptance_criteria": [
+                  "Criterion 1 verifies deterministic behavior for scenario 1992",
+                  "Criterion 2 verifies deterministic behavior for scenario 1992",
+                  "Criterion 3 verifies deterministic behavior for scenario 1992",
+                  "Criterion 4 verifies deterministic behavior for scenario 1992",
+                  "Criterion 5 verifies deterministic behavior for scenario 1992",
+                  "Criterion 6 verifies deterministic behavior for scenario 1992"
+                ],
+                "assignee": "benchmark-agent",
+                "description": "Investigate scenario 9256 and preserve supported behavior across local developer workflows.",
+                "id": "DELTA:core:004",
+                "priority": "P1",
+                "revision": 4,
+                "status": "ready",
+                "status_reason": null,
+                "title": "Improve core workflow component 16"
+              }
+            ],
+            "next_cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226e657874222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2234383063393465623864336339393864646430306436326363666539363664383964626365613937646530343032653232613861313530623534323932656233222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2244454c5441222c2270726f6a656374223a22636f7265222c2273657175656e6365223a342c2263617074757265645f6174223a22323032352d30312d30315430303a30303a30322e3030305a222c227072696f72697479223a225031227d7d7d"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "other-project",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "agent-tools",
+        "limit": 3
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"items\":[{\"id\":\"CODEX:agent-tools:005\",\"title\":\"Improve agent-tools workflow component 90\",\"status\":\"in_progress\",\"priority\":\"P4\",\"assignee\":\"bob\",\"revision\":5},{\"id\":\"DELTA:agent-tools:003\",\"title\":\"Improve agent-tools workflow component 91\",\"status\":\"done\",\"priority\":\"P2\",\"assignee\":null,\"revision\":8},{\"id\":\"DELTA:agent-tools:002\",\"title\":\"Improve agent-tools workflow component 80\",\"status\":\"ready\",\"priority\":\"P2\",\"assignee\":null,\"revision\":3}],\"next_cursor\":\"bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2239643662396466663237623030336465663464626130313330633366613435383130623666376131616162363738383432306334383736323630376238623536222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2244454c5441222c2270726f6a656374223a226167656e742d746f6f6c73222c2273657175656e6365223a322c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31302e3030305a222c227072696f72697479223a225032227d7d7d\"}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "items": [
+              {
+                "assignee": "bob",
+                "id": "CODEX:agent-tools:005",
+                "priority": "P4",
+                "revision": 5,
+                "status": "in_progress",
+                "title": "Improve agent-tools workflow component 90"
+              },
+              {
+                "assignee": null,
+                "id": "DELTA:agent-tools:003",
+                "priority": "P2",
+                "revision": 8,
+                "status": "done",
+                "title": "Improve agent-tools workflow component 91"
+              },
+              {
+                "assignee": null,
+                "id": "DELTA:agent-tools:002",
+                "priority": "P2",
+                "revision": 3,
+                "status": "ready",
+                "title": "Improve agent-tools workflow component 80"
+              }
+            ],
+            "next_cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2239643662396466663237623030336465663464626130313330633366613435383130623666376131616162363738383432306334383736323630376238623536222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2244454c5441222c2270726f6a656374223a226167656e742d746f6f6c73222c2273657175656e6365223a322c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31302e3030305a222c227072696f72697479223a225032227d7d7d"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "core-after-other",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "limit": 3
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"items\":[{\"id\":\"BENCH:core:025\",\"title\":\"Improve core workflow component 96\",\"status\":\"ready\",\"priority\":null,\"assignee\":null,\"revision\":2},{\"id\":\"BENCH:core:026\",\"title\":\"Improve core workflow component 98\",\"status\":\"in_progress\",\"priority\":\"P1\",\"assignee\":null,\"revision\":4},{\"id\":\"DELTA:core:019\",\"title\":\"Improve core workflow component 99\",\"status\":\"blocked\",\"priority\":\"P4\",\"assignee\":\"alice\",\"revision\":8}],\"next_cursor\":\"bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2236643938383739316663303561636439313963393965376264373137656666366363616235303537353536346236646638643664613461303437353364383063222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2244454c5441222c2270726f6a656374223a22636f7265222c2273657175656e6365223a31392c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31322e3030305a222c227072696f72697479223a225034227d7d7d\"}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "items": [
+              {
+                "assignee": null,
+                "id": "BENCH:core:025",
+                "priority": null,
+                "revision": 2,
+                "status": "ready",
+                "title": "Improve core workflow component 96"
+              },
+              {
+                "assignee": null,
+                "id": "BENCH:core:026",
+                "priority": "P1",
+                "revision": 4,
+                "status": "in_progress",
+                "title": "Improve core workflow component 98"
+              },
+              {
+                "assignee": "alice",
+                "id": "DELTA:core:019",
+                "priority": "P4",
+                "revision": 8,
+                "status": "blocked",
+                "title": "Improve core workflow component 99"
+              }
+            ],
+            "next_cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2236643938383739316663303561636439313963393965376264373137656666366363616235303537353536346236646638643664613461303437353364383063222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2244454c5441222c2270726f6a656374223a22636f7265222c2273657175656e6365223a31392c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31322e3030305a222c227072696f72697479223a225034227d7d7d"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "list-continuation",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "limit": 3,
+        "cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2236643938383739316663303561636439313963393965376264373137656666366363616235303537353536346236646638643664613461303437353364383063222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2244454c5441222c2270726f6a656374223a22636f7265222c2273657175656e6365223a31392c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31322e3030305a222c227072696f72697479223a225034227d7d7d"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"items\":[{\"id\":\"BENCH:core:022\",\"title\":\"Improve core workflow component 92\",\"status\":\"ready\",\"priority\":\"P3\",\"assignee\":\"bob\",\"revision\":4},{\"id\":\"BENCH:core:023\",\"title\":\"Improve core workflow component 93\",\"status\":\"done\",\"priority\":null,\"assignee\":\"alice\",\"revision\":7},{\"id\":\"BENCH:core:024\",\"title\":\"Improve core workflow component 95\",\"status\":\"ready\",\"priority\":\"P1\",\"assignee\":\"alice\",\"revision\":4}],\"next_cursor\":\"bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2236643938383739316663303561636439313963393965376264373137656666366363616235303537353536346236646638643664613461303437353364383063222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2242454e4348222c2270726f6a656374223a22636f7265222c2273657175656e6365223a32342c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31312e3030305a222c227072696f72697479223a225031227d7d7d\"}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "items": [
+              {
+                "assignee": "bob",
+                "id": "BENCH:core:022",
+                "priority": "P3",
+                "revision": 4,
+                "status": "ready",
+                "title": "Improve core workflow component 92"
+              },
+              {
+                "assignee": "alice",
+                "id": "BENCH:core:023",
+                "priority": null,
+                "revision": 7,
+                "status": "done",
+                "title": "Improve core workflow component 93"
+              },
+              {
+                "assignee": "alice",
+                "id": "BENCH:core:024",
+                "priority": "P1",
+                "revision": 4,
+                "status": "ready",
+                "title": "Improve core workflow component 95"
+              }
+            ],
+            "next_cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2236643938383739316663303561636439313963393965376264373137656666366363616235303537353536346236646638643664613461303437353364383063222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2242454e4348222c2270726f6a656374223a22636f7265222c2273657175656e6365223a32342c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31312e3030305a222c227072696f72697479223a225031227d7d7d"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "history-first",
+      "tool": "bif_history",
+      "arguments": {
+        "project": "core",
+        "item_id": "CODEX:core:001",
+        "limit": 2
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"item_id\":\"CODEX:core:001\",\"events\":[{\"operation_id\":\"benchmark-op-000000-001\",\"event_id\":\"benchmark-event-000000-001\",\"item_revision\":1,\"event_index\":0,\"event_type\":\"captured\",\"before\":null,\"after\":null,\"actor\":{\"kind\":\"human\",\"id\":\"BENCH\",\"surface\":\"cli\",\"host\":\"local\"},\"execution\":{\"kind\":\"direct\",\"surface\":\"cli\",\"host\":\"local\"},\"reason\":null,\"note\":null,\"occurred_at\":\"2025-01-01T00:00:00.000Z\",\"schema_version\":1},{\"operation_id\":\"benchmark-op-000000-002\",\"event_id\":\"benchmark-event-000000-002\",\"item_revision\":2,\"event_index\":0,\"event_type\":\"priority_changed\",\"before\":null,\"after\":\"P0\",\"actor\":{\"kind\":\"human\",\"id\":\"BENCH\",\"surface\":\"cli\",\"host\":\"local\"},\"execution\":{\"kind\":\"direct\",\"surface\":\"cli\",\"host\":\"local\"},\"reason\":null,\"note\":null,\"occurred_at\":\"2025-01-01T00:00:00.000Z\",\"schema_version\":1}],\"next_cursor\":\"bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a22686973746f7279222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2233633331373939633061356236613063386630323936663830323135363739366165646462366565663538383237373864633430656661376164653866623762222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b22686973746f7279223a7b226974656d5f7265766973696f6e223a322c226576656e745f696e646578223a307d7d7d\"}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "events": [
+              {
+                "actor": {
+                  "host": "local",
+                  "id": "BENCH",
+                  "kind": "human",
+                  "surface": "cli"
+                },
+                "after": null,
+                "before": null,
+                "event_id": "benchmark-event-000000-001",
+                "event_index": 0,
+                "event_type": "captured",
+                "execution": {
+                  "host": "local",
+                  "kind": "direct",
+                  "surface": "cli"
+                },
+                "item_revision": 1,
+                "note": null,
+                "occurred_at": "2025-01-01T00:00:00.000Z",
+                "operation_id": "benchmark-op-000000-001",
+                "reason": null,
+                "schema_version": 1
+              },
+              {
+                "actor": {
+                  "host": "local",
+                  "id": "BENCH",
+                  "kind": "human",
+                  "surface": "cli"
+                },
+                "after": "P0",
+                "before": null,
+                "event_id": "benchmark-event-000000-002",
+                "event_index": 0,
+                "event_type": "priority_changed",
+                "execution": {
+                  "host": "local",
+                  "kind": "direct",
+                  "surface": "cli"
+                },
+                "item_revision": 2,
+                "note": null,
+                "occurred_at": "2025-01-01T00:00:00.000Z",
+                "operation_id": "benchmark-op-000000-002",
+                "reason": null,
+                "schema_version": 1
+              }
+            ],
+            "item_id": "CODEX:core:001",
+            "next_cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a22686973746f7279222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2233633331373939633061356236613063386630323936663830323135363739366165646462366565663538383237373864633430656661376164653866623762222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b22686973746f7279223a7b226974656d5f7265766973696f6e223a322c226576656e745f696e646578223a307d7d7d"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "history-continuation",
+      "tool": "bif_history",
+      "arguments": {
+        "project": "core",
+        "item_id": "CODEX:core:001",
+        "limit": 2,
+        "cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a22686973746f7279222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2233633331373939633061356236613063386630323936663830323135363739366165646462366565663538383237373864633430656661376164653866623762222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b22686973746f7279223a7b226974656d5f7265766973696f6e223a322c226576656e745f696e646578223a307d7d7d"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"item_id\":\"CODEX:core:001\",\"events\":[{\"operation_id\":\"benchmark-op-000000-003\",\"event_id\":\"benchmark-event-000000-003\",\"item_revision\":3,\"event_index\":0,\"event_type\":\"note_added\",\"before\":null,\"after\":null,\"actor\":{\"kind\":\"human\",\"id\":\"BENCH\",\"surface\":\"cli\",\"host\":\"local\"},\"execution\":{\"kind\":\"direct\",\"surface\":\"cli\",\"host\":\"local\"},\"reason\":null,\"note\":\"Captured benchmark investigation evidence and next steps.\",\"occurred_at\":\"2025-01-01T00:00:01.000Z\",\"schema_version\":1},{\"operation_id\":\"benchmark-op-000000-004\",\"event_id\":\"benchmark-event-000000-004\",\"item_revision\":4,\"event_index\":0,\"event_type\":\"note_added\",\"before\":null,\"after\":null,\"actor\":{\"kind\":\"human\",\"id\":\"BENCH\",\"surface\":\"cli\",\"host\":\"local\"},\"execution\":{\"kind\":\"direct\",\"surface\":\"cli\",\"host\":\"local\"},\"reason\":null,\"note\":\"Hot-item mutation burst 00\",\"occurred_at\":\"2025-01-01T00:00:01.000Z\",\"schema_version\":1}],\"next_cursor\":\"bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a22686973746f7279222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2233633331373939633061356236613063386630323936663830323135363739366165646462366565663538383237373864633430656661376164653866623762222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b22686973746f7279223a7b226974656d5f7265766973696f6e223a342c226576656e745f696e646578223a307d7d7d\"}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "events": [
+              {
+                "actor": {
+                  "host": "local",
+                  "id": "BENCH",
+                  "kind": "human",
+                  "surface": "cli"
+                },
+                "after": null,
+                "before": null,
+                "event_id": "benchmark-event-000000-003",
+                "event_index": 0,
+                "event_type": "note_added",
+                "execution": {
+                  "host": "local",
+                  "kind": "direct",
+                  "surface": "cli"
+                },
+                "item_revision": 3,
+                "note": "Captured benchmark investigation evidence and next steps.",
+                "occurred_at": "2025-01-01T00:00:01.000Z",
+                "operation_id": "benchmark-op-000000-003",
+                "reason": null,
+                "schema_version": 1
+              },
+              {
+                "actor": {
+                  "host": "local",
+                  "id": "BENCH",
+                  "kind": "human",
+                  "surface": "cli"
+                },
+                "after": null,
+                "before": null,
+                "event_id": "benchmark-event-000000-004",
+                "event_index": 0,
+                "event_type": "note_added",
+                "execution": {
+                  "host": "local",
+                  "kind": "direct",
+                  "surface": "cli"
+                },
+                "item_revision": 4,
+                "note": "Hot-item mutation burst 00",
+                "occurred_at": "2025-01-01T00:00:01.000Z",
+                "operation_id": "benchmark-op-000000-004",
+                "reason": null,
+                "schema_version": 1
+              }
+            ],
+            "item_id": "CODEX:core:001",
+            "next_cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a22686973746f7279222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2233633331373939633061356236613063386630323936663830323135363739366165646462366565663538383237373864633430656661376164653866623762222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b22686973746f7279223a7b226974656d5f7265766973696f6e223a342c226576656e745f696e646578223a307d7d7d"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "missing-item",
+      "tool": "bif_get",
+      "arguments": {
+        "project": "core",
+        "item_id": "BENCH:core:999999"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":false,\"error\":{\"code\":\"not_found\",\"message\":\"The item was not found\",\"details\":{}}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "error": {
+            "code": "not_found",
+            "details": {},
+            "message": "The item was not found"
+          },
+          "ok": false,
+          "schema_version": 1
+        },
+        "isError": true
+      }
+    },
+    {
+      "step": "invalid-cursor",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "limit": 3,
+        "cursor": "invalid"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":false,\"error\":{\"code\":\"invalid_cursor\",\"message\":\"The continuation cursor is invalid\",\"details\":{\"reason\":\"malformed\",\"restart_required\":true}}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "error": {
+            "code": "invalid_cursor",
+            "details": {
+              "reason": "malformed",
+              "restart_required": true
+            },
+            "message": "The continuation cursor is invalid"
+          },
+          "ok": false,
+          "schema_version": 1
+        },
+        "isError": true
+      }
+    },
+    {
+      "step": "invalid-known-version",
+      "tool": "bif_get",
+      "arguments": {
+        "project": "core",
+        "item_id": "BENCH:core:025",
+        "known_version": "invalid"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":false,\"error\":{\"code\":\"invalid_input\",\"message\":\"The read request is invalid\",\"details\":{}}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "error": {
+            "code": "invalid_input",
+            "details": {},
+            "message": "The read request is invalid"
+          },
+          "ok": false,
+          "schema_version": 1
+        },
+        "isError": true
+      }
+    },
+    {
+      "step": "missing-project",
+      "tool": "bif_list",
+      "arguments": {},
+      "sdk_exception": "McpError",
+      "jsonrpc_error": {
+        "code": -32602,
+        "message": "Unknown tool or invalid tool arguments"
+      }
+    },
+    {
+      "step": "invalid-limit",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "limit": 0
+      },
+      "sdk_exception": "McpError",
+      "jsonrpc_error": {
+        "code": -32602,
+        "message": "Unknown tool or invalid tool arguments"
+      }
+    },
+    {
+      "step": "unknown-tool",
+      "tool": "bif_mutate",
+      "arguments": {
+        "project": "core"
+      },
+      "sdk_exception": "McpError",
+      "jsonrpc_error": {
+        "code": -32602,
+        "message": "Unknown tool or invalid tool arguments"
+      }
+    },
+    {
+      "step": "scope-mismatch",
+      "tool": "bif_get",
+      "arguments": {
+        "project": "agent-tools",
+        "item_id": "BENCH:core:025"
+      },
+      "sdk_exception": "McpError",
+      "jsonrpc_error": {
+        "code": -32602,
+        "message": "Unknown tool or invalid tool arguments"
+      }
+    },
+    {
+      "step": "reject-actor",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "limit": 3,
+        "actor": {
+          "kind": "human",
+          "id": "BENCH"
+        }
+      },
+      "sdk_exception": "McpError",
+      "jsonrpc_error": {
+        "code": -32602,
+        "message": "Unknown tool or invalid tool arguments"
+      }
+    },
+    {
+      "step": "reject-execution",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "limit": 3,
+        "execution": {
+          "kind": "direct"
+        }
+      },
+      "sdk_exception": "McpError",
+      "jsonrpc_error": {
+        "code": -32602,
+        "message": "Unknown tool or invalid tool arguments"
+      }
+    },
+    {
+      "step": "reject-authorization",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "limit": 3,
+        "authorization": {
+          "approved": true
+        }
+      },
+      "sdk_exception": "McpError",
+      "jsonrpc_error": {
+        "code": -32602,
+        "message": "Unknown tool or invalid tool arguments"
+      }
+    },
+    {
+      "step": "reject-root",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "limit": 3,
+        "root": "<RUN>"
+      },
+      "sdk_exception": "McpError",
+      "jsonrpc_error": {
+        "code": -32602,
+        "message": "Unknown tool or invalid tool arguments"
+      }
+    },
+    {
+      "step": "reject-config",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "limit": 3,
+        "config": "<RUN>/config.toml"
+      },
+      "sdk_exception": "McpError",
+      "jsonrpc_error": {
+        "code": -32602,
+        "message": "Unknown tool or invalid tool arguments"
+      }
+    },
+    {
+      "step": "success-after-errors",
+      "tool": "bif_get",
+      "arguments": {
+        "project": "core",
+        "item_id": "BENCH:core:025"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"outcome\":\"modified\",\"version\":\"bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.summary.18.2\",\"item\":{\"id\":\"BENCH:core:025\",\"title\":\"Improve core workflow component 96\",\"status\":\"ready\",\"priority\":null,\"assignee\":null,\"revision\":2}}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "item": {
+              "assignee": null,
+              "id": "BENCH:core:025",
+              "priority": null,
+              "revision": 2,
+              "status": "ready",
+              "title": "Improve core workflow component 96"
+            },
+            "outcome": "modified",
+            "version": "bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.summary.18.2"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "stderr-1",
+      "text": ""
+    },
+    {
+      "step": "initialize-2",
+      "sdk_response": {
+        "protocolVersion": "2025-11-25",
+        "capabilities": {
+          "tools": {}
+        },
+        "serverInfo": {
+          "name": "bif-mcp",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "step": "process-2",
+      "pid": 40891
+    },
+    {
+      "step": "restart-list",
+      "tool": "bif_list",
+      "arguments": {
+        "project": "core",
+        "limit": 3,
+        "cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2236643938383739316663303561636439313963393965376264373137656666366363616235303537353536346236646638643664613461303437353364383063222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2244454c5441222c2270726f6a656374223a22636f7265222c2273657175656e6365223a31392c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31322e3030305a222c227072696f72697479223a225034227d7d7d"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"items\":[{\"id\":\"BENCH:core:022\",\"title\":\"Improve core workflow component 92\",\"status\":\"ready\",\"priority\":\"P3\",\"assignee\":\"bob\",\"revision\":4},{\"id\":\"BENCH:core:023\",\"title\":\"Improve core workflow component 93\",\"status\":\"done\",\"priority\":null,\"assignee\":\"alice\",\"revision\":7},{\"id\":\"BENCH:core:024\",\"title\":\"Improve core workflow component 95\",\"status\":\"ready\",\"priority\":\"P1\",\"assignee\":\"alice\",\"revision\":4}],\"next_cursor\":\"bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2236643938383739316663303561636439313963393965376264373137656666366363616235303537353536346236646638643664613461303437353364383063222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2242454e4348222c2270726f6a656374223a22636f7265222c2273657175656e6365223a32342c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31312e3030305a222c227072696f72697479223a225031227d7d7d\"}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "items": [
+              {
+                "assignee": "bob",
+                "id": "BENCH:core:022",
+                "priority": "P3",
+                "revision": 4,
+                "status": "ready",
+                "title": "Improve core workflow component 92"
+              },
+              {
+                "assignee": "alice",
+                "id": "BENCH:core:023",
+                "priority": null,
+                "revision": 7,
+                "status": "done",
+                "title": "Improve core workflow component 93"
+              },
+              {
+                "assignee": "alice",
+                "id": "BENCH:core:024",
+                "priority": "P1",
+                "revision": 4,
+                "status": "ready",
+                "title": "Improve core workflow component 95"
+              }
+            ],
+            "next_cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a226c697374222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2236643938383739316663303561636439313963393965376264373137656666366363616235303537353536346236646638643664613461303437353364383063222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b226974656d223a7b22726571756573746572223a2242454e4348222c2270726f6a656374223a22636f7265222c2273657175656e6365223a32342c2263617074757265645f6174223a22323032352d30312d30315430303a30303a31312e3030305a222c227072696f72697479223a225031227d7d7d"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "restart-history",
+      "tool": "bif_history",
+      "arguments": {
+        "project": "core",
+        "item_id": "CODEX:core:001",
+        "limit": 2,
+        "cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a22686973746f7279222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2233633331373939633061356236613063386630323936663830323135363739366165646462366565663538383237373864633430656661376164653866623762222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b22686973746f7279223a7b226974656d5f7265766973696f6e223a322c226576656e745f696e646578223a307d7d7d"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"item_id\":\"CODEX:core:001\",\"events\":[{\"operation_id\":\"benchmark-op-000000-003\",\"event_id\":\"benchmark-event-000000-003\",\"item_revision\":3,\"event_index\":0,\"event_type\":\"note_added\",\"before\":null,\"after\":null,\"actor\":{\"kind\":\"human\",\"id\":\"BENCH\",\"surface\":\"cli\",\"host\":\"local\"},\"execution\":{\"kind\":\"direct\",\"surface\":\"cli\",\"host\":\"local\"},\"reason\":null,\"note\":\"Captured benchmark investigation evidence and next steps.\",\"occurred_at\":\"2025-01-01T00:00:01.000Z\",\"schema_version\":1},{\"operation_id\":\"benchmark-op-000000-004\",\"event_id\":\"benchmark-event-000000-004\",\"item_revision\":4,\"event_index\":0,\"event_type\":\"note_added\",\"before\":null,\"after\":null,\"actor\":{\"kind\":\"human\",\"id\":\"BENCH\",\"surface\":\"cli\",\"host\":\"local\"},\"execution\":{\"kind\":\"direct\",\"surface\":\"cli\",\"host\":\"local\"},\"reason\":null,\"note\":\"Hot-item mutation burst 00\",\"occurred_at\":\"2025-01-01T00:00:01.000Z\",\"schema_version\":1}],\"next_cursor\":\"bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a22686973746f7279222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2233633331373939633061356236613063386630323936663830323135363739366165646462366565663538383237373864633430656661376164653866623762222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b22686973746f7279223a7b226974656d5f7265766973696f6e223a342c226576656e745f696e646578223a307d7d7d\"}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "events": [
+              {
+                "actor": {
+                  "host": "local",
+                  "id": "BENCH",
+                  "kind": "human",
+                  "surface": "cli"
+                },
+                "after": null,
+                "before": null,
+                "event_id": "benchmark-event-000000-003",
+                "event_index": 0,
+                "event_type": "note_added",
+                "execution": {
+                  "host": "local",
+                  "kind": "direct",
+                  "surface": "cli"
+                },
+                "item_revision": 3,
+                "note": "Captured benchmark investigation evidence and next steps.",
+                "occurred_at": "2025-01-01T00:00:01.000Z",
+                "operation_id": "benchmark-op-000000-003",
+                "reason": null,
+                "schema_version": 1
+              },
+              {
+                "actor": {
+                  "host": "local",
+                  "id": "BENCH",
+                  "kind": "human",
+                  "surface": "cli"
+                },
+                "after": null,
+                "before": null,
+                "event_id": "benchmark-event-000000-004",
+                "event_index": 0,
+                "event_type": "note_added",
+                "execution": {
+                  "host": "local",
+                  "kind": "direct",
+                  "surface": "cli"
+                },
+                "item_revision": 4,
+                "note": "Hot-item mutation burst 00",
+                "occurred_at": "2025-01-01T00:00:01.000Z",
+                "operation_id": "benchmark-op-000000-004",
+                "reason": null,
+                "schema_version": 1
+              }
+            ],
+            "item_id": "CODEX:core:001",
+            "next_cursor": "bifc1.7b22637572736f725f76657273696f6e223a312c226b696e64223a22686973746f7279222c2273746f72655f6964223a2262656e63686d61726b2d303030303030303030303030303764332d313030222c2267656e65726174696f6e223a6e756c6c2c2271756572795f66696e6765727072696e74223a2233633331373939633061356236613063386630323936663830323135363739366165646462366565663538383237373864633430656661376164653866623762222c226f726465725f76657273696f6e223a312c2270726f6a656374696f6e5f736368656d615f76657273696f6e223a312c22626f756e64617279223a7b22686973746f7279223a7b226974656d5f7265766973696f6e223a342c226576656e745f696e646578223a307d7d7d"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "restart-validator",
+      "tool": "bif_get",
+      "arguments": {
+        "project": "core",
+        "item_id": "BENCH:core:025",
+        "known_version": "bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.summary.18.2"
+      },
+      "sdk_response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"api_version\":2,\"schema_version\":1,\"ok\":true,\"result\":{\"outcome\":\"not_modified\",\"version\":\"bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.summary.18.2\",\"item\":null}}\n"
+          }
+        ],
+        "structuredContent": {
+          "api_version": 2,
+          "ok": true,
+          "result": {
+            "item": null,
+            "outcome": "not_modified",
+            "version": "bifv1.62656e63686d61726b2d303030303030303030303030303764332d313030.42454e43483a636f72653a303235.summary.18.2"
+          },
+          "schema_version": 1
+        },
+        "isError": false
+      }
+    },
+    {
+      "step": "stderr-2",
+      "text": ""
+    }
+  ],
+  "sdk": {
+    "name": "mcp (official modelcontextprotocol/python-sdk)",
+    "version": "1.26.0",
+    "python": "3.12.15 (main, Oct  3 2026, 00:54:33) [Clang 22.1.3 ]",
+    "executable": "<WORKTREE>/target/independent-client/venv/bin/python",
+    "platform": "macOS-27.0.1-arm64-arm-64bit",
+    "distributions": {
+      "uvicorn": "0.54.0",
+      "click": "8.5.0",
+      "jsonschema-specifications": "2025.9.1",
+      "jsonschema": "4.26.0",
+      "PyJWT": "2.15.1",
+      "pydantic_core": "2.46.5",
+      "httpcore": "1.0.9",
+      "cryptography": "50.0.2",
+      "mcp": "1.26.0",
+      "h11": "0.16.0",
+      "pydantic": "2.13.5",
+      "pydantic-settings": "2.15.0",
+      "pycparser": "3.0",
+      "python-multipart": "0.0.32",
+      "python-dotenv": "1.2.4",
+      "cffi": "2.1.1",
+      "certifi": "2026.7.22",
+      "annotated-types": "0.8.0",
+      "referencing": "0.37.0",
+      "typing-inspection": "0.4.4",
+      "starlette": "1.7.0",
+      "rpds-py": "2026.9.1",
+      "attrs": "26.1.0",
+      "httpx": "0.28.1",
+      "typing_extensions": "4.16.0",
+      "sse-starlette": "3.5.0",
+      "httpx-sse": "0.4.3",
+      "anyio": "4.15.1",
+      "idna": "3.20"
+    }
+  },
+  "source_start": {
+    "source_revision": "e265e0209ca56cb63c57ce238d7a78df8d9abf76",
+    "source_dirty": true,
+    "git_status_porcelain": "?? docs/baselines/v2-phase-d/independent-client/\n",
+    "source_files_sha256": {
+      "Cargo.lock": "2172fe64d42f0a2c678c0c69dbeea33eaad8242ec434520a949a93c29bea39d1",
+      "Cargo.toml": "47db8d698fb63a1d75064d922bbe8df92b1d92d724f50b613498da64ab8606a7",
+      "migrations/0001_initial.sql": "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
+      "migrations/0002_immutable_events.sql": "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
+      "migrations/0003_projection_read_indexes.sql": "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
+      "rust-toolchain.toml": "dd510b4a3ab011309bb12f6fc3450596da2080670bd4f922eaff7cad1ca65794",
+      "src/application.rs": "9aec1462ed0a346eddc59f63c4d52cf493a17597f539825e68527115b07c27b5",
+      "src/application/conditional_reads.rs": "111275cabf13e42d92f9fc1cb1ad54a9b847e78e2f43ebedb31a659f13148daa",
+      "src/application/cursors.rs": "4b0aaaef08695c9fbf00db8dec03490a17a851c08f3cea018878dbf5ef358b93",
+      "src/application/projections.rs": "298ba861e83406d57ddd02c776fa158db93f3f5d447b2391f3f218bd44417f56",
+      "src/application/read_semantics.rs": "c862f127e583010af9c377ec143444e2382089ff5275aff6312d13c56faac186",
+      "src/application/reads.rs": "7c9d9b6a83f4c222d2d98ef284f133edfede7deb81dad3872c40ece2b1d5d000",
+      "src/benchmark_fixture.rs": "51be34bbf78d651b98636a9770f53191fe833ce4dd8db668875ebd4e6fcc1ab2",
+      "src/bin/bif-benchmark-store.rs": "8404420887be51593281849b987e3c77f34148924742b10931e173338f0babba",
+      "src/bin/bif-benchmark.rs": "29ee2280f9d838d3dfa90b1e4c00ea829c035d0b55ee330e8723ecc832618848",
+      "src/bin/bif-mcp.rs": "ed7f2e0573f52eeaec37dc5d39e0a24f57e2b698b2c565b5e4a2d3b26f6c1d9f",
+      "src/cli.rs": "f3cdef39da75700091b3be8542e6613d25c1617127356a0a474b4b0217b73b4a",
+      "src/cli_mutation.rs": "2a97f7cd6d076edd258435f3f3400304c8ae433f6151fe602ddbfb84360de04d",
+      "src/cli_read.rs": "00d6f6a792979497bae78b29f2b531788b742fadb7ac6d019e56b5f7dcbbb6b0",
+      "src/cli_v2_read.rs": "c2038bd835f26a256a57baad08bb13c33c60a7e3ca612313e14ba0d7607e28ad",
+      "src/config.rs": "94d81f81c4d2c424d183525f603beeec434587fcf06ab09d2c5b1d989bf8a662",
+      "src/domain.rs": "ba1a00fba2a50b41188ad983ab71d85abae811d7db00cf471077f418678a7671",
+      "src/expose.rs": "01394b1e23bfd1138e13f0824fee5627c1717bf541966814bbdf0a76348add95",
+      "src/lib.rs": "d64516cf9edd42b26c3d464b976ddea318b5642d66868254996f09e75dfc90d8",
+      "src/limits.rs": "49e3a49aee3b017ce07d322d9cdef5907257dba1a630f3b8c41f8efe1214c435",
+      "src/main.rs": "6e9dede1e91f54f78505140bd32e27d113499dc77bde8b6c22474633e0bd5743",
+      "src/mcp.rs": "3b0085ac130239603eb73c7ab1918abd72888b5da3487875295635fff56d6a4a",
+      "src/mcp/tools.rs": "a6c67b28988857aefb3e77aceaf99fbb7e17f20eb436c999063f8ebc7d4e0f14",
+      "src/read_session.rs": "19db084d89e8d0a21a3d993dbaf1d5ba97dd0b601ec6d41f56743a16c613db3c",
+      "src/rpc.rs": "41024dfe1751ddff6c0f6c7027e51ffab6ebc653794b461d1e8737d723857481",
+      "src/rpc_mutation.rs": "74ee0dac4bf8299ada94bc5b691e7cb35bd83e42b11ab0424554257b11bfe3af",
+      "src/rpc_read.rs": "18d92cbcc6f4fc6848d75c9972af99f0132f7e9584c64cccab6a6b8fe58fb266",
+      "src/storage.rs": "85a0d49c9b77a0bb054ee76590de5f48a284212f7c8ec15617ae756022f64a5d",
+      "src/storage/history_pages.rs": "4a0247a2bbf7566f1d414e3d8d81ce786d4a46ee650b96c2ab52ebaeebaf7565",
+      "src/storage/projection_reads.rs": "7edbe98f09a551f2ee79b4913cc4f741423e9e650fe0b0d44051992ee26aed0f",
+      "src/strict_json.rs": "296faa5a6d84ea398a9b7925fa1ff9cd75c6b1622eedeeabf46aa94b73c7ae87",
+      "src/v2_response.rs": "a59c4bbc6e53c7cb16299ce5f7bfbb8048b8e03a43bb74c326b7a3e5d0989bac"
+    },
+    "source_inputs_sha256": "50aaf5ccd6796e43f92f48466b4cac177318c3566df56d4b8a4867f04a2451ba",
+    "binary_sha256": {
+      "bif": "863139b0a60ac97088b1b7c939cf234d035c3b63bafdbca7f6a1f62f2919fcc3",
+      "bif-mcp": "783768bed7c71cac1c623472384c34028ee49ba959ab4ece322ae25ca1e1da98",
+      "bif-benchmark-store": "fa59b068553c5846e60e982e14c9fc8c9748179e56ae6114d6e290265a2408a6"
+    }
+  },
+  "driver_sha256": "1a7538dc4982ae2e87bbc5a3ed5611c5487a8a99d199406e888220388ebb9e13",
+  "build": {
+    "command": "cargo build --locked --release --bin bif-mcp --bin bif-benchmark-store --bin bif",
+    "profile": "release",
+    "rust": "rustc 1.94.0 (4a4ef493e 2026-03-02)"
+  },
+  "environment_policy": "CLI env replaced; SDK safe inherited env excludes BIF_*; HOME/XDG/APPDATA/TMPDIR overridden.",
+  "launch": {
+    "command": "<WORKTREE>/target/release/bif-mcp",
+    "args": [
+      "--config",
+      "<RUN>/config.toml"
+    ],
+    "env": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "HOME": "<RUN>/home",
+      "XDG_CONFIG_HOME": "<RUN>/xdg",
+      "APPDATA": "<RUN>/appdata",
+      "TMPDIR": "<RUN>/tmp"
+    },
+    "cwd": "<RUN>",
+    "encoding": "utf-8",
+    "encoding_error_handler": "strict"
+  },
+  "configuration": "root = \"<RUN>\"\nrequester = \"BENCH\"\n",
+  "inventory_before": {
+    "sqlite_runtime": "3.53.1",
+    "schema_sha256": "922a0046f42c412d2da3e1c7bd68153e7374f8d1915d39a5c4bb57c032db6651",
+    "user_version": 0,
+    "application_id": 0,
+    "tables": {
+      "events": {
+        "rows": 516,
+        "sha256": "ff6229037bad8446ef905c8e44e570c9c03eb11727a8a72a25352d7a6f57291c"
+      },
+      "item_acceptance_criteria": {
+        "rows": 339,
+        "sha256": "5d3885092026c49d1214bb19c4dc878da0210ef805c1a4bebe3a846e63352340"
+      },
+      "item_provenance": {
+        "rows": 100,
+        "sha256": "fc2b91d5dc2a4ac1526b285ceee51024f5f2977511ea6c68ca2f3c5b21d78dff"
+      },
+      "items": {
+        "rows": 100,
+        "sha256": "08e16e41c620eda84896c632204f108922a547ce04102f4c16736817c67aadba"
+      },
+      "mutation_receipts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "operations": {
+        "rows": 516,
+        "sha256": "2560e8e9153537d4aa8b60c706fc9c04fb740681deba7d1c04d8acdc8087e8c2"
+      },
+      "project_path_mappings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "project_remote_mappings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "projects": {
+        "rows": 5,
+        "sha256": "81284bd104e0e139fa8a89aa146c0b71bc05c52099ac43563e822d33a1b3465b"
+      },
+      "requester_project_counters": {
+        "rows": 13,
+        "sha256": "f4c0f19486f99603f0d6af1233241652d97efd3c3ba591a44e49703227e2a512"
+      },
+      "schema_migrations": {
+        "rows": 3,
+        "sha256": "848e97f8c72013bc0054c71a682dab4e9b96ed507f4ae80990b78b2546f4f1fb"
+      },
+      "store_metadata": {
+        "rows": 1,
+        "sha256": "c352e9f64470cfb0aa21df69717b3e9c53e339de63b7b4f867246f5dd328e012"
+      }
+    }
+  },
+  "fixture_choices": {
+    "primary_project": "core",
+    "other_project": "agent-tools",
+    "history_item": "CODEX:core:001"
+  },
+  "inventory_after": {
+    "sqlite_runtime": "3.53.1",
+    "schema_sha256": "922a0046f42c412d2da3e1c7bd68153e7374f8d1915d39a5c4bb57c032db6651",
+    "user_version": 0,
+    "application_id": 0,
+    "tables": {
+      "events": {
+        "rows": 516,
+        "sha256": "ff6229037bad8446ef905c8e44e570c9c03eb11727a8a72a25352d7a6f57291c"
+      },
+      "item_acceptance_criteria": {
+        "rows": 339,
+        "sha256": "5d3885092026c49d1214bb19c4dc878da0210ef805c1a4bebe3a846e63352340"
+      },
+      "item_provenance": {
+        "rows": 100,
+        "sha256": "fc2b91d5dc2a4ac1526b285ceee51024f5f2977511ea6c68ca2f3c5b21d78dff"
+      },
+      "items": {
+        "rows": 100,
+        "sha256": "08e16e41c620eda84896c632204f108922a547ce04102f4c16736817c67aadba"
+      },
+      "mutation_receipts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "operations": {
+        "rows": 516,
+        "sha256": "2560e8e9153537d4aa8b60c706fc9c04fb740681deba7d1c04d8acdc8087e8c2"
+      },
+      "project_path_mappings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "project_remote_mappings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "projects": {
+        "rows": 5,
+        "sha256": "81284bd104e0e139fa8a89aa146c0b71bc05c52099ac43563e822d33a1b3465b"
+      },
+      "requester_project_counters": {
+        "rows": 13,
+        "sha256": "f4c0f19486f99603f0d6af1233241652d97efd3c3ba591a44e49703227e2a512"
+      },
+      "schema_migrations": {
+        "rows": 3,
+        "sha256": "848e97f8c72013bc0054c71a682dab4e9b96ed507f4ae80990b78b2546f4f1fb"
+      },
+      "store_metadata": {
+        "rows": 1,
+        "sha256": "c352e9f64470cfb0aa21df69717b3e9c53e339de63b7b4f867246f5dd328e012"
+      }
+    }
+  },
+  "source_end": {
+    "source_revision": "e265e0209ca56cb63c57ce238d7a78df8d9abf76",
+    "source_dirty": true,
+    "git_status_porcelain": "?? docs/baselines/v2-phase-d/independent-client/\n",
+    "source_files_sha256": {
+      "Cargo.lock": "2172fe64d42f0a2c678c0c69dbeea33eaad8242ec434520a949a93c29bea39d1",
+      "Cargo.toml": "47db8d698fb63a1d75064d922bbe8df92b1d92d724f50b613498da64ab8606a7",
+      "migrations/0001_initial.sql": "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
+      "migrations/0002_immutable_events.sql": "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
+      "migrations/0003_projection_read_indexes.sql": "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
+      "rust-toolchain.toml": "dd510b4a3ab011309bb12f6fc3450596da2080670bd4f922eaff7cad1ca65794",
+      "src/application.rs": "9aec1462ed0a346eddc59f63c4d52cf493a17597f539825e68527115b07c27b5",
+      "src/application/conditional_reads.rs": "111275cabf13e42d92f9fc1cb1ad54a9b847e78e2f43ebedb31a659f13148daa",
+      "src/application/cursors.rs": "4b0aaaef08695c9fbf00db8dec03490a17a851c08f3cea018878dbf5ef358b93",
+      "src/application/projections.rs": "298ba861e83406d57ddd02c776fa158db93f3f5d447b2391f3f218bd44417f56",
+      "src/application/read_semantics.rs": "c862f127e583010af9c377ec143444e2382089ff5275aff6312d13c56faac186",
+      "src/application/reads.rs": "7c9d9b6a83f4c222d2d98ef284f133edfede7deb81dad3872c40ece2b1d5d000",
+      "src/benchmark_fixture.rs": "51be34bbf78d651b98636a9770f53191fe833ce4dd8db668875ebd4e6fcc1ab2",
+      "src/bin/bif-benchmark-store.rs": "8404420887be51593281849b987e3c77f34148924742b10931e173338f0babba",
+      "src/bin/bif-benchmark.rs": "29ee2280f9d838d3dfa90b1e4c00ea829c035d0b55ee330e8723ecc832618848",
+      "src/bin/bif-mcp.rs": "ed7f2e0573f52eeaec37dc5d39e0a24f57e2b698b2c565b5e4a2d3b26f6c1d9f",
+      "src/cli.rs": "f3cdef39da75700091b3be8542e6613d25c1617127356a0a474b4b0217b73b4a",
+      "src/cli_mutation.rs": "2a97f7cd6d076edd258435f3f3400304c8ae433f6151fe602ddbfb84360de04d",
+      "src/cli_read.rs": "00d6f6a792979497bae78b29f2b531788b742fadb7ac6d019e56b5f7dcbbb6b0",
+      "src/cli_v2_read.rs": "c2038bd835f26a256a57baad08bb13c33c60a7e3ca612313e14ba0d7607e28ad",
+      "src/config.rs": "94d81f81c4d2c424d183525f603beeec434587fcf06ab09d2c5b1d989bf8a662",
+      "src/domain.rs": "ba1a00fba2a50b41188ad983ab71d85abae811d7db00cf471077f418678a7671",
+      "src/expose.rs": "01394b1e23bfd1138e13f0824fee5627c1717bf541966814bbdf0a76348add95",
+      "src/lib.rs": "d64516cf9edd42b26c3d464b976ddea318b5642d66868254996f09e75dfc90d8",
+      "src/limits.rs": "49e3a49aee3b017ce07d322d9cdef5907257dba1a630f3b8c41f8efe1214c435",
+      "src/main.rs": "6e9dede1e91f54f78505140bd32e27d113499dc77bde8b6c22474633e0bd5743",
+      "src/mcp.rs": "3b0085ac130239603eb73c7ab1918abd72888b5da3487875295635fff56d6a4a",
+      "src/mcp/tools.rs": "a6c67b28988857aefb3e77aceaf99fbb7e17f20eb436c999063f8ebc7d4e0f14",
+      "src/read_session.rs": "19db084d89e8d0a21a3d993dbaf1d5ba97dd0b601ec6d41f56743a16c613db3c",
+      "src/rpc.rs": "41024dfe1751ddff6c0f6c7027e51ffab6ebc653794b461d1e8737d723857481",
+      "src/rpc_mutation.rs": "74ee0dac4bf8299ada94bc5b691e7cb35bd83e42b11ab0424554257b11bfe3af",
+      "src/rpc_read.rs": "18d92cbcc6f4fc6848d75c9972af99f0132f7e9584c64cccab6a6b8fe58fb266",
+      "src/storage.rs": "85a0d49c9b77a0bb054ee76590de5f48a284212f7c8ec15617ae756022f64a5d",
+      "src/storage/history_pages.rs": "4a0247a2bbf7566f1d414e3d8d81ce786d4a46ee650b96c2ab52ebaeebaf7565",
+      "src/storage/projection_reads.rs": "7edbe98f09a551f2ee79b4913cc4f741423e9e650fe0b0d44051992ee26aed0f",
+      "src/strict_json.rs": "296faa5a6d84ea398a9b7925fa1ff9cd75c6b1622eedeeabf46aa94b73c7ae87",
+      "src/v2_response.rs": "a59c4bbc6e53c7cb16299ce5f7bfbb8048b8e03a43bb74c326b7a3e5d0989bac"
+    },
+    "source_inputs_sha256": "50aaf5ccd6796e43f92f48466b4cac177318c3566df56d4b8a4867f04a2451ba",
+    "binary_sha256": {
+      "bif": "863139b0a60ac97088b1b7c939cf234d035c3b63bafdbca7f6a1f62f2919fcc3",
+      "bif-mcp": "783768bed7c71cac1c623472384c34028ee49ba959ab4ece322ae25ca1e1da98",
+      "bif-benchmark-store": "fa59b068553c5846e60e982e14c9fc8c9748179e56ae6114d6e290265a2408a6"
+    }
+  },
+  "summary": {
+    "passed": 65,
+    "failed": 0,
+    "sdk_transcript_steps": 37
+  }
+}

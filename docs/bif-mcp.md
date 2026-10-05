@@ -118,13 +118,21 @@ The initial `bif_get` result is:
   "result": {
     "outcome": "modified",
     "version": "OPAQUE_TOKEN",
-    "item": {"projection": "summary", "id": "DAVIS:my-project:001"}
+    "item": {
+      "id": "DAVIS:my-project:001",
+      "title": "Review the MCP read contract",
+      "status": "ready",
+      "priority": "P1",
+      "assignee": null,
+      "revision": 2
+    }
   }
 }
 ```
 
-The item above is illustrative, not a complete projection fixture. Retain the
-**complete** returned projection and its validator. Supplying it as
+The item above illustrates the six-field summary projection; the request
+selects the projection, and the item has no `projection` discriminator. Retain
+the **complete** returned projection and its validator. Supplying it as
 `known_version` for an unchanged matching projection returns:
 
 ```json
