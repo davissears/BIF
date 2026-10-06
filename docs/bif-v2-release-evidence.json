@@ -97,10 +97,10 @@
   "real_configured_mcp_host": {
     "required": true,
     "kind": "real_configured_mcp_host",
-    "status": "missing",
+    "status": "recorded",
     "required_workflows": ["list", "get", "history", "restart"],
-    "evidence": null,
-    "reason": "No real configured MCP host has executed these workflows. Custom stdio process tests and measurements do not satisfy V2-027.",
+    "evidence": "docs/baselines/v2-phase-d/configured-host/host-evidence.json",
+    "reason": "Codex desktop 26.930.51102 (build 13100), MCP client 0.160.0, executed the configured disposable-store workflows and retained-token restart check. Sanitized application-owned traffic is recorded; operator signoff remains pending.",
     "registration_rule": "Record a repository-relative JSON evidence path with kind=real_configured_mcp_host, host_name, host_version, sanitized configuration, source_revision, executed_at and workflows.<name>.{status=passed,transcript=<repository-relative file>}. Never include host credentials."
   },
   "model_tokens": {
@@ -125,10 +125,10 @@
     "operator_only": "Inventory and stop live writers/servers; obtain explicit authorization for any real-store upgrade or replacement; verify backups and restart configured hosts. This automated rehearsal never replaces an active store or performs in-place downmigration."
   },
   "release_gate": {
-    "status": "blocked",
+    "status": "awaiting_operator_review",
     "approved": false,
     "approval": null,
-    "blocked_by": ["real_configured_mcp_host"],
+    "blocked_by": [],
     "policy": "Required recorded timing provenance plus a real configured host make the candidate reviewable, not automatically approved. Operator review of compatibility, evidence and the per-release runbook remains required."
   }
 }

@@ -8,7 +8,13 @@ verification, three-scale release measurements, and remaining limitations.
 Phase D adds explicit conditional/selected-work reads and the separate
 [read-only MCP contract](bif-mcp.md). Its
 [evidence report](bif-v2-phase-d-evidence.md) records local measurements and
-historical-binary rehearsal; real configured-host approval remains blocked.
+historical-binary rehearsal. Required
+[real configured-host workflows](baselines/v2-phase-d/configured-host/host-evidence.json)
+are also recorded, with technical result passed;
+[operator signoff](baselines/v2-phase-d/configured-host/operator-review.md) remains
+pending. The [release manifest](bif-v2-release-evidence.json) is
+`awaiting_operator_review`, with `approved=false` and `approval=null`.
+V2-027 remains incomplete; no real-ledger rollout is authorized.
 
 This document freezes BIF v1 compatibility and the first BIF v2 read contract.
 Its machine-readable companion is

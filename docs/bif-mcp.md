@@ -217,6 +217,9 @@ Never write logs or prompts to stdout.
 Local protocol/process tests are not real configured-host evidence.
 The [Phase D evidence report](bif-v2-phase-d-evidence.md) and
 [release manifest](bif-v2-release-evidence.json) distinguish them.
-The independent read-release gate remains blocked until an operator records a
-real MCP host's version, exact launch configuration and list/get/history/restart
-workflow. No model-token reduction is claimed without model evidence.
+The [Codex configured-host evidence](baselines/v2-phase-d/configured-host/host-evidence.json)
+records the actual application version, launch configuration and
+list/get/history/selected-work/restart workflows on a disposable store.
+The independent read-release gate awaits operator signoff; live-store maintenance
+requires separate authorization. No model-token reduction is claimed without
+model evidence.

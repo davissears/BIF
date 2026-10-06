@@ -1,11 +1,12 @@
 # Phase D read-release evidence
 
-**Decision: local evidence recorded; release NOT approved.** V2-021..026 have
-implementation, local tests and generated-store measurements. V2-027 remains
-blocked because **no real configured MCP host has performed the required
-list/get/history/restart workflow**. The [release manifest](bif-v2-release-evidence.json)
-is the machine-readable gate. Neither protocol subprocess tests, this custom
-benchmark client nor green CI count as that host smoke.
+**Decision: configured-host evidence recorded; release NOT approved.**
+V2-021..026 have implementation, local tests and generated-store measurements.
+V2-027 now has [Codex desktop host evidence](baselines/v2-phase-d/configured-host/host-evidence.json)
+for discovery, list/get/history/selected-work and retained-token restart.
+The [release manifest](bif-v2-release-evidence.json) awaits explicit operator
+review. Protocol subprocess tests, the custom benchmark client and green CI
+remain separate from that application-owned transcript.
 
 No model-token evidence is available; no token-saving claim is made.
 Synchronization, mutation MCP, persisted generation, codecs and live-store
@@ -255,13 +256,22 @@ invalidation, cursor restart, conditional existence/authorization/binding,
 revision-only hits, and no leaked transaction after error. The test suite and
 CI registration are the sources of truth, not a duplicate fixed test inventory.
 
-**Still required before release:** an operator configures a real MCP host
-supporting `2025-11-25` using the chosen executable and explicit disposable
-config, records sanitized host name/version/configuration and transcript
-evidence for list/get/history/restart, and reviews compatibility, measurements
-and the [candidate runbook](bif-upgrade-runbook.md#phase-d-indexed-read-candidate).
-The manifest describes the host artifact format. Do not mark custom harness
-output as a host transcript or auto-approve from CI.
+**Configured-host check passed:** Codex desktop 26.930.51102, build 13100,
+using MCP client 0.160.0 and the candidate hash recorded above, executed 26 tool
+calls through its configured connection. It accepted negotiated `2025-11-25`.
+All 34 workflow assertions passed; list/history cursors and the validator matched
+after the application stopped PID 55242 and launched PID 58504. All 12 tables
+were unchanged during reads. A separate revision-checked synthetic priority
+change demonstrated the old-validator miss. The transparent recording launcher,
+24 discovery/session captures, setup errors, and active final disposable server
+are disclosed in the [transcript](baselines/v2-phase-d/configured-host/transcript.json).
+
+**Still required before release:** explicit operator review of compatibility,
+measurements, host evidence and the
+[candidate runbook](bif-upgrade-runbook.md#phase-d-indexed-read-candidate).
+The [operator review](baselines/v2-phase-d/configured-host/operator-review.md)
+identifies the exact candidate and approval scope. Successful host checks make
+the candidate reviewable; they do not auto-approve release or live maintenance.
 
 For an actual store, separately inventory/rehearse the retained production old
 binary and launch config, stop all readers/writers, verify a SQLite-consistent

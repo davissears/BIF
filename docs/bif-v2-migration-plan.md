@@ -1,7 +1,8 @@
 # BIF v2 migration plan
 
-**Status:** Phase D read implementation and local evidence are recorded; the
-independent read release remains blocked on a real configured MCP host.
+**Status:** Phase D read implementation, local evidence, and real configured MCP
+host workflows are recorded; the independent read release awaits operator review
+and is not approved.
 
 V2-007 through V2-020 are implemented. The
 [Phase B evidence report](bif-v2-phase-b-evidence.md) records bounded query,
@@ -16,9 +17,12 @@ three-scale release-profile startup/warm measurements and a disposable
 historical-binary upgrade/rollback rehearsal. See the
 [Phase D evidence report](bif-v2-phase-d-evidence.md) and machine-readable
 [release manifest](bif-v2-release-evidence.json). V2-027 is **not complete**:
-the required real configured-host workflow is missing and approval is false.
-The measured tree is dirty `c5605ce` plus the parent protocol error-ID fix
-and live-pagination discovery descriptions;
+the required [real configured-host workflows](baselines/v2-phase-d/configured-host/host-evidence.json)
+are recorded, but [operator signoff](baselines/v2-phase-d/configured-host/operator-review.md)
+is pending. The release gate is `awaiting_operator_review`, with `approved=false`
+and `approval=null`; no real-ledger rollout is authorized.
+The historical local measurement tree is dirty `c5605ce` plus the parent protocol
+error-ID fix and live-pagination discovery descriptions;
 artifact hashes identify its actual production inputs, not a clean final
 revision. The old binary is an archived historical schema-2 build, not a
 retained operator-approved production executable. Phase E and later remain
@@ -646,10 +650,11 @@ misrepresented as an already-measured latency or token reduction.
 ### Phase D — Add persistent, request-stateless MCP reads
 
 **Delivery status:** V2-021..026 local implementation/evidence recorded;
-V2-027 blocked, not approved. The [MCP contract](bif-mcp.md),
+V2-027 awaits operator signoff, not approved. The [MCP contract](bif-mcp.md),
 [evidence report](bif-v2-phase-d-evidence.md), and
 [release manifest](bif-v2-release-evidence.json) distinguish automated
-protocol tests and generated-store timings from the still-missing real host.
+protocol tests and generated-store timings from the separately recorded
+[real configured-host evidence](baselines/v2-phase-d/configured-host/host-evidence.json).
 
 #### V2-021 — Introduce a reusable local application session
 
@@ -753,7 +758,7 @@ later start operation behave explicitly.
 warm calls, 20 separate CLI captures and 20 startups per fixture. RSS/WAL are
 sampled observations, not peak bounds or sustained-contention guarantees.
 Cursor and validator restart checks passed. Source/binary hashes and raw
-samples are preserved; configured-host verification is still separate.
+samples are preserved; configured-host evidence is recorded separately.
 
 **Scope:** Exercise realistic persistent read loops, caller disconnects,
 request cancellation, concurrent CLI writes, bounded memory, and recovery
@@ -770,10 +775,16 @@ the test workload. Timing claims include the measured environment.
 
 **Depends on:** V2-019, V2-020, V2-026, V2-054, V2-055.
 
-**Status:** Blocked / not approved. CI registration, generated-store timings,
-runbook and historical schema-2 executable rehearsal exist. The required
-real configured MCP host list/get/history/restart smoke is missing; operator
-compatibility/runbook review and actual production-binary inventory remain.
+**Status:** Incomplete / awaiting operator review / not approved. CI registration,
+generated-store timings, runbook and historical schema-2 executable rehearsal
+exist. The required real configured MCP host list/get/history/restart workflows
+are [recorded](baselines/v2-phase-d/configured-host/host-evidence.json): Codex
+desktop executed 26 tool calls with 34 checks passed on candidate `b97cd89`,
+without BIF runtime/protocol changes. The
+[operator assessment](baselines/v2-phase-d/configured-host/operator-review.md)
+records technical result passed, operator decision pending; no signed approval
+exists. Actual production-binary inventory/rehearsal and separate live-store
+authorization remain required before rollout.
 There is no model-token evidence and no token-saving claim.
 
 **Scope:** Review compatibility, the read benchmark report, MCP host smoke

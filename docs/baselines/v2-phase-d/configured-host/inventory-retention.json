@@ -1,0 +1,29 @@
+{
+  "format": "bif-configured-host-inventory-retention-v1",
+  "scope": "Byte-exact retention of the four original synthetic snapshots; offline reproduction only, not a new host run or operator approval.",
+  "path_base": "Directory containing this manifest",
+  "file_sha256_algorithm": "SHA-256 of the original file bytes, including whitespace and final newline",
+  "canonical_sha256_algorithm": "SHA-256 of json.dumps(json.loads(file_bytes), sort_keys=True, separators=(',', ':'), ensure_ascii=True, allow_nan=True).encode('utf-8'); Python standard-library defaults otherwise, no trailing newline",
+  "snapshots": {
+    "before": {
+      "path": "inventory/inventory-before.json",
+      "file_sha256": "07ac11dd7245b4994d2714834ca8be12bd8a56731405ee272b97dbffb5458e3e",
+      "canonical_sha256": "4a8002998d4b6d36f77e4060962f104e7d7754fb90b3d77c5fa751545820b59d"
+    },
+    "after_reads": {
+      "path": "inventory/inventory-after-reads.json",
+      "file_sha256": "07ac11dd7245b4994d2714834ca8be12bd8a56731405ee272b97dbffb5458e3e",
+      "canonical_sha256": "4a8002998d4b6d36f77e4060962f104e7d7754fb90b3d77c5fa751545820b59d"
+    },
+    "after_restart": {
+      "path": "inventory/inventory-after-restart.json",
+      "file_sha256": "07ac11dd7245b4994d2714834ca8be12bd8a56731405ee272b97dbffb5458e3e",
+      "canonical_sha256": "4a8002998d4b6d36f77e4060962f104e7d7754fb90b3d77c5fa751545820b59d"
+    },
+    "after_fixture_write": {
+      "path": "inventory/inventory-after-fixture-write.json",
+      "file_sha256": "3a62ca03a094e8351efdee138ef4738a1bccdf8fdbd69a95662d60c27bc3dc91",
+      "canonical_sha256": "35963f3d02e0bfd8a445de88adb59ee99800f898e7d36d1cb7881c902d4475f3"
+    }
+  }
+}

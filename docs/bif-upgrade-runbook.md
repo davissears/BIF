@@ -1,8 +1,10 @@
 # BIF upgrade and rollback runbook
 
 **Status:** V2-054 operator checklist plus the Phase D indexed-read candidate
-procedure. The independent read-release gate is not approved until the required
-real configured MCP host smoke evidence is recorded. See the
+procedure. The required
+[Codex configured-host evidence](baselines/v2-phase-d/configured-host/host-evidence.json)
+is recorded; the independent read-release gate awaits explicit operator signoff.
+See the
 [release manifest](bif-v2-release-evidence.json) and
 [Phase D evidence](bif-v2-phase-d-evidence.md). Journal release procedures and
 restore-generation reset remain Phase E work.

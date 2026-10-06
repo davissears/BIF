@@ -1,0 +1,44 @@
+{
+  "read_inventory_unchanged": true,
+  "tables_compared": 12,
+  "changed_tables": [
+    "events",
+    "items",
+    "mutation_receipts",
+    "operations"
+  ],
+  "changed_item_fields": [
+    "priority",
+    "revision",
+    "updated_at"
+  ],
+  "counts_before": {
+    "events": 516,
+    "item_acceptance_criteria": 339,
+    "item_provenance": 100,
+    "items": 100,
+    "mutation_receipts": 0,
+    "operations": 516,
+    "project_path_mappings": 0,
+    "project_remote_mappings": 0,
+    "projects": 5,
+    "requester_project_counters": 13,
+    "schema_migrations": 3,
+    "store_metadata": 1
+  },
+  "counts_after": {
+    "events": 517,
+    "item_acceptance_criteria": 339,
+    "item_provenance": 100,
+    "items": 100,
+    "mutation_receipts": 1,
+    "operations": 517,
+    "project_path_mappings": 0,
+    "project_remote_mappings": 0,
+    "projects": 5,
+    "requester_project_counters": 13,
+    "schema_migrations": 3,
+    "store_metadata": 1
+  },
+  "scope": "Only the deliberate revision-checked synthetic priority change and its event/operation/receipt; all other rows and schema match."
+}
