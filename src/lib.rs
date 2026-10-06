@@ -14,10 +14,13 @@ pub mod config;
 pub mod domain;
 pub mod expose;
 pub mod limits;
+pub mod mcp;
+pub mod read_session;
 pub mod rpc;
 pub mod rpc_mutation;
 pub mod rpc_read;
 pub mod storage;
+mod strict_json;
 pub mod v2_response;
 
 #[cfg(test)]

@@ -1,0 +1,126 @@
+{
+  "kind": "real_configured_mcp_host",
+  "format_version": 1,
+  "status": "passed",
+  "host_name": "Codex desktop",
+  "host_version": "26.930.51102",
+  "host_build": "13100",
+  "mcp_client": {
+    "name": "codex-mcp-client",
+    "title": "Codex",
+    "version": "0.160.0"
+  },
+  "configuration": "[mcp_servers.bif_validation]\ncommand = \"/usr/bin/python3\"\nargs = [\"<WORKTREE>/docs/baselines/v2-phase-d/configured-host/stdio_tap.py\", \"<RUN>/launch.json\"]\nstartup_timeout_sec = 15\ntool_timeout_sec = 15\nenabled = true\n",
+  "launch": {
+    "argv": [
+      "<RUN>/bin/bif-mcp",
+      "--config",
+      "<RUN>/config.toml",
+      "--root",
+      "<RUN>",
+      "--requester",
+      "BENCH"
+    ],
+    "binary_sha256": "783768bed7c71cac1c623472384c34028ee49ba959ab4ece322ae25ca1e1da98",
+    "cwd": "<RUN>",
+    "env": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "HOME": "<RUN>/home",
+      "XDG_CONFIG_HOME": "<RUN>/xdg",
+      "APPDATA": "<RUN>/appdata",
+      "TMPDIR": "<RUN>/tmp"
+    },
+    "transcript_directory": "<RUN>/transcripts"
+  },
+  "configuration_file": "<USER_CODEX_CONFIG>/config.toml",
+  "source_revision": "b97cd89f26838b577763d5f6f30d18afc873c669",
+  "production_inputs_sha256": "50aaf5ccd6796e43f92f48466b4cac177318c3566df56d4b8a4867f04a2451ba",
+  "binary_sha256": {
+    "bif": "863139b0a60ac97088b1b7c939cf234d035c3b63bafdbca7f6a1f62f2919fcc3",
+    "bif-mcp": "783768bed7c71cac1c623472384c34028ee49ba959ab4ece322ae25ca1e1da98"
+  },
+  "launcher_sha256": "309d845bb3ebbd52761c8d301980c42f8987f3bafe3724d955f5b679baa781a6",
+  "launch_config_sha256": "4aa681b27131cabca9816c2b6740cab8abe5b15a329be6005e148b3adcaaddd0",
+  "bif_config_sha256": "5faac6fbc4370df78843e89fc2916fb51f6434e4e7203c56c5c058cd67d40be5",
+  "executed_at": "2026-10-05T03:25:32.666549+00:00",
+  "recorded_at": "2026-10-05T03:40:53.022900+00:00",
+  "recorded_at_local": "2026-10-04T20:40:53.022900-07:00",
+  "requested_protocol": "2025-06-18",
+  "negotiated_protocol": "2025-11-25",
+  "fixture": {
+    "items": 100,
+    "seed": 2003,
+    "logical_digest": "b819125481255ec7",
+    "store_kind": "disposable_synthetic",
+    "schema_version": 3
+  },
+  "workflows": {
+    "list": {
+      "status": "passed",
+      "transcript": "docs/baselines/v2-phase-d/configured-host/transcript.json",
+      "observations": "Two explicit projects, return to core, bounded distinct continuation, exact retained continuation after restart."
+    },
+    "get": {
+      "status": "passed",
+      "transcript": "docs/baselines/v2-phase-d/configured-host/transcript.json",
+      "observations": "Complete summary/work/audit projections, matching hits, cross-projection miss, unchanged hit after restart, changed-revision miss and new hit."
+    },
+    "history": {
+      "status": "passed",
+      "transcript": "docs/baselines/v2-phase-d/configured-host/transcript.json",
+      "observations": "Two bounded event pages; exact retained continuation after restart."
+    },
+    "restart": {
+      "status": "passed",
+      "transcript": "docs/baselines/v2-phase-d/configured-host/transcript.json",
+      "observations": "Application stopped PID 55242 and launched PID 58504; retained list/history cursors and validator match."
+    },
+    "discovery": {
+      "status": "passed",
+      "transcript": "docs/baselines/v2-phase-d/configured-host/transcript.json"
+    },
+    "selected_work": {
+      "status": "passed",
+      "transcript": "docs/baselines/v2-phase-d/configured-host/transcript.json",
+      "observations": "DELTA:core:004 complete work projection equals first ready/next ordering; no claim or assignment."
+    },
+    "errors": {
+      "status": "passed",
+      "transcript": "docs/baselines/v2-phase-d/configured-host/transcript.json"
+    },
+    "shutdown": {
+      "status": "passed",
+      "transcript": "docs/baselines/v2-phase-d/configured-host/transcript.json",
+      "observations": "Pre-restart application workflow session ended on application SIGTERM, exit -15, no relay errors/stderr; prior process absent. Final workflow process remains active on the disposable root."
+    }
+  },
+  "verification": {
+    "checks_passed": 34,
+    "checks_failed": 0,
+    "model_visible_calls_matched_to_raw_transport": 26,
+    "workflow_tool_calls": 26,
+    "all_discovery_sessions_retained": 24,
+    "logical_tables_unchanged_during_reads": 12,
+    "deliberate_fixture_write": "BENCH:core:026 priority P1 to P4; revision 4 to 5, one operation/event/receipt; inventory-verification.json",
+    "source_binary_config_and_recorder_unchanged": true
+  },
+  "operator_review": {
+    "status": "awaiting_operator_signoff",
+    "signoff": null,
+    "runbook": "docs/bif-upgrade-runbook.md",
+    "review": "docs/baselines/v2-phase-d/configured-host/operator-review.md",
+    "scope": "Candidate host correctness and compatibility review only; separate authorization is required for live-store maintenance."
+  },
+  "live_store_authorization": null,
+  "model_tokens": "unavailable",
+  "limitations": [
+    "Tests cover this application version, MCP client, frozen candidate and instrumented stdio launch on one synthetic fixture.",
+    "The launcher is a transparent recorder with its own hash; this is not evidence of a bare direct-binary launch.",
+    "App offered 2025-06-18; server selected 2025-11-25 and the app accepted it and executed tools.",
+    "Historical schema-2 rehearsal does not substitute for inventory/rehearsal of the operator retained production binary.",
+    "No production migration, restore, live-store mutation, model-token saving, or newer-protocol support is claimed.",
+    "Pre-restart shutdown passed; final disposable workflow server remains active.",
+    "Two CLI setup assumptions failed before any write and are retained in transcript.json; corrected fixture-write validation passed."
+  ]
+}

@@ -1,0 +1,134 @@
+{
+  "format": "bif-read-release-evidence",
+  "format_version": 1,
+  "candidate": {
+    "release": "v2.0-read",
+    "scope": "Read-only MCP and bounded CLI reads; no synchronization, mutation MCP or codec release.",
+    "schema": { "from": 2, "to": 3 }
+  },
+  "implementation": {
+    "status": "implemented",
+    "verification": "required_ci_checks",
+    "disclosure": "Registered checks verify implementation; a passing CI run is not release approval. Timing artifacts describe their recorded source snapshot, not every subsequent revision."
+  },
+  "required_checks": {
+    "deterministic": {
+      "command": "cargo test --locked",
+      "coverage": "whole_nonignored_suite",
+      "platforms": ["ubuntu-latest", "macos-latest"],
+      "sources": ["Cargo.lock", ".github/workflows/ci.yml"],
+      "registration_rule": "Add focused nonignored integration tests under tests/; the whole suite covers CLI/RPC compatibility, read/MCP behavior, migrations and durable mutations without a second test-name inventory."
+    },
+    "structural": {
+      "covered_by": "deterministic",
+      "sources": [
+        "tests/v2_bounded_reads.rs",
+        "tests/v2_index_plans.rs",
+        "tests/v2_index_evidence.rs",
+        "tests/v2_cursor_budget.rs",
+        "tests/v2_read_comparison.rs",
+        "tests/v2_response_allocations.rs"
+      ],
+      "scope": "Bounded hydration, query counts/plans, cursor budgets and serialization allocations; deterministic assertions, not absolute latency gates."
+    },
+    "manifest": {
+      "command": "cargo test --locked --test read_release_manifest",
+      "sources": ["tests/read_release_manifest.rs", "docs/bif-v2-release-evidence.json"]
+    },
+    "rehearsal": {
+      "command": "cargo test --locked --test read_release_rehearsal",
+      "sources": ["tests/read_release_rehearsal.rs", "migrations/0001_initial.sql", "migrations/0002_immutable_events.sql", "migrations/0003_projection_read_indexes.sql"]
+    },
+    "instrumentation": {
+      "command": "cargo test --locked --test benchmark_harness report_uses_snapshot_and_contains_review_evidence -- --exact",
+      "covered_by": "deterministic",
+      "sources": ["tests/benchmark_harness.rs", "src/bin/bif-benchmark-store.rs", "src/bin/bif-benchmark.rs"],
+      "scope": "Small generated 100-item fixture; provenance, raw samples, SQL counters, online snapshot and durable-write verification."
+    }
+  },
+  "ci": {
+    "fast": ".github/workflows/ci.yml",
+    "comparison": ".github/workflows/read-evidence.yml",
+    "timing_thresholds": false,
+    "private_store_required": false,
+    "comparison_sizes": [100, 10000, 100000],
+    "comparison_seed": 2003,
+    "comparison_profile": "release",
+    "comparison_policy": "Scheduled/manual measurements use only generated fixtures, reuse the ignored Phase C comparison harness and upload JSON/provenance. They do not run on ordinary PRs or auto-approve a release."
+  },
+  "timing_evidence": {
+    "phase_c": {
+      "required": true,
+      "status": "recorded",
+      "scope": "Historical Phase C production bounded-read versus preserved pre-B baseline comparison, 100/10k/100k seed 2003, 20 warm samples; not a new Phase D measurement.",
+      "report": "docs/bif-v2-phase-c-evidence.md",
+      "artifacts": [
+        "docs/baselines/v2-phase-c/read-comparison-100.json",
+        "docs/baselines/v2-phase-c/read-comparison-10000.json",
+        "docs/baselines/v2-phase-c/read-comparison-100000.json"
+      ],
+      "provenance": [
+        "docs/baselines/v2-phase-c/provenance-start.json",
+        "docs/baselines/v2-phase-c/provenance-end.json"
+      ],
+      "required_provenance_pointers": ["/source_commit", "/git_status_porcelain", "/source_sha256", "/rustc", "/cargo", "/sqlite", "/uname", "/profile", "/argv", "/unix_time_seconds"]
+    },
+    "phase_d": {
+      "required": true,
+      "status": "recorded",
+      "scope": "Persistent-process startup versus one-shot CLI; warm mixed calls, concurrent CLI writes, RSS/WAL observations and cursor/validator restart, 100/10k/100k seed 2003. Custom process instrumentation is not a configured MCP host smoke.",
+      "report": "docs/bif-v2-phase-d-evidence.md",
+      "artifacts": [
+        "docs/baselines/v2-phase-d/mcp-100.json",
+        "docs/baselines/v2-phase-d/mcp-10000.json",
+        "docs/baselines/v2-phase-d/mcp-100000.json"
+      ],
+      "provenance": [
+        "docs/baselines/v2-phase-d/mcp-100.json",
+        "docs/baselines/v2-phase-d/mcp-10000.json",
+        "docs/baselines/v2-phase-d/mcp-100000.json"
+      ],
+      "build_provenance": "docs/baselines/v2-phase-d/build-provenance.json",
+      "harness": "docs/baselines/v2-phase-d/measure.py",
+      "source_disclosure": "Measured dirty c5605ce8611ece07f0c64e7ff09cd97eec1b0407 plus the exact parent src/mcp.rs typed optional error-ID fix and final src/mcp/tools.rs live-pagination descriptions. Each artifact includes unchanged start/end production input hashes and executable hashes. These are final planned production-code measurements, not a clean final Git revision claim or a measurement of later edits.",
+      "required_provenance_pointers": ["/format", "/source_revision", "/source_dirty", "/git_status_porcelain", "/source_inputs_sha256", "/source_end/source_inputs_sha256", "/harness_sha256", "/argv", "/raw_samples", "/binary_sha256/bif", "/binary_sha256/bif-mcp", "/binary_sha256/bif-benchmark-store", "/environment/rust", "/environment/platform", "/environment/build_profile", "/environment/production_sqlite", "/fixture/seed", "/fixture/logical_digest", "/protocol_version", "/limitations"]
+    }
+  },
+  "real_configured_mcp_host": {
+    "required": true,
+    "kind": "real_configured_mcp_host",
+    "status": "recorded",
+    "required_workflows": ["list", "get", "history", "restart"],
+    "evidence": "docs/baselines/v2-phase-d/configured-host/host-evidence.json",
+    "reason": "Codex desktop 26.930.51102 (build 13100), MCP client 0.160.0, executed the configured disposable-store workflows and retained-token restart check. Sanitized application-owned traffic is recorded; operator signoff remains pending.",
+    "registration_rule": "Record a repository-relative JSON evidence path with kind=real_configured_mcp_host, host_name, host_version, sanitized configuration, source_revision, executed_at and workflows.<name>.{status=passed,transcript=<repository-relative file>}. Never include host credentials."
+  },
+  "model_tokens": {
+    "required": false,
+    "status": "unavailable",
+    "disclosure": "No model token measurements are available. Response bytes and synthetic/process workflows are not token evidence; no token-saving claim is approved."
+  },
+  "rehearsal": {
+    "runbook": "docs/bif-upgrade-runbook.md",
+    "recipe": "Unchanged SQL/checksums produce schema 2 with production capture history/idempotency. SQLite online backup to pristine root; independent candidate upgraded through production open to schema 3; rollback from pristine backup into another independent root.",
+    "source": "tests/read_release_rehearsal.rs",
+    "later_writes": "The candidate-only write is absent after rollback. Restoring a pre-upgrade backup discards later writes unless separately preserved/reconciled.",
+    "old_binary": {
+      "status": "recorded",
+      "revision": "45ed7fcc85d5e0f9b2385a4a2198269154ce832c",
+      "evidence": "docs/baselines/v2-phase-d/old-binary-rehearsal.json",
+      "build_provenance": "docs/baselines/v2-phase-d/build-provenance.json",
+      "harness": "docs/baselines/v2-phase-d/rehearse.py",
+      "scope": "Archived historical schema-2 source built in the attached worktree; real old/candidate executable CLI get/history, capture replay, revision-checked approval and write/read reopening on disposable roots. Old executable refuses upgraded schema 3; pristine backup restores schema 2 and pre-upgrade content.",
+      "gap": "45ed7fc is the historical schema-2 baseline identified by the existing runbook, not a retained operator-approved production executable. No approved-production old revision was supplied. Operators must still inventory/rehearse their actual retained binary/configuration before a live rollout."
+    },
+    "operator_only": "Inventory and stop live writers/servers; obtain explicit authorization for any real-store upgrade or replacement; verify backups and restart configured hosts. This automated rehearsal never replaces an active store or performs in-place downmigration."
+  },
+  "release_gate": {
+    "status": "awaiting_operator_review",
+    "approved": false,
+    "approval": null,
+    "blocked_by": [],
+    "policy": "Required recorded timing provenance plus a real configured host make the candidate reviewable, not automatically approved. Operator review of compatibility, evidence and the per-release runbook remains required."
+  }
+}

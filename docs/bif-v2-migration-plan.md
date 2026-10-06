@@ -1,6 +1,8 @@
 # BIF v2 migration plan
 
-**Status:** Phase C implementation and read-path comparison evidence are complete.
+**Status:** Phase D read implementation, local evidence, and real configured MCP
+host workflows are recorded; the independent read release awaits operator review
+and is not approved.
 
 V2-007 through V2-020 are implemented. The
 [Phase B evidence report](bif-v2-phase-b-evidence.md) records bounded query,
@@ -8,10 +10,23 @@ snapshot, serialization, index-selection and cost evidence with limitations.
 The [Phase C evidence report](bif-v2-phase-c-evidence.md) adds strict opaque
 cursors, live queue/history continuation, bounded compatible v1 pages, explicit
 v2 CLI reads, regression gates, and the three-scale release comparison.
-The [initial upgrade and rollback runbook](bif-upgrade-runbook.md) satisfies the
-reviewed V2-054 prerequisite before the index migration. Release-specific gates
-and operational rehearsals remain future tasks. Phase D and later work remain
-deferred.
+The [upgrade and rollback runbook](bif-upgrade-runbook.md) satisfies the
+reviewed V2-054 prerequisite and now includes the indexed-read candidate.
+V2-021 through V2-026 are implemented with local protocol/session coverage,
+three-scale release-profile startup/warm measurements and a disposable
+historical-binary upgrade/rollback rehearsal. See the
+[Phase D evidence report](bif-v2-phase-d-evidence.md) and machine-readable
+[release manifest](bif-v2-release-evidence.json). V2-027 is **not complete**:
+the required [real configured-host workflows](baselines/v2-phase-d/configured-host/host-evidence.json)
+are recorded, but [operator signoff](baselines/v2-phase-d/configured-host/operator-review.md)
+is pending. The release gate is `awaiting_operator_review`, with `approved=false`
+and `approval=null`; no real-ledger rollout is authorized.
+The historical local measurement tree is dirty `c5605ce` plus the parent protocol
+error-ID fix and live-pagination discovery descriptions;
+artifact hashes identify its actual production inputs, not a clean final
+revision. The old binary is an archived historical schema-2 build, not a
+retained operator-approved production executable. Phase E and later remain
+deferred; no model-token savings have been measured.
 V2 rejects noncanonical persisted requester/project coordinates before
 returning projection keys; v1 retains its accepted normalization and raw-filter
 behavior. Comparison evidence reports residual legacy sorting, sparse/text
@@ -634,9 +649,19 @@ misrepresented as an already-measured latency or token reduction.
 
 ### Phase D — Add persistent, request-stateless MCP reads
 
+**Delivery status:** V2-021..026 local implementation/evidence recorded;
+V2-027 awaits operator signoff, not approved. The [MCP contract](bif-mcp.md),
+[evidence report](bif-v2-phase-d-evidence.md), and
+[release manifest](bif-v2-release-evidence.json) distinguish automated
+protocol tests and generated-store timings from the separately recorded
+[real configured-host evidence](baselines/v2-phase-d/configured-host/host-evidence.json).
+
 #### V2-021 — Introduce a reusable local application session
 
 **Depends on:** V2-008, V2-014, V2-017.
+
+**Status:** Implemented; sticky identity invalidation and restart/continuation
+are covered by session and process tests. No mutable item cache is introduced.
 
 **Scope:** Reuse an open connection, prepared statements, and pinned startup
 configuration for sequential requests. Keep CLI/RPC v1 one-shot entry points.
@@ -653,6 +678,10 @@ or open transaction survives between requests.
 
 **Depends on:** V2-021.
 
+**Status:** Implemented with pinned MCP `2025-11-25`, direct serde adapter and
+bounded queues. Process tests cover framing, lifecycle, cancellation,
+disconnect and backpressure; these are not configured-host approval.
+
 **Scope:** Select and record an MCP protocol/SDK version compatible with the
 pinned Rust toolchain. Add a separate entry point, initialization, tool
 discovery, bounded messages, stderr diagnostics, cancellation, and shutdown.
@@ -668,6 +697,10 @@ cancellation, stdout cleanliness, and a slow reader without a long DB snapshot.
 
 **Depends on:** V2-018, V2-022.
 
+**Status:** Implemented; four read tools, explicit projects, strict arguments,
+CLI/core parity tests. Recorded input schemas total 2,057 compact UTF-8 bytes;
+complete discovery frame is 3,103 bytes.
+
 **Scope:** Map list/get/history to the same authorized core operations with
 explicit project scope, named projections, and opaque cursors. Keep compact
 JSON as the only initial codec and avoid exposing internal helper operations
@@ -682,6 +715,10 @@ cursor reuse, and untrusted execution metadata. Record actual schema size.
 #### V2-024 — Add conditional single-item reads
 
 **Depends on:** V2-013, V2-018, V2-023.
+
+**Status:** Implemented and tested. Both transports expose explicit conditional
+reads; retained work validators hit across ordinary process restart.
+Generation binding remains deferred to Phase E.
 
 **Scope:** Return and accept an opaque known-version validator bound to store,
 item, projection/schema version, and revision, plus generation once supported.
@@ -699,6 +736,9 @@ projection/version cases are covered in both adapters and query counts.
 
 **Depends on:** V2-011, V2-018, V2-023.
 
+**Status:** Implemented and tested; selection returns complete work in one
+read, without assignment/claim or changing later optimistic concurrency.
+
 **Scope:** Expose one named operation selecting the next ready work projection
 under existing queue policy. It is a read, not an assignment or claim, and
 does not add a generic workflow query language.
@@ -714,6 +754,12 @@ later start operation behave explicitly.
 
 **Depends on:** V2-020, V2-024, V2-025.
 
+**Status:** Local evidence recorded at 100/10k/100k seed 2003: 1,000 mixed
+warm calls, 20 separate CLI captures and 20 startups per fixture. RSS/WAL are
+sampled observations, not peak bounds or sustained-contention guarantees.
+Cursor and validator restart checks passed. Source/binary hashes and raw
+samples are preserved; configured-host evidence is recorded separately.
+
 **Scope:** Exercise realistic persistent read loops, caller disconnects,
 request cancellation, concurrent CLI writes, bounded memory, and recovery
 after server restart. Benchmark startup versus warm requests separately.
@@ -728,6 +774,18 @@ the test workload. Timing claims include the measured environment.
 #### V2-027 — Gate the independent read release
 
 **Depends on:** V2-019, V2-020, V2-026, V2-054, V2-055.
+
+**Status:** Incomplete / awaiting operator review / not approved. CI registration,
+generated-store timings, runbook and historical schema-2 executable rehearsal
+exist. The required real configured MCP host list/get/history/restart workflows
+are [recorded](baselines/v2-phase-d/configured-host/host-evidence.json): Codex
+desktop executed 26 tool calls with 34 checks passed on candidate `b97cd89`,
+without BIF runtime/protocol changes. The
+[operator assessment](baselines/v2-phase-d/configured-host/operator-review.md)
+records technical result passed, operator decision pending; no signed approval
+exists. Actual production-binary inventory/rehearsal and separate live-store
+authorization remain required before rollout.
+There is no model-token evidence and no token-saving claim.
 
 **Scope:** Review compatibility, the read benchmark report, MCP host smoke
 tests, and the per-release upgrade/rollback instructions from V2-054. Finalize

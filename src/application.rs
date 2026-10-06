@@ -10,11 +10,13 @@ use crate::domain::{
     ProjectId, Provenance, RequesterId, Revision, Timestamp,
 };
 
+mod conditional_reads;
 mod cursors;
 mod projections;
 pub mod read_semantics;
 mod reads;
 
+pub use conditional_reads::*;
 pub use cursors::{
     CursorContext, CursorEncodeError, DecodedCursor, InvalidCursor, InvalidCursorReason,
     MAX_CURSOR_BYTES,

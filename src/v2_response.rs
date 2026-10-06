@@ -59,6 +59,7 @@ pub enum ReadErrorCode {
     UnsupportedVersion,
     NotInitialized,
     StorageBusy,
+    RestartRequired,
     InvalidCursor,
     PayloadTooLarge,
     Internal,
@@ -92,6 +93,9 @@ pub enum ReadError {
     UnsupportedVersion,
     NotInitialized,
     StorageBusy,
+    RestartRequired {
+        reason: String,
+    },
     InvalidCursor {
         reason: String,
         restart_required: bool,
@@ -109,6 +113,7 @@ impl ReadError {
             Self::UnsupportedVersion => ReadErrorCode::UnsupportedVersion,
             Self::NotInitialized => ReadErrorCode::NotInitialized,
             Self::StorageBusy => ReadErrorCode::StorageBusy,
+            Self::RestartRequired { .. } => ReadErrorCode::RestartRequired,
             Self::InvalidCursor { .. } => ReadErrorCode::InvalidCursor,
             Self::PayloadTooLarge(_) => ReadErrorCode::PayloadTooLarge,
             Self::Internal => ReadErrorCode::Internal,
@@ -123,6 +128,7 @@ impl ReadError {
             Self::UnsupportedVersion => "The API version is not supported",
             Self::NotInitialized => "The store is not initialized",
             Self::StorageBusy => "The store is busy",
+            Self::RestartRequired { .. } => "The read session must be restarted",
             Self::InvalidCursor { .. } => "The continuation cursor is invalid",
             Self::PayloadTooLarge(details) => match details.record_kind {
                 RecordKind::Item => "A complete item exceeds the maximum response size",
@@ -154,6 +160,15 @@ impl Serialize for ReadError {
         object.serialize_field("code", &self.code())?;
         object.serialize_field("message", self.message())?;
         match self {
+            Self::RestartRequired { reason } => {
+                object.serialize_field(
+                    "details",
+                    &CursorDetails {
+                        reason,
+                        restart_required: true,
+                    },
+                )?;
+            }
             Self::InvalidCursor {
                 reason,
                 restart_required,
@@ -265,6 +280,81 @@ pub fn write_get<W: Write>(
         ));
     }
     emit(output, &envelope, bytes, 1)
+}
+
+#[derive(Serialize)]
+struct ConditionalGet<'a> {
+    outcome: &'static str,
+    version: &'a str,
+    item: Option<ProjectionWire<'a>>,
+}
+
+/// Budget the entire conditional envelope, retaining complete replacement items.
+pub fn write_conditional_get<W: Write>(
+    output: &mut W,
+    result: &crate::application::ConditionalReadOutcome,
+    budget: ResponseBudget,
+) -> Result<ResponseStats, EncodeError> {
+    use crate::application::ConditionalReadOutcome;
+    let (outcome, version, item) = match result {
+        ConditionalReadOutcome::Modified { version, item } => ("modified", version, Some(item)),
+        ConditionalReadOutcome::NotModified { version } => ("not_modified", version, None),
+    };
+    let envelope = success(ConditionalGet {
+        outcome,
+        version,
+        item: item.map(ProjectionWire),
+    });
+    write_optional_item(output, &envelope, item, budget)
+}
+
+#[derive(Serialize)]
+struct SelectedWork<'a> {
+    outcome: &'static str,
+    item: Option<ProjectionWire<'a>>,
+}
+
+/// A selected result contains complete work; empty is a typed, nullable outcome.
+pub fn write_selected_work<W: Write>(
+    output: &mut W,
+    result: &crate::application::SelectedWorkOutcome,
+    budget: ResponseBudget,
+) -> Result<ResponseStats, EncodeError> {
+    use crate::application::SelectedWorkOutcome;
+    let item = match result {
+        SelectedWorkOutcome::Selected(item @ ItemProjection::Work(_)) => Some(item),
+        SelectedWorkOutcome::Selected(_) => return Err(EncodeError::Read(ReadError::Internal)),
+        SelectedWorkOutcome::Empty => None,
+    };
+    let envelope = success(SelectedWork {
+        outcome: if item.is_some() { "selected" } else { "empty" },
+        item: item.map(ProjectionWire),
+    });
+    write_optional_item(output, &envelope, item, budget)
+}
+
+fn write_optional_item<W: Write, T: Serialize>(
+    output: &mut W,
+    envelope: &T,
+    item: Option<&ItemProjection>,
+    budget: ResponseBudget,
+) -> Result<ResponseStats, EncodeError> {
+    let bytes = encoded_len(envelope)?;
+    if bytes > budget.0 {
+        return Err(match item {
+            Some(item) => oversized(
+                RecordKind::Item,
+                projection_id(item).to_string(),
+                budget,
+                bytes,
+            ),
+            None => EncodeError::EnvelopeTooLarge {
+                maximum_response_bytes: budget.0,
+                minimum_required_bytes: bytes,
+            },
+        });
+    }
+    emit(output, envelope, bytes, usize::from(item.is_some()))
 }
 
 /// Write a list/next page in storage order without exposing internal sort keys.

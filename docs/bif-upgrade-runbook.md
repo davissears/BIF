@@ -1,9 +1,13 @@
 # BIF upgrade and rollback runbook
 
-**Status:** Initial V2-054 operator checklist. Backup and integrity procedures
-below were rehearsed on a generated v1 store; release-specific upgrade and
-rollback rehearsals remain deferred: V2-027 owns the indexed-read release,
-V2-035 owns the journal release, and V2-033 implements restore-generation reset.
+**Status:** V2-054 operator checklist plus the Phase D indexed-read candidate
+procedure. The required
+[Codex configured-host evidence](baselines/v2-phase-d/configured-host/host-evidence.json)
+is recorded; the independent read-release gate awaits explicit operator signoff.
+See the
+[release manifest](bif-v2-release-evidence.json) and
+[Phase D evidence](bif-v2-phase-d-evidence.md). Journal release procedures and
+restore-generation reset remain Phase E work.
 
 ## Compatibility and maintenance window
 
@@ -26,10 +30,10 @@ versions/checksums, and a maintenance owner. Retain the old binary and config.
 The configured database is `ROOT/.bif/bif.sqlite`, not the repository itself.
 
 Stop writers and prevent launchers from restarting them. Pause readers too
-before schema migration or restore. Future persistent MCP servers must be
-stopped and restarted: configuration and schema resources are pinned for the
-process lifetime. There is no MCP server or BIF-specific backup/restore command
-in the initial release; do not invent one in a launch checklist.
+before schema migration or restore. Persistent `bif-mcp` servers must be stopped
+and restarted: configuration and schema resources are pinned for the process
+lifetime. There is still no BIF-specific backup/restore command; use the
+SQLite-consistent procedure below, not an invented CLI operation.
 
 ## SQLite-consistent backup: existing executable procedure
 
@@ -144,13 +148,63 @@ encryption, and access-control policy before approving a real upgrade.
 6. Update every launcher to the chosen binary, restart services, and confirm
    there are no old processes. Resume normal work only after verification.
 
-V2-027 finalizes the indexed-read release runbook and rehearses its schema
-upgrade and rollback. V2-035 extends the checklist with journal-release
-procedures and rehearses migration, backup, and restore. V2-033 implements the
-restore-generation reset used by that later restore workflow. All these
-release-specific rehearsals remain deferred; this initial checklist verifies
-only the backup procedure. Index-only Phase B migrations still need this
-checklist and migration tests, but do not claim those later features exist.
+The Phase D candidate procedure below supplements this checklist for the
+indexed-read release. V2-035 will add journal-release procedures, and V2-033
+will implement restore-generation reset. Those later features do not exist in
+the read candidate and must not appear as executable restore instructions.
+
+## Phase D indexed-read candidate
+
+This candidate supports schema migrations 1, 2 and 3. Migration 3 adds projection
+read indexes only; Phase D adds no further migration and no change journal.
+Wire-compatible v1 reads/writes remain available in the candidate, but an old
+schema-2 binary is not promised access to the upgraded schema-3 database.
+
+Required pre-release checks are registered in
+`docs/bif-v2-release-evidence.json`. Run:
+
+```sh
+cargo fmt --all --check
+cargo clippy --locked --all-targets
+cargo test --locked
+cargo test --locked --test read_release_rehearsal
+cargo test --locked --test read_release_manifest
+```
+
+The automated rehearsal uses only new disposable roots: construct populated
+schema 2, online-backup a pristine copy, upgrade a separate candidate with the
+production factory, verify integrity/foreign keys/store identity/durable state,
+write only to the candidate, and restore a separate rollback root from the
+pristine backup. It never down-migrates or replaces an active database.
+Library verification of schema-2 restored content is **not** evidence that an
+archived old binary has reopened it; the manifest records that distinction.
+The [recorded executable rehearsal](baselines/v2-phase-d/old-binary-rehearsal.json)
+now supplements that test with a historical schema-2 build from `45ed7fc`.
+It is not the operator's retained approved production binary; that live-rollout
+inventory/rehearsal and authorization remain operator responsibilities.
+
+For an actual candidate, also retain the operator's archived old executable and
+verify `get`, `history`, capture/replay and a revision-checked mutation against
+disposable upgraded/restored roots with their appropriate binaries. Preserve
+the exact executable hashes, source revisions, configuration and inventories.
+Do not run these write probes against the real store without separate approval.
+
+Before approving V2-027, configure a real MCP host with the candidate executable
+and an explicit disposable-store configuration. Record:
+
+1. Host name/version, supported negotiated MCP protocol (`2025-11-25`), launch
+   command and configuration path, candidate executable hash and source.
+2. `bif_list` for two explicitly named projects, `bif_get` for each projection,
+   conditional hit and changed-item miss, and paginated `bif_history`.
+3. A valid page cursor and version validator retained by the host/client,
+   followed by server restart and matching continuation/refresh.
+4. Clean protocol stdout, server shutdown/disconnect and correct host error
+   display. Confirm the host exposes no BIF mutation tool.
+5. The evidence artifact path and reviewer approval in the release manifest.
+
+Protocol subprocess tests and the benchmark client are **not** substitutes for
+this host workflow. Missing model-token evidence is disclosed but does not
+block correctness; missing required configured-host evidence does block release.
 
 ## Rollback is recovery, not transparent undo
 
@@ -167,9 +221,11 @@ an active database or leave stale WAL/SHM files beside a replacement. Keep both
 stores and inventories until the operator approves their disposition.
 
 After restore, verify metadata, integrity, full reads and history using the old
-binary against the restored root. Rebuild future mirrors and invalidate their
-cursors according to the release's generation-aware procedure; store-ID-only
-binding is not a promise of restore detection.
+binary against the restored root. For this read candidate, restart all MCP
+servers and invalidate retained validators/cursors unconditionally. File/store
+identity checks catch many warm-handle changes, but store-ID/revision-only tokens
+are not a promise of restore detection. Future journal releases must also rebuild
+mirrors according to their generation-aware procedure.
 
 ## Disposable v1 rehearsal evidence
 
