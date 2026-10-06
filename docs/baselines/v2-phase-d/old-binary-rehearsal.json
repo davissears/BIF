@@ -94,7 +94,8 @@
   "environment": {
     "rust": "rustc 1.94.0 (4a4ef493e 2026-03-02)",
     "cargo": "cargo 1.94.0 (85eff7c80 2026-01-15)",
-    "platform": "Darwin Daviss-Mac-mini.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:02:57 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8132 arm64",
+    "platform": "Darwin <HOST> 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:02:57 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8132 arm64",
+    "platform_redaction": "Personal hostname replaced with <HOST>; platform is not byte-exact historical metadata. All other platform details are unchanged.",
     "build_profile": "release",
     "cpu": "Apple M4",
     "memory_bytes": 17179869184,
