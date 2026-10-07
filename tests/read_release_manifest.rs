@@ -27,7 +27,64 @@ fn read(value: &Value) -> Value {
     serde_json::from_slice(&fs::read(value.as_str().unwrap()).unwrap()).unwrap()
 }
 
-/// This validates evidence completeness, not approval or machine timing budgets.
+/// Checks a recorded human decision's scope and candidate binding, not its authenticity.
+fn validate_operator_signoff(signoff: &Value, value: &Value) {
+    assert_eq!(signoff["format"], "bif-read-candidate-operator-signoff");
+    assert_eq!(signoff["format_version"], 1);
+    assert_eq!(signoff["decision"], "approved");
+    assert_eq!(signoff["scope"], "candidate_validation_and_compatibility");
+    assert_eq!(signoff["operator"]["kind"], "human");
+    assert_eq!(
+        signoff["authorization"]["source"],
+        "human_user_message_in_this_task"
+    );
+    for field in [
+        &signoff["operator"]["name"],
+        &signoff["authorization"]["message"],
+        &signoff["decision_date"],
+        &signoff["decision_timezone"],
+        &signoff["recorded_at"],
+        &signoff["reviewed_revision"],
+    ] {
+        assert!(!field.as_str().unwrap().is_empty());
+    }
+    assert!(signoff["live_store_authorization"].is_null());
+    assert!(!strings(&signoff["restrictions"]).is_empty());
+
+    let reviewed = &signoff["reviewed_artifacts"];
+    for artifact in reviewed.as_object().unwrap().values() {
+        path(&artifact["path"]);
+        let hash = artifact["sha256"].as_str().unwrap();
+        assert_eq!(hash.len(), 64);
+        assert!(hash.bytes().all(|byte| byte.is_ascii_hexdigit()));
+    }
+    assert_eq!(
+        reviewed["host_evidence"]["path"],
+        value["real_configured_mcp_host"]["evidence"]
+    );
+    assert_eq!(
+        reviewed["runbook"]["original_path"],
+        value["rehearsal"]["runbook"]
+    );
+    let host = read(&reviewed["host_evidence"]["path"]);
+    assert_eq!(
+        reviewed["operator_review"]["path"],
+        host["operator_review"]["review"]
+    );
+    assert_eq!(
+        signoff["candidate"]["release"],
+        value["candidate"]["release"]
+    );
+    for key in [
+        "source_revision",
+        "binary_sha256",
+        "production_inputs_sha256",
+    ] {
+        assert_eq!(signoff["candidate"][key], host[key], "{key}");
+    }
+}
+
+/// Validates evidence and recorded decisions; CI does not supply operator approval.
 fn validate(value: &Value) {
     assert_eq!(value["format"], "bif-read-release-evidence");
     assert_eq!(value["format_version"], 1);
@@ -258,16 +315,82 @@ fn validate(value: &Value) {
         assert_eq!(value["release_gate"]["approved"], false);
         assert!(value["release_gate"]["approval"].is_null());
     } else {
-        // Evidence can make a candidate reviewable, but never auto-approve it.
-        assert_eq!(value["release_gate"]["status"], "awaiting_operator_review");
-        assert_eq!(value["release_gate"]["approved"], false);
-        assert!(value["release_gate"]["approval"].is_null());
+        // Complete evidence permits review; approval also requires a separate decision.
+        match value["release_gate"]["status"].as_str().unwrap() {
+            "awaiting_operator_review" => {
+                assert_eq!(value["release_gate"]["approved"], false);
+                assert!(value["release_gate"]["approval"].is_null());
+            }
+            "approved" => {
+                assert_eq!(value["release_gate"]["approved"], true);
+                validate_operator_signoff(&read(&value["release_gate"]["approval"]), value);
+            }
+            status => panic!("unsupported release gate status {status}"),
+        }
     }
 }
 
 #[test]
 fn release_manifest_registers_checks_and_truthful_evidence_gate() {
     validate(&manifest());
+}
+
+#[test]
+fn explicit_operator_signoff_can_complete_the_candidate_gate() {
+    let mut value = manifest();
+    value["release_gate"]["status"] = json!("approved");
+    value["release_gate"]["approved"] = json!(true);
+    value["release_gate"]["approval"] =
+        json!("docs/baselines/v2-phase-d/configured-host/operator-signoff.json");
+    validate(&value);
+}
+
+#[test]
+fn complete_evidence_without_operator_signoff_remains_reviewable() {
+    let mut value = manifest();
+    value["release_gate"]["status"] = json!("awaiting_operator_review");
+    value["release_gate"]["approved"] = json!(false);
+    value["release_gate"]["approval"] = Value::Null;
+    validate(&value);
+}
+
+#[test]
+fn approval_cannot_be_inferred_from_complete_evidence() {
+    let mut value = manifest();
+    value["release_gate"]["status"] = json!("approved");
+    value["release_gate"]["approved"] = json!(true);
+    value["release_gate"]["approval"] = Value::Null;
+    assert!(std::panic::catch_unwind(|| validate(&value)).is_err());
+}
+
+#[test]
+fn operator_signoff_must_bind_the_candidate_and_exclude_live_maintenance() {
+    let value = manifest();
+    let signoff = read(&json!(
+        "docs/baselines/v2-phase-d/configured-host/operator-signoff.json"
+    ));
+    for (pointer, replacement) in [
+        ("/operator/name", json!("")),
+        ("/operator/kind", json!("automation")),
+        ("/authorization/source", json!("green_ci")),
+        ("/authorization/message", json!("")),
+        ("/decision", json!("pending")),
+        ("/scope", json!("live_store_maintenance")),
+        ("/candidate/source_revision", json!("another-candidate")),
+        ("/candidate/binary_sha256/bif-mcp", json!("0".repeat(64))),
+        ("/candidate/production_inputs_sha256", json!("0".repeat(64))),
+        ("/reviewed_artifacts/host_evidence/path", Value::Null),
+        ("/reviewed_artifacts/runbook/original_path", Value::Null),
+        ("/reviewed_artifacts/runbook/sha256", Value::Null),
+        ("/live_store_authorization", json!(true)),
+    ] {
+        let mut altered = signoff.clone();
+        *altered.pointer_mut(pointer).unwrap() = replacement;
+        assert!(
+            std::panic::catch_unwind(|| validate_operator_signoff(&altered, &value)).is_err(),
+            "{pointer}"
+        );
+    }
 }
 
 #[test]

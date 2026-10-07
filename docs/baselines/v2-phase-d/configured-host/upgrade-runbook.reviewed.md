@@ -3,11 +3,7 @@
 **Status:** V2-054 operator checklist plus the Phase D indexed-read candidate
 procedure. The required
 [Codex configured-host evidence](baselines/v2-phase-d/configured-host/host-evidence.json)
-is recorded; the
-[operator signoff](baselines/v2-phase-d/configured-host/operator-signoff.json)
-approves candidate validation and compatibility review. Live-store maintenance
-requires separate authorization. The signoff retains the exact reviewed runbook
-as a separate snapshot; this status update changes no maintenance procedure.
+is recorded; the independent read-release gate awaits explicit operator signoff.
 See the
 [release manifest](bif-v2-release-evidence.json) and
 [Phase D evidence](bif-v2-phase-d-evidence.md). Journal release procedures and

@@ -1,12 +1,14 @@
 # Phase D read-release evidence
 
-**Decision: configured-host evidence recorded; release NOT approved.**
+**Decision: candidate validation and compatibility review approved by the operator.**
 V2-021..026 have implementation, local tests and generated-store measurements.
 V2-027 now has [Codex desktop host evidence](baselines/v2-phase-d/configured-host/host-evidence.json)
 for discovery, list/get/history/selected-work and retained-token restart.
-The [release manifest](bif-v2-release-evidence.json) awaits explicit operator
-review. Protocol subprocess tests, the custom benchmark client and green CI
-remain separate from that application-owned transcript.
+The [release manifest](bif-v2-release-evidence.json) records the
+[explicit signoff](baselines/v2-phase-d/configured-host/operator-signoff.json)
+from Davis on 2026-10-07. Live-store maintenance requires separate authorization.
+Protocol subprocess tests, the custom benchmark client and green CI remain
+separate from that application-owned transcript and human decision.
 
 No model-token evidence is available; no token-saving claim is made.
 Synchronization, mutation MCP, persisted generation, codecs and live-store
@@ -266,12 +268,13 @@ change demonstrated the old-validator miss. The transparent recording launcher,
 24 discovery/session captures, setup errors, and active final disposable server
 are disclosed in the [transcript](baselines/v2-phase-d/configured-host/transcript.json).
 
-**Still required before release:** explicit operator review of compatibility,
-measurements, host evidence and the
-[candidate runbook](bif-upgrade-runbook.md#phase-d-indexed-read-candidate).
-The [operator review](baselines/v2-phase-d/configured-host/operator-review.md)
-identifies the exact candidate and approval scope. Successful host checks make
-the candidate reviewable; they do not auto-approve release or live maintenance.
+**Operator review approved:** the
+[signoff](baselines/v2-phase-d/configured-host/operator-signoff.json) accepts
+candidate validation and the compatibility/runbook review, binding the exact
+candidate and reviewed artifact hashes. The original
+[operator assessment](baselines/v2-phase-d/configured-host/operator-review.md)
+and host report remain historical snapshots from before that decision.
+Successful host checks do not auto-approve a candidate or live maintenance.
 
 For an actual store, separately inventory/rehearse the retained production old
 binary and launch config, stop all readers/writers, verify a SQLite-consistent

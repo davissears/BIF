@@ -1,8 +1,8 @@
 # BIF v2 migration plan
 
 **Status:** Phase D read implementation, local evidence, and real configured MCP
-host workflows are recorded; the independent read release awaits operator review
-and is not approved.
+host workflows are recorded; the operator has approved candidate validation and
+compatibility review. Live-store maintenance requires separate authorization.
 
 V2-007 through V2-020 are implemented. The
 [Phase B evidence report](bif-v2-phase-b-evidence.md) records bounded query,
@@ -16,11 +16,12 @@ V2-021 through V2-026 are implemented with local protocol/session coverage,
 three-scale release-profile startup/warm measurements and a disposable
 historical-binary upgrade/rollback rehearsal. See the
 [Phase D evidence report](bif-v2-phase-d-evidence.md) and machine-readable
-[release manifest](bif-v2-release-evidence.json). V2-027 is **not complete**:
+[release manifest](bif-v2-release-evidence.json). V2-027's candidate gate is **complete**:
 the required [real configured-host workflows](baselines/v2-phase-d/configured-host/host-evidence.json)
-are recorded, but [operator signoff](baselines/v2-phase-d/configured-host/operator-review.md)
-is pending. The release gate is `awaiting_operator_review`, with `approved=false`
-and `approval=null`; no real-ledger rollout is authorized.
+are recorded, and [operator signoff](baselines/v2-phase-d/configured-host/operator-signoff.json)
+accepts candidate validation and compatibility review. The release gate is
+`approved`, with `approved=true` and `approval` referencing the decision;
+real-ledger rollout still requires separate authorization.
 The historical local measurement tree is dirty `c5605ce` plus the parent protocol
 error-ID fix and live-pagination discovery descriptions;
 artifact hashes identify its actual production inputs, not a clean final
@@ -650,7 +651,7 @@ misrepresented as an already-measured latency or token reduction.
 ### Phase D — Add persistent, request-stateless MCP reads
 
 **Delivery status:** V2-021..026 local implementation/evidence recorded;
-V2-027 awaits operator signoff, not approved. The [MCP contract](bif-mcp.md),
+V2-027's candidate gate is approved by the operator. The [MCP contract](bif-mcp.md),
 [evidence report](bif-v2-phase-d-evidence.md), and
 [release manifest](bif-v2-release-evidence.json) distinguish automated
 protocol tests and generated-store timings from the separately recorded
@@ -775,15 +776,17 @@ the test workload. Timing claims include the measured environment.
 
 **Depends on:** V2-019, V2-020, V2-026, V2-054, V2-055.
 
-**Status:** Incomplete / awaiting operator review / not approved. CI registration,
+**Status:** Complete for candidate validation and compatibility review. CI registration,
 generated-store timings, runbook and historical schema-2 executable rehearsal
 exist. The required real configured MCP host list/get/history/restart workflows
 are [recorded](baselines/v2-phase-d/configured-host/host-evidence.json): Codex
 desktop executed 26 tool calls with 34 checks passed on candidate `b97cd89`,
 without BIF runtime/protocol changes. The
 [operator assessment](baselines/v2-phase-d/configured-host/operator-review.md)
-records technical result passed, operator decision pending; no signed approval
-exists. Actual production-binary inventory/rehearsal and separate live-store
+preserves the earlier pending decision. The subsequent
+[operator signoff](baselines/v2-phase-d/configured-host/operator-signoff.json)
+records Davis's explicit approval on 2026-10-07 for the exact candidate and
+reviewed artifact hashes. Actual production-binary inventory/rehearsal and separate live-store
 authorization remain required before rollout.
 There is no model-token evidence and no token-saving claim.
 

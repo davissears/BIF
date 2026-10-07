@@ -220,6 +220,7 @@ The [Phase D evidence report](bif-v2-phase-d-evidence.md) and
 The [Codex configured-host evidence](baselines/v2-phase-d/configured-host/host-evidence.json)
 records the actual application version, launch configuration and
 list/get/history/selected-work/restart workflows on a disposable store.
-The independent read-release gate awaits operator signoff; live-store maintenance
+The [operator signoff](baselines/v2-phase-d/configured-host/operator-signoff.json)
+approves candidate validation and compatibility review; live-store maintenance
 requires separate authorization. No model-token reduction is claimed without
 model evidence.

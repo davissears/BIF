@@ -1,13 +1,16 @@
 # Configured Codex host validation
 
-**Status: configured-host validation passed; operator signoff pending.**
+**Status: configured-host validation passed; operator signoff approved.**
 [host-evidence.json](host-evidence.json) records 34 passing checks and 26 actual
 tool calls through Codex's configured connection. The
 [transcript](transcript.json) retains model-visible results, the exact retained
 tokens, all 24 application-owned session captures, and setup failures.
-The release manifest now awaits operator review, with no release approval or
-live-store authorization. Review [operator-review.md](operator-review.md)
-together with the upgrade runbook.
+The [operator signoff](operator-signoff.json) records Davis's explicit approval
+on 2026-10-07 for candidate validation and compatibility review. The release
+manifest records that decision; live-store maintenance requires separate
+authorization. [operator-review.md](operator-review.md) and the host report
+preserve their earlier pending status as historical snapshots. The signoff
+binds their hashes and the byte-preserved [reviewed runbook](upgrade-runbook.reviewed.md).
 
 The application reports **Codex desktop 26.930.51102, build 13100** through its
 read-only update-status tool. The separately installed CLI reports 0.160.0;
@@ -164,8 +167,11 @@ artifact with `kind=real_configured_mcp_host`, actual host name/version,
 sanitized configuration, negotiated protocol, source revision, binary hash,
 execution timestamp, and per-workflow status/transcript paths. Register that
 artifact in `docs/bif-v2-release-evidence.json` according to its existing rule.
-Change the release gate to `awaiting_operator_review`, with `approved=false`
-and `approval=null`; successful correctness evidence is not operator approval.
+Before an operator decision, the release gate is `awaiting_operator_review`,
+with `approved=false` and `approval=null`; successful correctness evidence is
+not operator approval. It is now `approved`, with the separate human decision
+referenced by `approval`. The manifest check requires that record and verifies
+its candidate binding and scope; CI cannot supply the decision.
 
 Review the artifact together with
 [the Phase D upgrade runbook](../../../bif-upgrade-runbook.md#phase-d-indexed-read-candidate).
@@ -184,6 +190,12 @@ and compatibility review. It grants no permission to open, upgrade, replace, or
 mutate a live store; live maintenance needs separate authorization naming the
 binary, store root, schema, verified backup, and maintenance window.
 
+[operator-signoff.json](operator-signoff.json) records the supplied approval,
+its exact wording, date and recording time. It binds the observed candidate
+and the original reviewed artifact hashes. The runbook snapshot retains the
+reviewed bytes while the current runbook's status header reflects this later
+decision. No new configured-host run or production maintenance is claimed.
+
 ## Preparation verification
 
 `python3 docs/baselines/v2-phase-d/configured-host/test_stdio_tap.py` passed
@@ -192,10 +204,11 @@ a changed executable, and child cleanup on host termination. Tests were written
 first and initially failed because the recorder did not exist. They never used
 BIF or an MCP client and do not count as configured-host evidence.
 
-`cargo test --locked --test read_release_manifest` passed all three tests. The
-manifest registration now truthfully points at application evidence, without
-approval. The release build and these generic checks are separate from the
-application-owned workflow results.
+The original `cargo test --locked --test read_release_manifest` run passed
+three tests before signoff. The subsequent operator-signoff change adds focused
+coverage for an explicit decision, evidence without a decision, missing approval,
+candidate mismatch and unauthorized live-maintenance scope. These checks are
+separate from the application-owned workflow results and operator decision.
 
 The initial Python SQLite read-only inventory open failed on the disposable
 WAL database. Opening the existing database with `mode=rw` allowed sidecar
