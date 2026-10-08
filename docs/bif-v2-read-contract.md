@@ -10,11 +10,13 @@ Phase D adds explicit conditional/selected-work reads and the separate
 [evidence report](bif-v2-phase-d-evidence.md) records local measurements and
 historical-binary rehearsal. Required
 [real configured-host workflows](baselines/v2-phase-d/configured-host/host-evidence.json)
-are also recorded, with technical result passed;
-[operator signoff](baselines/v2-phase-d/configured-host/operator-review.md) remains
-pending. The [release manifest](bif-v2-release-evidence.json) is
-`awaiting_operator_review`, with `approved=false` and `approval=null`.
-V2-027 remains incomplete; no real-ledger rollout is authorized.
+are also recorded, with technical result passed. The
+[operator signoff](baselines/v2-phase-d/configured-host/operator-signoff.json)
+approves candidate validation and compatibility review. The
+[release manifest](bif-v2-release-evidence.json) is `approved`, with `approved=true`
+and `approval` referencing that explicit decision. V2-027's candidate gate is
+complete; real-ledger rollout requires separate authorization and maintenance
+prerequisites.
 
 This document freezes BIF v1 compatibility and the first BIF v2 read contract.
 Its machine-readable companion is

@@ -1,0 +1,51 @@
+{
+  "format": "bif-read-candidate-operator-signoff",
+  "format_version": 1,
+  "decision": "approved",
+  "scope": "candidate_validation_and_compatibility",
+  "operator": {
+    "name": "Davis",
+    "kind": "human"
+  },
+  "decision_date": "2026-10-07",
+  "decision_timezone": "America/Los_Angeles",
+  "recorded_at": "2026-10-07T23:40:56.923113+00:00",
+  "authorization": {
+    "source": "human_user_message_in_this_task",
+    "message": "Operator review, approved. Commit to existing PR.",
+    "interpretation": "Explicit acceptance of the configured-host candidate validation and upgrade-runbook compatibility review requested in operator-review.md."
+  },
+  "candidate": {
+    "release": "v2.0-read",
+    "source_revision": "b97cd89f26838b577763d5f6f30d18afc873c669",
+    "binary_sha256": {
+      "bif": "863139b0a60ac97088b1b7c939cf234d035c3b63bafdbca7f6a1f62f2919fcc3",
+      "bif-mcp": "783768bed7c71cac1c623472384c34028ee49ba959ab4ece322ae25ca1e1da98"
+    },
+    "production_inputs_sha256": "50aaf5ccd6796e43f92f48466b4cac177318c3566df56d4b8a4867f04a2451ba"
+  },
+  "reviewed_revision": "9fe40819f7e6847b5efc9c448b2fcc2e5f10197f",
+  "reviewed_artifacts": {
+    "host_evidence": {
+      "path": "docs/baselines/v2-phase-d/configured-host/host-evidence.json",
+      "sha256": "cef2fcdcff7f7eb4002f948513693f2f7215b2115050c499dad9d5f624c13d60"
+    },
+    "runbook": {
+      "path": "docs/baselines/v2-phase-d/configured-host/upgrade-runbook.reviewed.md",
+      "sha256": "518853704b5236f7f198bffaa33d4d1fb5268434c33c271c0967d925ea52df3e",
+      "original_path": "docs/bif-upgrade-runbook.md"
+    },
+    "operator_review": {
+      "path": "docs/baselines/v2-phase-d/configured-host/operator-review.md",
+      "sha256": "805e10c999bcf6c2b137b5697d5443c999cf5be817849b040fe634204d0c1df2"
+    }
+  },
+  "live_store_authorization": null,
+  "restrictions": [
+    "This decision accepts candidate evidence and compatibility review only. It authorizes no live-store opening, migration, restore, replacement or mutation.",
+    "Before rollout, inventory and rehearse the actual retained production binary/configuration, verify a SQLite-consistent backup, stop all readers/writers and MCP servers, and obtain separate authorization for the exact store, binary, schema and maintenance window.",
+    "Invalidate every retained cursor and validator after restore until persisted restore-generation detection exists; accept or reconcile later writes lost by rollback.",
+    "Historical host reports, transcripts, inventory snapshots and the original pending operator assessment remain unchanged. This signoff is a later decision and claims no new configured-host rerun for the fixed recorder.",
+    "No synchronization, mutation MCP, codec release, newer MCP protocol support or measured model-token saving is approved."
+  ]
+}
