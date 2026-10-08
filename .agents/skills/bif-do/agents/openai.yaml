@@ -1,0 +1,4 @@
+interface:
+  display_name: "BIF Do"
+  short_description: "Execute BIF tasks sequentially with reviewed plans"
+  default_prompt: "Use $bif-do to complete the requested BIF tasks one at a time and review the full batch before landing it on local main."
