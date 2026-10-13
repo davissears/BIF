@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bif.local/schemas/bif-v2-sync-contract.schema.json",
+  "title": "V2-028 normative synchronization and recovery fixtures",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fixture_version", "contract", "read_contract", "execution_state", "rules", "activation", "operations", "journal", "tokens", "polls", "bootstrap", "consumer_cases", "retention", "recovery", "read_interleavings", "tombstones", "validation_scope"],
+  "properties": {
+    "fixture_version": {"const": 1},
+    "contract": {"const": "V2-028"},
+    "read_contract": {"const": "V2-001"},
+    "execution_state": {"const": "pure_contract_models_no_sync_runtime"},
+    "rules": {"$ref": "#/$defs/rules"},
+    "activation": {"$ref": "#/$defs/activation"},
+    "operations": {"type": "array", "minItems": 8, "items": {"$ref": "#/$defs/operation"}},
+    "journal": {"type": "array", "minItems": 6, "items": {"$ref": "#/$defs/journal"}},
+    "tokens": {"type": "array", "minItems": 6, "items": {"$ref": "#/$defs/token"}},
+    "polls": {"type": "array", "minItems": 5, "items": {"$ref": "#/$defs/poll"}},
+    "bootstrap": {"$ref": "#/$defs/bootstrap"},
+    "consumer_cases": {"type": "array", "minItems": 8, "items": {"$ref": "#/$defs/consumer"}},
+    "retention": {"$ref": "#/$defs/retention"},
+    "recovery": {"$ref": "#/$defs/recovery"},
+    "read_interleavings": {"type": "array", "minItems": 4, "items": {"$ref": "#/$defs/interleaving"}},
+    "tombstones": {"$ref": "#/$defs/tombstones"},
+    "validation_scope": {"$ref": "#/$defs/scope"}
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "position": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "revision": {"type": "integer", "minimum": 1, "maximum": 18446744073709551615},
+    "generation": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "nullableGeneration": {"oneOf": [{"$ref": "#/$defs/generation"}, {"type": "null"}]},
+    "nullableText": {"oneOf": [{"$ref": "#/$defs/text"}, {"type": "null"}]},
+    "positions": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/revision"}},
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "title", "status", "priority", "assignee", "revision"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"},
+        "title": {"$ref": "#/$defs/text"},
+        "status": {"enum": ["proposed", "ready", "in_progress", "blocked", "done", "rejected"]},
+        "priority": {"enum": ["P0", "P1", "P2", "P3", "P4", null]},
+        "assignee": {"$ref": "#/$defs/nullableText"},
+        "revision": {"$ref": "#/$defs/revision"}
+      }
+    },
+    "summaries": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/summary"}},
+    "replacement": {"oneOf": [
+      {"type": "object", "additionalProperties": false, "required": ["kind", "item"], "properties": {
+        "kind": {"const": "upsert"}, "item": {"$ref": "#/$defs/summary"}
+      }},
+      {"type": "object", "additionalProperties": false, "required": ["kind", "item_id", "revision"], "properties": {
+        "kind": {"const": "tombstone"}, "item_id": {"$ref": "#/$defs/text"}, "revision": {"$ref": "#/$defs/revision"}
+      }}
+    ]},
+    "replacements": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/replacement"}},
+    "rules": {
+      "type": "object", "additionalProperties": false,
+      "required": ["poll", "coverage", "hydration", "bounds", "cursor", "scan", "consumer", "atomicity", "recovery", "errors"],
+      "properties": {
+        "poll": {"$ref": "#/$defs/text"}, "coverage": {"$ref": "#/$defs/text"},
+        "hydration": {"$ref": "#/$defs/text"}, "bounds": {"$ref": "#/$defs/text"},
+        "cursor": {"$ref": "#/$defs/text"}, "scan": {"$ref": "#/$defs/text"},
+        "consumer": {"$ref": "#/$defs/text"}, "atomicity": {"$ref": "#/$defs/text"},
+        "recovery": {"$ref": "#/$defs/text"}, "errors": {"$ref": "#/$defs/text"}
+      }
+    },
+    "activation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["new_generation", "initial_high_water", "initial_floor", "full_bootstrap_required", "timestamp_audit_backfill", "sync_enabled_before_all_writers_participate", "after_operations_high_water"],
+      "properties": {
+        "new_generation": {"$ref": "#/$defs/generation"}, "initial_high_water": {"const": 0},
+        "initial_floor": {"const": 0}, "full_bootstrap_required": {"const": true},
+        "timestamp_audit_backfill": {"const": false}, "sync_enabled_before_all_writers_participate": {"const": false},
+        "after_operations_high_water": {"$ref": "#/$defs/position"}
+      }
+    },
+    "operation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "item_id", "project", "effective", "replay", "before_revision", "after_revision", "component_events", "expected_high_water"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "kind": {"enum": ["capture", "note_only", "compound", "mutation", "noop", "replay"]},
+        "item_id": {"$ref": "#/$defs/text"}, "project": {"$ref": "#/$defs/text"},
+        "effective": {"type": "boolean"}, "replay": {"type": "boolean"},
+        "before_revision": {"$ref": "#/$defs/position"}, "after_revision": {"$ref": "#/$defs/revision"},
+        "component_events": {"type": "integer", "minimum": 0},
+        "expected_high_water": {"$ref": "#/$defs/position"}
+      }
+    },
+    "journal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["change_seq", "operation_id", "item_id", "project", "revision"],
+      "properties": {
+        "change_seq": {"$ref": "#/$defs/revision"}, "operation_id": {"$ref": "#/$defs/text"},
+        "item_id": {"$ref": "#/$defs/text"}, "project": {"$ref": "#/$defs/text"}, "revision": {"$ref": "#/$defs/revision"}
+      }
+    },
+    "token": {
+      "description": "Test-only decoded semantics. Handles are illustrative, not an encoding or client parsing contract.",
+      "type": "object", "additionalProperties": false,
+      "required": ["handle", "kind", "store_id", "generation", "project", "projection_schema_version", "through", "high_water", "scan_boundary", "sync_start_cursor"],
+      "properties": {
+        "handle": {"$ref": "#/$defs/text"}, "kind": {"enum": ["sync", "scan"]},
+        "store_id": {"$ref": "#/$defs/text"}, "generation": {"$ref": "#/$defs/generation"},
+        "project": {"$ref": "#/$defs/text"}, "projection_schema_version": {"const": 1},
+        "through": {"$ref": "#/$defs/position"}, "high_water": {"oneOf": [{"$ref": "#/$defs/position"}, {"type": "null"}]},
+        "scan_boundary": {"$ref": "#/$defs/nullableText"}, "sync_start_cursor": {"$ref": "#/$defs/nullableText"}
+      }
+    },
+    "pollRequest": {
+      "type": "object", "additionalProperties": false, "required": ["project", "projection", "limit", "cursor"],
+      "properties": {
+        "project": {"$ref": "#/$defs/text"}, "projection": {"const": "summary"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100}, "cursor": {"$ref": "#/$defs/text"}
+      }
+    },
+    "scanRequest": {
+      "type": "object", "additionalProperties": false, "required": ["project", "projection", "limit", "cursor"],
+      "properties": {
+        "project": {"$ref": "#/$defs/text"}, "projection": {"const": "summary"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100}, "cursor": {"$ref": "#/$defs/nullableText"}
+      }
+    },
+    "pollResponse": {
+      "type": "object", "additionalProperties": false, "required": ["api_version", "schema_version", "ok", "result"],
+      "properties": {
+        "api_version": {"const": 2}, "schema_version": {"const": 1}, "ok": {"const": true},
+        "result": {
+          "type": "object", "additionalProperties": false,
+          "required": ["source_checkpoint", "high_water", "through", "complete", "replacements", "next_cursor"],
+          "properties": {
+            "source_checkpoint": {"$ref": "#/$defs/text"}, "high_water": {"$ref": "#/$defs/position"},
+            "through": {"$ref": "#/$defs/position"}, "complete": {"type": "boolean"},
+            "replacements": {"type": "array", "maxItems": 100, "items": {
+              "type": "object", "additionalProperties": false, "required": ["kind", "item"],
+              "properties": {"kind": {"const": "upsert"}, "item": {"$ref": "#/$defs/summary"}}
+            }},
+            "next_cursor": {"$ref": "#/$defs/text"}
+          }
+        }
+      }
+    },
+    "scanResponse": {
+      "type": "object", "additionalProperties": false, "required": ["api_version", "schema_version", "ok", "result"],
+      "properties": {
+        "api_version": {"const": 2}, "schema_version": {"const": 1}, "ok": {"const": true},
+        "result": {
+          "type": "object", "additionalProperties": false, "required": ["items", "next_cursor", "sync_start_cursor"],
+          "properties": {
+            "items": {"$ref": "#/$defs/summaries"}, "next_cursor": {"$ref": "#/$defs/nullableText"},
+            "sync_start_cursor": {"$ref": "#/$defs/text"}
+          }
+        }
+      }
+    },
+    "poll": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "snapshot_high_water", "snapshot_floor", "journal_limit", "snapshot_items", "request", "response"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "snapshot_high_water": {"$ref": "#/$defs/position"},
+        "snapshot_floor": {"$ref": "#/$defs/position"}, "journal_limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "snapshot_items": {"$ref": "#/$defs/summaries"}, "request": {"$ref": "#/$defs/pollRequest"}, "response": {"$ref": "#/$defs/pollResponse"}
+      }
+    },
+    "bootstrap": {
+      "type": "object", "additionalProperties": false,
+      "required": ["starting_checkpoint", "captured_before_first_row", "catch_up_source_checkpoint", "catch_up_high_water", "catch_up_complete", "catch_up_checkpoint", "pages", "catch_up_replacements", "published_items", "publish_only_after_complete_catch_up", "replace_old_baseline_not_merge"],
+      "properties": {
+        "starting_checkpoint": {"$ref": "#/$defs/text"}, "captured_before_first_row": {"$ref": "#/$defs/position"},
+        "catch_up_source_checkpoint": {"$ref": "#/$defs/text"}, "catch_up_high_water": {"$ref": "#/$defs/position"},
+        "catch_up_complete": {"const": true}, "catch_up_checkpoint": {"$ref": "#/$defs/text"},
+        "pages": {"type": "array", "minItems": 1, "items": {
+          "type": "object", "additionalProperties": false, "required": ["request", "response"],
+          "properties": {"request": {"$ref": "#/$defs/scanRequest"}, "response": {"$ref": "#/$defs/scanResponse"}}
+        }},
+        "catch_up_replacements": {"$ref": "#/$defs/summaries"}, "published_items": {"$ref": "#/$defs/summaries"},
+        "publish_only_after_complete_catch_up": {"const": true}, "replace_old_baseline_not_merge": {"const": true}
+      }
+    },
+    "consumer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "future_domain", "baseline_exists", "bootstrap_identity", "response_bootstrap_identity", "persisted_checkpoint", "response_source", "response_next", "before_items", "replacements", "expected_outcome", "expected_checkpoint", "expected_items", "expected_ready_count", "expected_mine_count"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "future_domain": {"type": "boolean"}, "baseline_exists": {"type": "boolean"},
+        "bootstrap_identity": {"$ref": "#/$defs/text"}, "response_bootstrap_identity": {"$ref": "#/$defs/text"},
+        "persisted_checkpoint": {"$ref": "#/$defs/text"}, "response_source": {"$ref": "#/$defs/text"},
+        "response_next": {"$ref": "#/$defs/text"}, "before_items": {"$ref": "#/$defs/summaries"},
+        "replacements": {"$ref": "#/$defs/replacements"},
+        "expected_outcome": {"enum": ["committed", "discarded", "bootstrap_required", "conflicting_same_revision"]},
+        "expected_checkpoint": {"$ref": "#/$defs/text"}, "expected_items": {"$ref": "#/$defs/summaries"},
+        "expected_ready_count": {"type": "integer", "minimum": 0}, "expected_mine_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "retention": {
+      "type": "object", "additionalProperties": false, "required": ["scope", "steps"],
+      "properties": {
+        "scope": {"const": "store_global_sequence_space"},
+        "steps": {"type": "array", "minItems": 5, "items": {
+          "type": "object", "additionalProperties": false, "required": ["action", "floor", "high_water", "retained_sequences", "cursors"],
+          "properties": {
+            "action": {"enum": ["append", "prune_none", "prune_some", "prune_all", "restart", "append_after_prune_all"]},
+            "floor": {"$ref": "#/$defs/position"}, "high_water": {"$ref": "#/$defs/position"}, "retained_sequences": {"$ref": "#/$defs/positions"},
+            "cursors": {"type": "array", "minItems": 1, "items": {
+              "type": "object", "additionalProperties": false, "required": ["project", "through", "expected"],
+              "properties": {"project": {"$ref": "#/$defs/text"}, "through": {"$ref": "#/$defs/position"}, "expected": {"enum": ["valid", "expired"]}}
+            }}
+          }
+        }}
+      }
+    },
+    "error": {"oneOf": [
+      {"type": "object", "additionalProperties": false, "required": ["code", "message", "details"], "properties": {
+        "code": {"const": "invalid_cursor"}, "message": {"$ref": "#/$defs/text"},
+        "details": {"type": "object", "additionalProperties": false, "required": ["reason", "restart_required"], "properties": {
+          "reason": {"enum": ["generation_missing", "wrong_generation", "expired", "wrong_store", "wrong_kind", "wrong_query", "unsupported_version", "malformed", "future_position"]},
+          "restart_required": {"const": true}
+        }}
+      }},
+      {"type": "object", "additionalProperties": false, "required": ["code", "message", "details"], "properties": {
+        "code": {"const": "invalid_input"}, "message": {"$ref": "#/$defs/text"},
+        "details": {"type": "object", "additionalProperties": false, "required": ["reason", "refetch_required"], "properties": {
+          "reason": {"enum": ["generation_missing", "wrong_generation"]}, "refetch_required": {"const": true}
+        }}
+      }}
+    ]},
+    "recovery": {
+      "type": "object", "additionalProperties": false,
+      "required": ["backup_id", "backup_generation", "generation_bits", "generation_source", "collision_assumption", "ordinary_restart_preserves_generation", "validator_collision", "restores", "token_cases"],
+      "properties": {
+        "backup_id": {"$ref": "#/$defs/text"}, "backup_generation": {"$ref": "#/$defs/generation"},
+        "generation_bits": {"const": 128}, "generation_source": {"const": "independent_os_random_each_restore"},
+        "collision_assumption": {"const": "negligible_probability_not_absolute_uniqueness"},
+        "ordinary_restart_preserves_generation": {"const": true},
+        "validator_collision": {
+          "type": "object", "additionalProperties": false, "required": ["before_item", "restored_item"],
+          "properties": {"before_item": {"$ref": "#/$defs/summary"}, "restored_item": {"$ref": "#/$defs/summary"}}
+        },
+        "restores": {"type": "array", "minItems": 2, "items": {
+          "type": "object", "additionalProperties": false, "required": ["backup_id", "new_generation", "rejected_generations"],
+          "properties": {
+            "backup_id": {"$ref": "#/$defs/text"}, "new_generation": {"$ref": "#/$defs/generation"},
+            "rejected_generations": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/generation"}}
+          }
+        }},
+        "token_cases": {"type": "array", "minItems": 12, "items": {
+          "type": "object", "additionalProperties": false, "required": ["id", "kind", "token_generation", "store_generation", "outcome", "error"],
+          "properties": {
+            "id": {"$ref": "#/$defs/text"}, "kind": {"enum": ["page", "history", "validator", "warm_session", "sync", "scan"]},
+            "token_generation": {"$ref": "#/$defs/nullableGeneration"}, "store_generation": {"$ref": "#/$defs/generation"},
+            "outcome": {"enum": ["accepted", "error", "restart_required"]},
+            "error": {"oneOf": [{"$ref": "#/$defs/error"}, {"type": "null"}]}
+          }
+        }}
+      }
+    },
+    "interleaving": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "maintenance_order", "cursor_generation", "cursor_through", "snapshot", "generation_read", "floor_read", "coverage_read", "rows_read", "selected_sequences", "expected"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "maintenance_order": {"enum": ["before_read_snapshot", "after_read_snapshot"]},
+        "cursor_generation": {"$ref": "#/$defs/generation"}, "cursor_through": {"$ref": "#/$defs/position"},
+        "snapshot": {
+          "type": "object", "additionalProperties": false, "required": ["transaction_id", "generation", "floor", "high_water", "covered_sequences"],
+          "properties": {
+            "transaction_id": {"$ref": "#/$defs/text"}, "generation": {"$ref": "#/$defs/generation"},
+            "floor": {"$ref": "#/$defs/position"}, "high_water": {"$ref": "#/$defs/position"}, "covered_sequences": {"$ref": "#/$defs/positions"}
+          }
+        },
+        "generation_read": {"$ref": "#/$defs/text"}, "floor_read": {"$ref": "#/$defs/text"},
+        "coverage_read": {"$ref": "#/$defs/text"}, "rows_read": {"$ref": "#/$defs/text"},
+        "selected_sequences": {"$ref": "#/$defs/positions"}, "expected": {"enum": ["complete_coverage", "expired", "wrong_generation"]}
+      }
+    },
+    "tombstones": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runtime_enabled", "scope", "future_enablement_requires", "unexpected_missing_row"],
+      "properties": {
+        "runtime_enabled": {"const": false}, "scope": {"const": "future_domain_pure_consumer_and_codec_only"},
+        "future_enablement_requires": {"const": ["retain_audit_identity", "higher_item_revision", "transactional_tombstone", "deletion_tests"]},
+        "unexpected_missing_row": {"const": "internal_corruption_no_cursor_advance"}
+      }
+    },
+    "scope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["phase_e_runtime", "phase_f_runtime", "v2_035_depends_on_v2_037"],
+      "properties": {
+        "phase_e_runtime": {"const": ["existing_page_history_validator_warm_session_invalidation", "storage_read_interleavings"]},
+        "phase_f_runtime": {"const": ["V2-036_sync_expiry", "V2-039_bootstrap", "later_reconciliation_integration"]},
+        "v2_035_depends_on_v2_037": {"const": false}
+      }
+    }
+  }
+}

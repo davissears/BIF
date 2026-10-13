@@ -820,6 +820,15 @@ event replay, patch, and historical-snapshot interpretations.
 hydrated version, no changes, other-project changes, queue exit, and lost
 client baseline. Tombstone fixtures are clearly marked future-domain cases.
 
+**Normative contract:** [Synchronization/recovery fixtures](fixtures/bif-v2-sync-contract.json)
+and their [strict schema](fixtures/bif-v2-sync-contract.schema.json) freeze
+sections 2.6–2.9, including exact wire shapes and store-global retention coverage.
+These are pure contract models, not a synchronization runtime release.
+Phase E runtime checks cover existing page/history/validator/warm-session
+generation invalidation and storage read interleavings only. Actual sync
+expiry, bootstrap, and reconciliation validation belongs to V2-036, V2-039,
+and later Phase F integration; V2-035 must not depend on V2-037.
+
 #### V2-029 — Add journal and generation schema
 
 **Depends on:** V2-028, V2-054.
@@ -913,8 +922,9 @@ main file without its WAL state.
 generation through the supported restore workflow.
 
 **Verification:** Restore an earlier disposable backup after later mutations;
-old page/sync cursors fail and a new bootstrap succeeds. No down-migration or
-automatic deletion of the later store is performed.
+existing page/history cursors, validators, and warm sessions invalidate.
+Actual sync-cursor rejection and a new bootstrap are validated in Phase F.
+No down-migration or automatic deletion of the later store is performed.
 
 #### V2-034 — Implement explicit journal retention
 
@@ -929,8 +939,9 @@ in-flight clients can expire and must restart.
 reuse; callers can reliably detect unavailable coverage.
 
 **Verification:** Prune none/some/all retained rows, restart, append, and compare
-positions. Interleave pruning with page reads; each read either has complete
-retained coverage or reports expiration, never a successful partial gap.
+positions. Interleave pruning with storage reads to prove same-transaction
+floor/coverage/row visibility, never a successful partial gap. Actual sync
+expiry and bootstrap restart validation are deferred to Phase F.
 
 #### V2-035 — Gate the journal migration
 
