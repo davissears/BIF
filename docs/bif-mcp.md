@@ -193,13 +193,27 @@ make a warm session return `restart_required` with
 server and restart it against the intended store/configuration.
 
 Generation rotation invalidates list/history cursors and makes old validators
-refetch content, including when file identity, store ID and revisions match.
+refetch content, including when file identity, store ID and revisions match:
+a well-formed validator from an old generation is a cache miss returning
+`modified`, never `not_modified`.
 Generation-less legacy cursors require pagination restart; legacy validators
 return `invalid_input` with `generation_missing` and `refetch_required: true`.
-**Restore limitation:** maintenance/restore commands and automatic generation
-rotation are not implemented. Stop all servers before restore, restart them
-afterwards, and invalidate tokens after an unsupported manual restore that did
-not rotate generation. Such a restore cannot reliably be recognized by tokens.
+There is no MCP maintenance endpoint. Supported offline current-schema backup
+and restore are available through the CLI and
+`storage::maintenance::{backup, restore}` API. Every supported restore draws a
+fresh independent OS-random 128-bit generation, even for the same backup.
+Follow the [current-schema maintenance runbook](bif-upgrade-runbook.md#current-schema-offline-backup-and-restore-v2-033):
+stop/reap every reader and writer and prevent restarts and new launches;
+`--offline` acknowledges that window, it does not enforce exclusion. Restore
+requires `--preserve-later` to preserve the later target state before publication.
+
+**Restore limitation:** unsupported manual/historical restore does not
+automatically rotate generation. Stop all processes before restore, restart
+them afterwards, and invalidate retained tokens unconditionally as required by
+the [rollback warnings](bif-upgrade-runbook.md#rollback-is-recovery-not-transparent-undo).
+Keeping a backup's old generation cannot reliably be recognized by tokens.
+There is no supported in-place downgrade; current-schema restore cannot
+restore historical schemas or down-migrate.
 
 ## Cancellation and shutdown
 

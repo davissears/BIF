@@ -273,8 +273,9 @@ select them explicitly rather than guessing from unknown fields:
 Conditional get validates permission and existence first, then accepts a
 bounded opaque validator bound to store, persisted generation, item, projection/schema and revision.
 Malformed/unknown-version validators are `invalid_input`; well-formed
-incompatible bindings are misses. Generation-less legacy validators (omitted or
-null generation) return `invalid_input` with
+incompatible bindings are misses returning `modified`, including an old
+generation at the same item revision, never `not_modified`.
+Generation-less legacy validators (omitted or null generation) return `invalid_input` with
 `{"reason":"generation_missing","refetch_required":true}`, never `not_modified`.
 The validator binding, revision, comparison and payload hydration share one
 SQLite snapshot. Hits avoid criteria/provenance hydration.
@@ -299,8 +300,24 @@ store/schema/generation in a short snapshot. Their guard runs immediately after
 writers, so a rotation cannot commit between that guard and the write commit;
 readers instead retain the WAL snapshot established by their first read.
 
-This binding does not implement maintenance or restore commands, automatic
-generation rotation, synchronization, or reconciliation. Stop every reader and
-writer before an unsupported manual restore and invalidate tokens if generation
-was not rotated. Restoring a backup with its old generation unchanged is not
-detectable solely from generation-bound tokens.
+The generation binding is not itself a maintenance interface. There is no MCP
+maintenance endpoint; the CLI and `storage::maintenance::{backup, restore}` API
+support offline current-schema backup and restore. Every supported restore draws
+a fresh independent OS-random 128-bit generation, including repeated restores
+of the same backup. Follow the
+[current-schema maintenance runbook](bif-upgrade-runbook.md#current-schema-offline-backup-and-restore-v2-033),
+not a live read-session workflow: stop/reap all readers and writers and prevent
+restarts and new launches. `--offline` is an acknowledgement, not an exclusion
+mechanism; restore requires `--preserve-later` before target publication.
+
+Unsupported manual/historical restore does not automatically rotate generation.
+Stop every reader and writer, restart them afterwards, and invalidate retained
+tokens unconditionally under the
+[rollback warnings](bif-upgrade-runbook.md#rollback-is-recovery-not-transparent-undo).
+Restoring a backup with its old generation unchanged is not detectable solely
+from generation-bound tokens. Current-schema restore rejects historical schemas
+and does not provide an in-place downgrade.
+
+Actual synchronization endpoints, bootstrap and reconciliation remain Phase F.
+The Phase E foundation remains inactive with `sync_enabled=0` and
+`bootstrap_required=1`; generation-aware reads and maintenance do not enable sync.
