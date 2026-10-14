@@ -1149,6 +1149,15 @@ impl MutationStore for MutationRepository<'_> {
                 ],
             )
             .map_err(MutationStoreError::from)?;
+        // One journal position covers the whole effective operation, not each event.
+        journal::append_change(&transaction, &identity.operation_id).map_err(
+            |error| match error {
+                journal::JournalError::Sqlite(error) => MutationStoreError::from(error),
+                error => MutationStoreError::Storage(rusqlite::Error::ToSqlConversionFailure(
+                    Box::new(error),
+                )),
+            },
+        )?;
         transaction.commit().map_err(MutationStoreError::from)?;
         Ok(MutationResult {
             item,
