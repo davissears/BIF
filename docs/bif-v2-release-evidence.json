@@ -124,6 +124,40 @@
     },
     "operator_only": "Inventory and stop live writers/servers; obtain explicit authorization for any real-store upgrade or replacement; verify backups and restart configured hosts. This automated rehearsal never replaces an active store or performs in-place downmigration."
   },
+  "phase_e": {
+    "task": "V2-032",
+    "schema": { "from": 3, "to": 4 },
+    "status": "proof_recorded_operational_gates_pending",
+    "release_approved": false,
+    "sync_enabled": 0,
+    "bootstrap_required": 1,
+    "proof": "docs/baselines/v2-phase-e/upgrade-proof.json",
+    "harness": "docs/baselines/v2-phase-e/rehearse.py",
+    "control_tests": "docs/baselines/v2-phase-e/test_rehearse.py",
+    "report": "docs/baselines/v2-phase-e/README.md",
+    "validation": "docs/baselines/v2-phase-e/validation-results.json",
+    "check": "cargo test --locked --test phase_e_upgrade_proof --test phase_e_schema_guards --test read_release_manifest",
+    "guard_check": "cargo test --locked --test generation_transactions --test journal_storage --test capture_journal --test capture_journal_process --test mutation_journal --test mutation_journal_process",
+    "guard_sources": [
+      "tests/phase_e_schema_guards.rs",
+      "tests/generation_transactions.rs",
+      "tests/journal_storage.rs",
+      "tests/capture_journal.rs",
+      "tests/capture_journal_process.rs",
+      "tests/mutation_journal.rs",
+      "tests/mutation_journal_process.rs"
+    ],
+    "rehearsal_command": "python3 docs/baselines/v2-phase-e/rehearse.py --output docs/baselines/v2-phase-e/upgrade-proof.json",
+    "scope": "Authentic unmodified historical schema-3 git-archive build; actual one-shot old writer stop/continue/drain/reap before candidate schema-4 migration; serial disposable launcher sentinel blocks restart for the full window; fresh old doctor/get/capture reject newer schema without changing full persisted content or schema. Not warm historical writer fencing or live operator inventory.",
+    "operational_release_gates": [
+      "live_operator_binary_service_launcher_inventory",
+      "live_stop_drain_prevent_restart_window",
+      "explicit_phase_e_operator_authorization",
+      "configured_host_and_platform_validation",
+      "power_loss_and_durable_recovery_validation"
+    ],
+    "disclosure": "Phase D approval, host evidence and old schema-2 rehearsal remain intact and do not approve Phase E. No live store, ledger, launcher configuration, sync activation, restore, prune, migration SQL or Phase F change."
+  },
   "release_gate": {
     "status": "approved",
     "approved": true,

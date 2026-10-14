@@ -1,17 +1,19 @@
 # BIF upgrade and rollback runbook
 
-**Status:** V2-054 operator checklist plus the Phase D indexed-read candidate
-procedure. The required
+**Status:** V2-054 operator checklist, Phase D indexed-read candidate procedure,
+and V2-032 disposable Phase E schema-3 to schema-4 proof. The required Phase D
 [Codex configured-host evidence](baselines/v2-phase-d/configured-host/host-evidence.json)
 is recorded; the
 [operator signoff](baselines/v2-phase-d/configured-host/operator-signoff.json)
 approves candidate validation and compatibility review. Live-store maintenance
 requires separate authorization. The signoff retains the exact reviewed runbook
-as a separate snapshot; this status update changes no maintenance procedure.
+as a separate snapshot; it does not approve the Phase E journal candidate.
 See the
 [release manifest](bif-v2-release-evidence.json) and
-[Phase D evidence](bif-v2-phase-d-evidence.md). Journal release procedures and
-restore-generation reset remain Phase E work.
+[Phase D evidence](bif-v2-phase-d-evidence.md). The separate
+[Phase E proof](baselines/v2-phase-e/README.md) records only disposable executable
+and process evidence. Journal rollout procedures, restore-generation reset,
+activation and live operational release gates remain unfinished.
 
 ## Compatibility and maintenance window
 
@@ -34,11 +36,34 @@ Record binary hashes, source revisions, the database path, store ID, migration
 versions/checksums, and a maintenance owner. Retain the old binary and config.
 The configured database is `ROOT/.bif/bif.sqlite`, not the repository itself.
 
-Stop writers and prevent launchers from restarting them. Pause readers too
-before schema migration or restore. Persistent `bif-mcp` servers must be stopped
-and restarted: configuration and schema resources are pinned for the process
-lifetime. There is still no BIF-specific backup/restore command; use the
-SQLite-consistent procedure below, not an invented CLI operation.
+Before candidate opening, establish a maintenance window covering every process
+and launcher in that inventory:
+
+1. Disable automatic restarts and new launches (services, scheduled jobs, host
+   launchers and direct CLI/RPC entry points). Keep restart prevention in force
+   throughout drain, backup, migration and verification.
+2. Stop accepting writes, allow authorized in-flight one-shot CLI/RPC writes to
+   finish or explicitly terminate them, and **wait/reap or obtain the service
+   manager's equivalent exit confirmation**. Check that no old writer remains.
+   An intended stop command or a fixed sleep is not drain evidence.
+3. Pause readers too. Stop persistent `bif-mcp` servers; their configuration and
+   schema resources are pinned for the process lifetime. Only after confirmed
+   drain may the candidate open the database and run migration.
+4. Verify the candidate, replace all inventoried launch commands with the chosen
+   executable, confirm no old process remains, and only then remove maintenance
+   restart prevention and restart the approved services.
+
+The old-binary newer-schema check is a **fresh-open check, not retroactive
+fencing** of a connection already open at migration time. The authentic schema-3
+historical source has one-shot CLI/RPC writers, not a warm writer mode; its warm
+MCP process is read-only. Do not claim a hypothetical old warm writer will be
+fenced. Current supported capture/mutation repositories check pinned
+generation/schema inside `BEGIN IMMEDIATE`, before replay/no-op/effective writes.
+Those guards do not retrofit old binaries, enforce the operator window, or
+protect direct SQL. Direct SQL and out-of-band writers are unsupported.
+
+There is still no BIF-specific backup/restore command; use the SQLite-consistent
+procedure below, not an invented CLI operation.
 
 ## SQLite-consistent backup: existing executable procedure
 
@@ -137,7 +162,8 @@ encryption, and access-control policy before approving a real upgrade.
 
 1. Review the release's migration SQL, supported schema versions, regression
    tests, and evidence. Confirm maintenance ownership and downtime.
-2. Take and verify the stopped-store backup above. Keep it pristine.
+2. Complete the stop/drain/prevent-restart window above, then take and verify
+   the stopped-store backup. Keep it pristine and keep restart prevention active.
 3. Create a **separate** disposable candidate root using the same backup API
    with the verified backup as source. Never upgrade the only rollback copy.
 4. Point the candidate executable at that candidate root with explicit
@@ -153,8 +179,8 @@ encryption, and access-control policy before approving a real upgrade.
 6. Update every launcher to the chosen binary, restart services, and confirm
    there are no old processes. Resume normal work only after verification.
 
-The Phase D candidate procedure below supplements this checklist for the
-indexed-read release. V2-035 will add journal-release procedures, and V2-033
+The Phase D and disposable Phase E procedures below supplement this checklist.
+V2-035 will add journal-release procedures, and V2-033
 will implement restore-generation reset. Those later features do not exist in
 the read candidate and must not appear as executable restore instructions.
 
@@ -210,6 +236,51 @@ and an explicit disposable-store configuration. Record:
 Protocol subprocess tests and the benchmark client are **not** substitutes for
 this host workflow. Missing model-token evidence is disclosed but does not
 block correctness; missing required configured-host evidence does block release.
+
+## Phase E schema-3 to schema-4 proof (V2-032)
+
+The [separate evidence and harness](baselines/v2-phase-e/README.md) build
+unmodified historical source
+`d4399a93e49ce8f87e39e3129377821858472807` using `git archive`, its exact locked
+dependencies and declared Rust toolchain in disposable scratch with a separate
+target directory. Source availability alone is not executable evidence. Missing
+toolchain, dependency access, authentication or task-required operator setup is
+a blocker, not permission to patch the old source or emulate an old client.
+
+Reproduce only on disposable roots (the proof-integrity test binds the recorded
+artifact to the current harness/control files, so rerun the rehearsal after
+changing those files):
+
+```sh
+python3 docs/baselines/v2-phase-e/rehearse.py --output docs/baselines/v2-phase-e/upgrade-proof.json
+python3 docs/baselines/v2-phase-e/test_rehearse.py
+cargo test --locked --test phase_e_upgrade_proof --test phase_e_schema_guards --test read_release_manifest
+```
+
+The real historical executable initializes schema 3. A SQLite writer lock,
+OS `SIGSTOP` acknowledgement and `SIGCONT` control an actual old one-shot capture
+process without timing sleeps. It successfully finishes and is waited/reaped
+**before** candidate migration. The harness does not claim old SQL-statement
+readiness at the stop point. Its disposable serial launcher maintenance sentinel
+blocks five restart attempts across drain, migration and candidate verification.
+It is not a replacement for the live service/launcher inventory or a fence
+against outside launchers. No old process is restarted during that window.
+
+Candidate migration preserves full legacy table values; candidate capture and
+mutation append journal positions while `sync_enabled=0`, `bootstrap_required=1`.
+After the window, fresh old `doctor`, `get` and `capture` opens reject schema 4;
+full persisted table values (including receipts, audits, metadata and allocators)
+and `sqlite_schema` plus persistent schema/user-version pragmas are unchanged by
+every rejection. This proves logical persisted-state preservation and fresh-open
+rejection only, not physical WAL/SHM-byte equality or retroactive old-connection
+fencing.
+
+Phase E remains **not approved**. Its separate manifest gates require the live
+operator's exact retained binary/service/launcher inventory, a verified live
+stop/drain/prevent-restart window, explicit Phase E authorization, configured-host
+and platform validation, and durable/power-loss recovery validation. Phase D's
+read-candidate approval and host evidence do not satisfy these gates. This task
+does not supply rollout/restore tooling or activate synchronization.
 
 ## Rollback is recovery, not transparent undo
 

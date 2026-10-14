@@ -336,6 +336,51 @@ fn release_manifest_registers_checks_and_truthful_evidence_gate() {
 }
 
 #[test]
+fn phase_e_is_separate_from_the_approved_phase_d_read_candidate() {
+    let value = manifest();
+    let phase = &value["phase_e"];
+    assert_eq!(phase["task"], "V2-032");
+    assert_eq!(phase["schema"], json!({"from": 3, "to": 4}));
+    assert_eq!(phase["status"], "proof_recorded_operational_gates_pending");
+    assert_eq!(phase["release_approved"], false);
+    assert_eq!(phase["sync_enabled"], 0);
+    assert_eq!(phase["bootstrap_required"], 1);
+    for field in ["proof", "harness", "control_tests", "report", "validation"] {
+        path(&phase[field]);
+    }
+    for source in phase["guard_sources"].as_array().unwrap() {
+        path(source);
+    }
+    assert_eq!(
+        phase["guard_check"],
+        "cargo test --locked --test generation_transactions --test journal_storage --test capture_journal --test capture_journal_process --test mutation_journal --test mutation_journal_process"
+    );
+    assert_eq!(
+        phase["check"],
+        "cargo test --locked --test phase_e_upgrade_proof --test phase_e_schema_guards --test read_release_manifest"
+    );
+    assert_eq!(
+        phase["rehearsal_command"],
+        "python3 docs/baselines/v2-phase-e/rehearse.py --output docs/baselines/v2-phase-e/upgrade-proof.json"
+    );
+    assert_eq!(
+        strings(&phase["operational_release_gates"]),
+        BTreeSet::from([
+            "live_operator_binary_service_launcher_inventory",
+            "live_stop_drain_prevent_restart_window",
+            "explicit_phase_e_operator_authorization",
+            "configured_host_and_platform_validation",
+            "power_loss_and_durable_recovery_validation",
+        ])
+    );
+    assert_eq!(
+        value["rehearsal"]["old_binary"]["revision"],
+        "45ed7fcc85d5e0f9b2385a4a2198269154ce832c"
+    );
+    validate(&value);
+}
+
+#[test]
 fn explicit_operator_signoff_can_complete_the_candidate_gate() {
     let mut value = manifest();
     value["release_gate"]["status"] = json!("approved");

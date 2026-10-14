@@ -1,7 +1,7 @@
 //! Mutation fixtures; reuse capture's complete persisted-state comparison.
 #[allow(dead_code)]
 #[path = "../capture_journal_support/mod.rs"]
-mod capture_support;
+pub mod capture_support;
 pub use capture_support::persisted;
 
 use bif::{
