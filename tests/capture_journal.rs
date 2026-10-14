@@ -7,7 +7,7 @@ use capture_journal_support::{assert_complete_journal, capture, persisted};
 use support::OwnedTestDirectory;
 
 #[test]
-fn success_reopen_replay_and_retained_receipt_after_test_pruning() {
+fn success_reopen_replay_and_retained_receipt_after_pruning() {
     let root = OwnedTestDirectory::new();
     let path = root.path().join("capture.sqlite");
     let mut connection = storage::open(&path).unwrap();
@@ -41,13 +41,13 @@ fn success_reopen_replay_and_retained_receipt_after_test_pruning() {
     assert_eq!(replay.item.id(), first.item.id());
     assert_eq!(persisted(&connection), before);
 
-    // Test-only pruning, not a maintenance API. Retain receipt/operation and H.
-    connection
-        .execute_batch(
-            "BEGIN IMMEDIATE; DELETE FROM change_journal;
-             UPDATE journal_metadata SET retention_floor = high_water; COMMIT;",
-        )
-        .unwrap();
+    // Real pruning retains receipt/operation and H without refilling old links.
+    let generation = storage::journal::JournalSnapshot::begin(&connection)
+        .unwrap()
+        .metadata()
+        .generation
+        .clone();
+    storage::maintenance::prune(&path, &generation, 1).unwrap();
     drop(connection);
     let mut connection = storage::open(&path).unwrap();
     let before = persisted(&connection);

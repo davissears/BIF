@@ -236,7 +236,7 @@ fn genuine_same_value_noops_replays_conflicts_and_stale_requests_write_nothing()
         },
     );
     let before = persisted(&connection);
-    let noop = mutate(&mut connection, same, "unused-noop", 0).unwrap();
+    let noop = mutate(&mut connection, same.clone(), "unused-noop", 0).unwrap();
     assert!(!noop.replayed);
     assert_eq!(noop.item, first.item);
     assert_eq!(persisted(&connection), before);
@@ -268,13 +268,13 @@ fn genuine_same_value_noops_replays_conflicts_and_stale_requests_write_nothing()
     );
     assert_eq!(persisted(&connection), before);
 
-    // Test-only pruning: receipts/audits/H/allocator are retained, never backfilled.
-    connection
-        .execute_batch(
-            "BEGIN IMMEDIATE; DELETE FROM change_journal;
-         UPDATE journal_metadata SET retention_floor = high_water; COMMIT;",
-        )
-        .unwrap();
+    // Real pruning retains receipts/audits/H/allocator, never backfilling links.
+    let generation = storage::journal::JournalSnapshot::begin(&connection)
+        .unwrap()
+        .metadata()
+        .generation
+        .clone();
+    storage::maintenance::prune(&path, &generation, 2).unwrap();
     drop(connection);
     let mut connection = storage::open(&path).unwrap();
     let before = persisted(&connection);
@@ -283,6 +283,9 @@ fn genuine_same_value_noops_replays_conflicts_and_stale_requests_write_nothing()
             .unwrap()
             .replayed
     );
+    assert_eq!(persisted(&connection), before);
+    let noop = mutate(&mut connection, same, "unused-pruned-noop", 0).unwrap();
+    assert!(!noop.replayed);
     assert_eq!(persisted(&connection), before);
     let next = request(
         &id,

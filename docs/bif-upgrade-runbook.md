@@ -13,7 +13,8 @@ See the
 [Phase D evidence](bif-v2-phase-d-evidence.md). The separate
 [Phase E proof](baselines/v2-phase-e/README.md) records only disposable executable
 and process evidence. V2-033 adds offline current-schema backup/restore and
-restore-generation reset below. Journal rollout, activation, reconciliation and
+restore-generation reset; V2-034 adds explicit global journal pruning below.
+Journal rollout, activation, reconciliation and
 live operational release gates remain unfinished.
 
 ## Compatibility and maintenance window
@@ -143,6 +144,55 @@ evidence, **not physical power-loss/torn-write** or live/platform release approv
 `FULL` SQLite synchronization and output-file sync are not a substitute for the
 operator's durable filesystem/directory sync, off-machine retention, encryption
 and access-control policy.
+
+## Explicit offline journal retention (V2-034)
+
+Use `storage::maintenance::prune(store, expected_generation, through)` or the
+command below only after establishing the same stop/reap and restart-prevention
+window. `--offline` acknowledges the prerequisite; it does not prove shutdown.
+Rehearse on disposable stores. This is not live-store authorization.
+
+Set `DB` to the exact existing database, then inspect the binding and coverage
+using a read-only SQLite connection. This is diagnostic metadata SQL, not a new
+supported inspect endpoint, and **does not authorize direct SQL writes**:
+
+```sh
+sqlite3 -readonly "$DB" \
+  'SELECT generation, retention_floor AS F, high_water AS H FROM journal_metadata WHERE singleton = 1;'
+
+# Set GEN to the returned generation and deliberately choose N with F <= N <= H:
+bif maintenance prune --store "$DB" --expected-generation "$GEN" \
+    --through "$N" --offline
+```
+
+There is no automatic retention default or project-specific pruning. `N` is an
+inclusive signed SQLite integer (0 through `i64::MAX`). The command opens an
+existing file without migration or journal-mode changes, acquires `BEGIN IMMEDIATE`,
+validates current schema/history, integrity, identity, retained coverage and
+allocator inside that transaction, and compares generation and bounds. It deletes
+**all projects'** `change_seq <= N` rows and updates **only** `retention_floor`.
+It revalidates before committing; any returned transaction error rolls back
+both deletion and floor update, including a floor-update failure after deletion.
+Busy/locked fails closed without retries. After process interruption, reopen
+and inspect the persisted coverage before deciding what remains to do.
+
+F and H are monotonic within a generation. Prune leaves H, AUTOINCREMENT state,
+generation, store identity, audit, receipts, and inactive/bootstrap flags unchanged.
+Pruning none (`N == F`), some, or all (`N == H`) is valid. Reopen and future append
+must allocate above prior committed H, including after prune-all. Old audit and
+receipt records intentionally need no new journal links below F; receipt replay
+and genuine no-ops must not refill pruned rows.
+
+For journal storage reads, `C == F` is valid and `C < F` is expired, independent
+of project filters (even an empty project). In file-backed WAL tests an already
+established snapshot sees its complete old metadata/rows; prune-first and fresh
+readers see the new floor. This isolation evidence is **not** permission to keep
+clients running during maintenance. No new schema, activation, sync endpoints,
+actual sync expiry/bootstrap, `VACUUM`, or database-file shrinking is provided.
+Full persisted rollback is checked on fresh reopen; floor-update failure injection
+uses a TEMP trigger in the same private opened-connection core as the public API,
+so exact main-schema validation is not relaxed. These disposable tests do not
+prove machine-power-loss or filesystem durability.
 
 ## Historical-schema SQLite-consistent backup: executable procedure
 

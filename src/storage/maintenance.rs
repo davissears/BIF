@@ -1,6 +1,6 @@
-//! Offline, current-schema SQLite backup and in-place restore.
+//! Offline, current-schema SQLite backup, in-place restore and journal pruning.
 //!
-//! OPERATOR PREREQUISITE for both APIs: stop/reap every reader and writer and
+//! OPERATOR PREREQUISITE for all APIs: stop/reap every reader and writer and
 //! disable all automatic restarts/new launches until verification finishes.
 //! An acknowledgement, SQLite lock, or generation guard is NOT shutdown proof.
 //! Paths/directories must remain trusted and must not be replaced concurrently.
@@ -73,6 +73,53 @@ impl From<journal::JournalError> for MaintenanceError {
     fn from(error: journal::JournalError) -> Self {
         Self::Journal(error)
     }
+}
+
+/// Prunes global journal positions through an explicit inclusive bound.
+///
+/// Caller must satisfy the module's offline/trusted-path prerequisite. Within
+/// one immediate transaction, require the expected generation and F <= through
+/// <= H, delete covered rows, and advance only F. Audits, receipts, identity,
+/// H/allocator and inactive flags are retained. No automatic policy or VACUUM.
+pub fn prune(
+    store: impl AsRef<Path>,
+    expected_generation: &journal::Generation,
+    through: i64,
+) -> Result<(), MaintenanceError> {
+    let store = existing(store.as_ref())?;
+    let mut connection = open_existing(&store, true)?;
+    prune_opened(&mut connection, expected_generation, through)
+}
+
+fn prune_opened(
+    connection: &mut Connection,
+    expected_generation: &journal::Generation,
+    through: i64,
+) -> Result<(), MaintenanceError> {
+    // Acquire the writer reservation before validation/binding. A concurrent
+    // writer cannot move coverage between these checks and publication.
+    let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    validate(&transaction)?;
+    let metadata = journal::read_metadata(&transaction)?;
+    if &metadata.generation != expected_generation {
+        return Err(journal::JournalError::GenerationMismatch.into());
+    }
+    if through < metadata.retention_floor || through > metadata.high_water {
+        return Err(journal::JournalError::InvalidCoverage.into());
+    }
+    transaction.execute(
+        "DELETE FROM change_journal WHERE change_seq <= ?1",
+        [through],
+    )?;
+    transaction.execute(
+        "UPDATE journal_metadata SET retention_floor = ?1 WHERE singleton = 1",
+        [through],
+    )?;
+    validate(&transaction)?;
+    transaction.commit()?;
+    // Any error above drops the transaction, including a floor-update ABORT
+    // (which by itself would roll back only that statement, not the DELETE).
+    Ok(())
 }
 
 /// Creates and verifies a SQLite-consistent standalone backup at a new path.
@@ -391,4 +438,101 @@ fn distinct(paths: &[&Path]) -> Result<(), MaintenanceError> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod retention_tests {
+    use super::*;
+    use rusqlite::types::Value;
+
+    /// All persisted table values, including audit, receipt, identity and allocator.
+    fn inventory(connection: &Connection) -> Vec<(String, Vec<Vec<Value>>)> {
+        let names = connection
+            .prepare("SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        names
+            .into_iter()
+            .map(|name| {
+                let mut statement = connection
+                    .prepare(&format!("SELECT * FROM \"{name}\" ORDER BY rowid"))
+                    .unwrap();
+                let count = statement.column_count();
+                let values = statement
+                    .query_map([], |row| {
+                        (0..count)
+                            .map(|index| row.get(index))
+                            .collect::<rusqlite::Result<Vec<Value>>>()
+                    })
+                    .unwrap()
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .unwrap();
+                (name, values)
+            })
+            .collect()
+    }
+
+    fn assert_prune_rollback(trigger: &str, expected_error: &str) {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("prune.sqlite");
+        let mut connection = super::super::open(&path).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO projects VALUES ('bif', 'time');
+             INSERT INTO items (item_id, requester, project_id, sequence, title, status,
+               revision, captured_at, updated_at) VALUES
+               ('ALICE:bif:001', 'ALICE', 'bif', 1, 'Title', 'proposed', 1, 'time', 'time');
+             INSERT INTO operations VALUES ('op', 'ALICE:bif:001', 'capture', NULL, 1, 'time');
+             INSERT INTO events VALUES
+               ('event', 'op', 'ALICE:bif:001', 1, 0, 'captured', NULL, NULL,
+                'human', 'ALICE', 'cli', 'local', 'direct', NULL, 'cli', 'local',
+                NULL, NULL, 'time', 1);
+             INSERT INTO mutation_receipts VALUES
+               ('key', 'capture', 'hash', 'op', 'ALICE:bif:001', '{}', 'time');",
+            )
+            .unwrap();
+        let transaction = connection.transaction().unwrap();
+        journal::append_change(&transaction, "op").unwrap();
+        transaction.commit().unwrap();
+        drop(connection);
+        let mut connection = open_existing(&path, true).unwrap();
+        let generation = journal::read_metadata(&connection).unwrap().generation;
+        let before = inventory(&connection);
+        // TEMP leaves exact main-schema validation intact. This is the same core
+        // called by public prune; the trigger proves deletion preceded the failure.
+        connection.execute_batch(trigger).unwrap();
+        let error = prune_opened(&mut connection, &generation, 1).unwrap_err();
+        assert!(error.to_string().contains(expected_error), "{error}");
+        assert!(connection.is_autocommit());
+        drop(connection);
+        let connection = super::super::open(&path).unwrap();
+        assert_eq!(inventory(&connection), before);
+    }
+
+    #[test]
+    fn floor_update_abort_after_deletion_rolls_back_every_value_on_fresh_reopen() {
+        assert_prune_rollback(
+            "CREATE TEMP TRIGGER fail_floor BEFORE UPDATE OF retention_floor ON main.journal_metadata
+             BEGIN
+               SELECT CASE WHEN (SELECT count(*) FROM change_journal) = 0
+                 THEN RAISE(ABORT, 'injected floor failure after deletion')
+                 ELSE RAISE(ABORT, 'deletion was not reached') END;
+             END;",
+            "injected floor failure after deletion",
+        );
+    }
+
+    #[test]
+    fn post_delete_revalidation_failure_rolls_back_rows_floor_and_allocator() {
+        assert_prune_rollback(
+            "CREATE TEMP TRIGGER damage_allocator AFTER UPDATE OF retention_floor ON main.journal_metadata
+             BEGIN
+               UPDATE sqlite_sequence SET seq = seq + 1 WHERE name = 'change_journal';
+             END;",
+            "invalid retained journal history or allocator",
+        );
+    }
 }

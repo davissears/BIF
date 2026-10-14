@@ -184,12 +184,7 @@ fn prune_all_reopen_preserves_high_water_and_committed_positions_are_not_reused(
     assert_eq!(append(&mut connection, "op-1"), 1);
     assert_eq!(append(&mut connection, "op-2"), 2);
     let generation = metadata(&connection).0;
-    connection
-        .execute_batch(
-            "BEGIN IMMEDIATE; DELETE FROM change_journal;
-         UPDATE journal_metadata SET retention_floor = high_water; COMMIT;",
-        )
-        .unwrap();
+    storage::maintenance::prune(&path, &Generation::parse(&generation).unwrap(), 2).unwrap();
     drop(connection);
     let mut connection = storage::open(&path).unwrap();
     assert_eq!(metadata(&connection), (generation.clone(), 2, 2));
@@ -293,12 +288,15 @@ fn metadata_constraints_enforce_global_floor_and_high_water_monotonicity() {
 
 #[test]
 fn range_validation_uses_global_coverage_even_for_empty_project_and_allows_floor_equality() {
-    let mut connection = storage::open(":memory:").unwrap();
+    let root = OwnedTestDirectory::new();
+    let path = root.path().join("coverage.sqlite");
+    let mut connection = storage::open(&path).unwrap();
     seed(&connection);
     append(&mut connection, "op-1");
     append(&mut connection, "op-2");
     append(&mut connection, "op-3");
-    connection.execute_batch("DELETE FROM change_journal WHERE change_seq <= 1; UPDATE journal_metadata SET retention_floor = 1;").unwrap();
+    let generation = Generation::parse(&metadata(&connection).0).unwrap();
+    storage::maintenance::prune(&path, &generation, 1).unwrap();
     let snapshot = JournalSnapshot::begin(&connection).unwrap();
     let generation = snapshot.metadata().generation.clone();
     assert_eq!(selected(&snapshot, &generation, 1, 3).unwrap(), vec![3]);
@@ -372,25 +370,20 @@ fn wal_snapshot_keeps_complete_old_set_across_pruning_or_rotation_in_both_orders
             }
             let generation = Generation::parse(&metadata(&writer).0).unwrap();
             let maintain = |writer: &mut Connection| {
+                if !rotation {
+                    storage::maintenance::prune(&path, &generation, 4).unwrap();
+                    return;
+                }
                 let transaction = writer
                     .transaction_with_behavior(TransactionBehavior::Immediate)
                     .unwrap();
                 transaction
                     .execute("DELETE FROM change_journal", [])
                     .unwrap();
-                if rotation {
-                    transaction.execute(
-                        "UPDATE journal_metadata SET generation = ?1, retention_floor = 0, high_water = 0",
-                        ["22222222222222222222222222222222"],
-                    ).unwrap();
-                } else {
-                    transaction
-                        .execute(
-                            "UPDATE journal_metadata SET retention_floor = high_water",
-                            [],
-                        )
-                        .unwrap();
-                }
+                transaction.execute(
+                    "UPDATE journal_metadata SET generation = ?1, retention_floor = 0, high_water = 0",
+                    ["22222222222222222222222222222222"],
+                ).unwrap();
                 transaction.commit().unwrap();
             };
             if maintenance_first {

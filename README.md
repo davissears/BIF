@@ -73,9 +73,9 @@ mutation advances the item revision; reread the item before the next change.
 Reuse an idempotency key only when retrying the same request, and choose a new
 key for a new operation.
 
-## Offline backup and restore
+## Offline backup, restore and journal retention
 
-Before either command, **stop/reap all readers and writers and disable automatic
+Before any maintenance command, **stop/reap all readers and writers and disable automatic
 restart/new launches until verification finishes**. `--offline` is explicit
 operator acknowledgement, **not proof of shutdown**. Use trusted directories and
 explicit database paths; maintenance does not use configured store selection.
@@ -102,6 +102,25 @@ deferred. On failure keep maintenance in force and inspect the target/backups
 before retrying with a new preservation path. See the
 [maintenance and recovery runbook](docs/bif-upgrade-runbook.md) for prerequisites,
 failure behavior, historical-schema recovery and durability/test limits.
+
+Journal retention is explicit and global, with no automatic default policy.
+After establishing the same offline window, obtain generation, floor F and
+high-water H with **read-only diagnostic SQL** (not an inspect endpoint):
+
+```sh
+sqlite3 -readonly "$DB" \
+  'SELECT generation, retention_floor AS F, high_water AS H FROM journal_metadata WHERE singleton = 1;'
+bif maintenance prune --store "$DB" --expected-generation "$GEN" \
+  --through "$N" --offline
+```
+
+`DB` is an explicit existing database path, `GEN` is the observed generation,
+and `N` is a deliberately chosen inclusive bound satisfying `F <= N <= H`.
+Prune atomically deletes all projects' journal rows through `N` and advances only
+F; it preserves H, the allocator, generation, audit, receipts and inactive flags.
+Coverage at `C == F` remains valid; `C < F` is expired even for an empty project.
+This does not activate sync, implement sync expiry/bootstrap, run `VACUUM`, or
+promise to shrink the database file. Direct SQL writes are unsupported.
 
 ## Example workflows
 
@@ -301,10 +320,10 @@ or restoring/replacing the database. Normal restart preserves cursor and
 validator meaning. Tokens bind to the persisted generation: rotation invalidates
 old pagination and makes old validators refetch, even if store ID and revision
 numbers are preserved. Generation-less legacy cursors require restarting
-pagination; legacy validators require refetching without a token. Restore
-maintenance and automatic generation rotation are not implemented yet; stop all
-servers before restoring and invalidate tokens after any unsupported manual
-restore that did not rotate generation.
+pagination; legacy validators require refetching without a token. Supported
+offline restore rotates generation; prune does not. Stop all servers before
+maintenance. Any unsupported manual restore that did not rotate generation
+requires external token invalidation.
 
 ### Preserve context across an agent handoff
 
