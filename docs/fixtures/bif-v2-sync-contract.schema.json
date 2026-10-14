@@ -219,7 +219,7 @@
       {"type": "object", "additionalProperties": false, "required": ["code", "message", "details"], "properties": {
         "code": {"const": "invalid_input"}, "message": {"$ref": "#/$defs/text"},
         "details": {"type": "object", "additionalProperties": false, "required": ["reason", "refetch_required"], "properties": {
-          "reason": {"enum": ["generation_missing", "wrong_generation"]}, "refetch_required": {"const": true}
+          "reason": {"const": "generation_missing"}, "refetch_required": {"const": true}
         }}
       }}
     ]},
@@ -247,7 +247,7 @@
           "properties": {
             "id": {"$ref": "#/$defs/text"}, "kind": {"enum": ["page", "history", "validator", "warm_session", "sync", "scan"]},
             "token_generation": {"$ref": "#/$defs/nullableGeneration"}, "store_generation": {"$ref": "#/$defs/generation"},
-            "outcome": {"enum": ["accepted", "error", "restart_required"]},
+            "outcome": {"enum": ["accepted", "modified", "error", "restart_required"]},
             "error": {"oneOf": [{"$ref": "#/$defs/error"}, {"type": "null"}]}
           }
         }}

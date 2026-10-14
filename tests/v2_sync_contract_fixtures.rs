@@ -5,8 +5,18 @@ use std::{
 };
 
 use bif::{
-    application::{ItemProjection, ItemSummary},
-    domain::{AssigneeId, ItemId, Priority, ProjectId, RequesterId, Revision, Status},
+    application::{
+        Actor, ActorKind, AuthorizationRequest, CaptureIdentity, CaptureInput, CaptureRequest,
+        CaptureStore, Command, Execution, HumanAuthorization, ItemProjection, ItemProjectionKind,
+        ItemSummary, MutationIdentity, MutationRequest, MutationStore, ObservedExecution,
+    },
+    config::Config,
+    domain::{
+        AssigneeId, ItemContent, ItemId, ItemMutation, LifecycleMutation, Priority, ProjectId,
+        Provenance, RequesterId, Revision, Status, Timestamp, Triage, TriageField,
+    },
+    read_session::{ReadRequest, ReadSession},
+    storage::{self, CaptureRepository, MutationRepository, maintenance},
     v2_response::{ResponseBudget, write_get},
 };
 use serde_json::{Value, json};
@@ -162,6 +172,10 @@ fn strict_schema_accepts_fixture_and_rejects_wire_shape_drift() {
         ),
         ("/bootstrap/pages/0/request/offset", json!(1)),
         ("/tokens/0/unknown", json!(true)),
+        (
+            "/recovery/token_cases/8/error/details/reason",
+            json!("wrong_generation"),
+        ),
     ] {
         let mut changed = fixture.clone();
         let (parent, field) = pointer.rsplit_once('/').unwrap();
@@ -857,17 +871,24 @@ fn recovery_rotates_independently_and_generationless_tokens_fail_explicitly() {
                     "accepted"
                 }
             );
+        } else if case["kind"] == "validator" {
+            if missing {
+                assert_eq!(case["outcome"], "error");
+                assert_eq!(case["error"]["code"], "invalid_input");
+                assert_eq!(
+                    case["error"]["details"],
+                    json!({"reason": "generation_missing", "refetch_required": true})
+                );
+            } else {
+                // A well-formed stale validator is a cache miss, not a cursor.
+                assert_eq!(
+                    case["outcome"],
+                    if changed { "modified" } else { "accepted" }
+                );
+            }
         } else if missing || changed {
-            let validator = case["kind"] == "validator";
             assert_eq!(case["outcome"], "error");
-            assert_eq!(
-                case["error"]["code"],
-                if validator {
-                    "invalid_input"
-                } else {
-                    "invalid_cursor"
-                }
-            );
+            assert_eq!(case["error"]["code"], "invalid_cursor");
             assert_eq!(
                 case["error"]["details"]["reason"],
                 if missing {
@@ -876,19 +897,255 @@ fn recovery_rotates_independently_and_generationless_tokens_fail_explicitly() {
                     "wrong_generation"
                 }
             );
-            assert_eq!(
-                case["error"]["details"][if validator {
-                    "refetch_required"
-                } else {
-                    "restart_required"
-                }],
-                true
-            );
+            assert_eq!(case["error"]["details"]["restart_required"], true);
         } else {
             assert_eq!(case["outcome"], "accepted");
         }
+        if case["outcome"] != "error" {
+            assert!(case["error"].is_null());
+        }
         assert_ne!(case["outcome"], "not_modified");
     }
+}
+
+#[test]
+fn restored_collision_fixture_matches_runtime_conditional_read() {
+    fn authorization() -> AuthorizationRequest<'static> {
+        AuthorizationRequest {
+            actor: Actor {
+                kind: ActorKind::Human,
+                id: "ALICE",
+                surface: "cli",
+                host: "local",
+            },
+            execution: Execution::Direct {
+                surface: "cli",
+                host: "local",
+            },
+            observed_execution: ObservedExecution::Direct,
+            command: Command::Read,
+            human_authorization: Some(HumanAuthorization::Direct { trusted: true }),
+        }
+    }
+
+    // Allocate the identity and reach revision 3 through supported writes only.
+    fn create_branch(path: &Path, summary: &Value) -> ItemId {
+        let mut connection = storage::open(path).unwrap();
+        let auth = authorization();
+        let item = CaptureRepository::new(&mut connection)
+            .unwrap()
+            .capture(
+                CaptureRequest {
+                    idempotency_key: "capture".into(),
+                    input: CaptureInput {
+                        requester: RequesterId::new("ALICE").unwrap(),
+                        project: ProjectId::new("bif").unwrap(),
+                        content: ItemContent::new(
+                            text(&summary["title"]),
+                            None,
+                            vec!["done".into()],
+                        )
+                        .unwrap(),
+                        provenance: Provenance::default(),
+                    },
+                },
+                "capture".into(),
+                auth.actor,
+                auth.execution,
+                Timestamp::new("now"),
+                CaptureIdentity {
+                    operation_id: "capture".into(),
+                    event_id: "capture".into(),
+                },
+            )
+            .unwrap()
+            .item;
+        let mut repository = MutationRepository::new(&mut connection).unwrap();
+        let mut item = item;
+        for (key, mutation, event_count) in [
+            (
+                "approve",
+                ItemMutation {
+                    lifecycle: Some(LifecycleMutation::Approve),
+                    triage: None,
+                },
+                1,
+            ),
+            (
+                "triage",
+                ItemMutation {
+                    lifecycle: None,
+                    triage: Some(Triage {
+                        priority: TriageField::Set(Priority::P1),
+                        assignee: TriageField::Set(
+                            AssigneeId::new(text(&summary["assignee"])).unwrap(),
+                        ),
+                        note: None,
+                    }),
+                },
+                2,
+            ),
+        ] {
+            item = repository
+                .mutate(
+                    MutationRequest {
+                        idempotency_key: key.into(),
+                        item_id: item.id().clone(),
+                        expected_revision: item.revision(),
+                        mutation,
+                    },
+                    key.into(),
+                    auth.actor,
+                    auth.execution,
+                    Timestamp::new("now"),
+                    MutationIdentity {
+                        operation_id: key.into(),
+                        event_ids: (0..event_count)
+                            .map(|index| format!("{key}-{index}"))
+                            .collect(),
+                    },
+                )
+                .unwrap()
+                .item;
+        }
+        assert_eq!(item.id().to_string(), text(&summary["id"]));
+        assert_eq!(item.revision().get(), number(&summary["revision"]));
+        item.id().clone()
+    }
+
+    fn get(session: &mut ReadSession, id: &ItemId, version: Option<String>) -> Value {
+        let bytes = session
+            .execute(
+                &authorization(),
+                ReadRequest::Get {
+                    item_id: id.clone(),
+                    projection: ItemProjectionKind::Work,
+                    known_version: version,
+                    conditional: true,
+                },
+                ResponseBudget::default(),
+            )
+            .unwrap();
+        assert!(session.is_autocommit());
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    fn complete_work(summary: &Value) -> Value {
+        let mut work = summary.clone();
+        let fields = work.as_object_mut().unwrap();
+        fields.insert("description".into(), Value::Null);
+        fields.insert("acceptance_criteria".into(), json!(["done"]));
+        fields.insert("status_reason".into(), Value::Null);
+        work
+    }
+
+    let fixture = fixture();
+    let recovery = &fixture["recovery"];
+    let case = array(&recovery["token_cases"])
+        .iter()
+        .find(|case| case["id"] == "validator_same_revision_different_restored_content")
+        .expect("named validator collision fixture");
+    let collision = &recovery["validator_collision"];
+    let directory = tempfile::tempdir().unwrap();
+    let config = Config {
+        root: directory.path().to_owned(),
+        requester: RequesterId::new("ALICE").unwrap(),
+        source: None,
+    };
+    fs::create_dir(directory.path().join(".bif")).unwrap();
+    let store = config.store_paths().unwrap().database;
+    let before_allocation = directory.path().join("before-allocation.sqlite");
+    let restored_branch = directory.path().join("restored-branch.sqlite");
+
+    // Every connection/session is closed before maintenance touches the store.
+    drop(storage::open(&store).unwrap());
+    maintenance::backup(&store, &before_allocation).unwrap();
+    let restored_id = create_branch(&store, &collision["restored_item"]);
+    maintenance::backup(&store, &restored_branch).unwrap();
+    maintenance::restore(
+        &store,
+        &before_allocation,
+        directory.path().join("preserved-restored-branch.sqlite"),
+    )
+    .unwrap();
+    let before_id = create_branch(&store, &collision["before_item"]);
+    assert_eq!(before_id, restored_id);
+    let before = get(
+        &mut ReadSession::open(config.clone()).unwrap(),
+        &before_id,
+        None,
+    );
+    assert_eq!(
+        before["result"]["item"],
+        complete_work(&collision["before_item"])
+    );
+    let old_version = text(&before["result"]["version"]).to_owned();
+    maintenance::restore(
+        &store,
+        &restored_branch,
+        directory.path().join("preserved-later-branch.sqlite"),
+    )
+    .unwrap();
+
+    let mut session = ReadSession::open(config).unwrap();
+    let restored = get(&mut session, &restored_id, Some(old_version.clone()));
+    assert_eq!(restored["ok"], true);
+    assert!(
+        restored.get("error").is_none(),
+        "successful miss has no error"
+    );
+    assert_eq!(
+        restored["result"]["item"],
+        complete_work(&collision["restored_item"])
+    );
+    assert_eq!(
+        before["result"]["item"]["id"],
+        restored["result"]["item"]["id"]
+    );
+    assert_eq!(
+        before["result"]["item"]["revision"],
+        restored["result"]["item"]["revision"]
+    );
+    assert_ne!(before["result"]["item"], restored["result"]["item"]);
+    let fresh_version = text(&restored["result"]["version"]).to_owned();
+    assert_ne!(old_version, fresh_version);
+    assert_ne!(
+        old_version.rsplit_once('.').unwrap().1,
+        fresh_version.rsplit_once('.').unwrap().1,
+        "restore must rotate generation, not merely change the schema cookie"
+    );
+    let hit = get(&mut session, &restored_id, Some(fresh_version.clone()));
+    assert_eq!(hit["result"]["outcome"], "not_modified");
+    assert_eq!(hit["result"]["version"], fresh_version);
+    assert!(hit["result"]["item"].is_null());
+
+    // Generation-less legacy validators remain errors, unlike well-formed misses.
+    let legacy = fresh_version.rsplit_once('.').unwrap().0;
+    for version in [legacy.to_owned(), format!("{legacy}.null")] {
+        let error = session
+            .execute(
+                &authorization(),
+                ReadRequest::Get {
+                    item_id: restored_id.clone(),
+                    projection: ItemProjectionKind::Work,
+                    known_version: Some(version),
+                    conditional: true,
+                },
+                ResponseBudget::default(),
+            )
+            .unwrap_err();
+        let error = serde_json::to_value(error).unwrap();
+        assert_eq!(error["code"], "invalid_input");
+        assert_eq!(
+            error["details"],
+            json!({"reason": "generation_missing", "refetch_required": true})
+        );
+    }
+    assert_eq!(
+        restored["result"]["outcome"], case["outcome"],
+        "runtime outcome must agree with the named recovery fixture"
+    );
+    assert_eq!(restored["error"], case["error"]);
 }
 
 #[test]
