@@ -7,6 +7,7 @@ mod projection_reads;
 pub use projection_reads::ProjectionRepository;
 mod history_pages;
 pub mod journal;
+pub mod maintenance;
 
 use std::fmt;
 use std::path::{Path, PathBuf};

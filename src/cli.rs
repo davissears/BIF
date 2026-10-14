@@ -118,6 +118,7 @@ where
             let _ = writeln!(stderr, "error: {error}");
             if matches!(error, CliError::Usage(_)) {
                 let _ = writeln!(stderr, "{USAGE}");
+                let _ = writeln!(stderr, "{}", crate::cli_maintenance::HELP);
             }
             error.exit_code()
         }
@@ -142,6 +143,7 @@ enum Command {
     },
     Capture(CaptureOptions),
     Mutation(crate::cli_mutation::MutationOptions),
+    Maintenance(crate::cli_maintenance::MaintenanceCommand),
 }
 
 #[derive(Debug)]
@@ -215,6 +217,7 @@ where
             })
         }
         "capture" => parse_capture(&values[1..]).map(Command::Capture),
+        "maintenance" => crate::cli_maintenance::parse(&values[1..]).map(Command::Maintenance),
         mutation if crate::cli_mutation::is_command(mutation) => {
             crate::cli_mutation::parse(mutation, &values[1..]).map(Command::Mutation)
         }
@@ -356,6 +359,7 @@ fn execute(command: Command) -> Result<String, CliError> {
         Command::List { config } => list(config),
         Command::Capture(options) => capture(options),
         Command::Mutation(options) => crate::cli_mutation::execute(options),
+        Command::Maintenance(command) => crate::cli_maintenance::execute(command),
     }
 }
 

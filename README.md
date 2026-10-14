@@ -73,6 +73,36 @@ mutation advances the item revision; reread the item before the next change.
 Reuse an idempotency key only when retrying the same request, and choose a new
 key for a new operation.
 
+## Offline backup and restore
+
+Before either command, **stop/reap all readers and writers and disable automatic
+restart/new launches until verification finishes**. `--offline` is explicit
+operator acknowledgement, **not proof of shutdown**. Use trusted directories and
+explicit database paths; maintenance does not use configured store selection.
+
+```sh
+bif maintenance backup --store /trusted/ROOT/.bif/bif.sqlite \
+  --output /trusted/backups/pristine.sqlite --offline
+bif maintenance restore --store /trusted/ROOT/.bif/bif.sqlite \
+  --from /trusted/backups/pristine.sqlite \
+  --preserve-later /trusted/backups/later.sqlite --offline
+```
+
+All paths above are placeholders; output and preservation files must not exist.
+Both operations use SQLite's Online Backup API, not mainfile/WAL copies. Restore
+validates a private stage, requires the exact current schema/migration history
+(no migration/down-migration), makes a verified never-overwritten preservation
+of the current target, and publishes in place without replacing its inode.
+Every restore draws a fresh OS-random 128-bit generation and leaves sync inactive
+with bootstrap required; it preserves the backup's store ID, item revisions,
+audit/receipts, journal history and H/F. SQLite advances its internal schema
+cookie; DDL/migrations are unchanged. Restart all clients after verification.
+Later writes are preserved, not reconciled; actual sync/bootstrap work remains
+deferred. On failure keep maintenance in force and inspect the target/backups
+before retrying with a new preservation path. See the
+[maintenance and recovery runbook](docs/bif-upgrade-runbook.md) for prerequisites,
+failure behavior, historical-schema recovery and durability/test limits.
+
 ## Example workflows
 
 These recipes show common ways to use BIF after completing the quick start.

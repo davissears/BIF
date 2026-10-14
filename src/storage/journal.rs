@@ -94,10 +94,10 @@ impl From<rusqlite::Error> for JournalError {
     }
 }
 
-/// Migration-only initialization. Collision probability for independent uniform
+/// Independent draws for migration and every restore. Collision probability for
 /// OS-random 128-bit draws is assumed negligible, not mathematically impossible.
 /// SQLite randomblob is pseudo-random and is not used for this identity.
-pub(super) fn initialize(connection: &Connection) -> Result<(), super::MigrationError> {
+pub(super) fn fresh_generation() -> Result<Generation, super::MigrationError> {
     let mut bytes = [0_u8; 16];
     getrandom::fill(&mut bytes).map_err(super::MigrationError::GenerationRandomness)?;
     let mut generation = String::with_capacity(32);
@@ -106,11 +106,17 @@ pub(super) fn initialize(connection: &Connection) -> Result<(), super::Migration
         generation.push(char::from(HEX[usize::from(byte >> 4)]));
         generation.push(char::from(HEX[usize::from(byte & 15)]));
     }
+    Ok(Generation(generation))
+}
+
+/// Migration-only initialization in the caller's schema transaction.
+pub(super) fn initialize(connection: &Connection) -> Result<(), super::MigrationError> {
+    let generation = fresh_generation()?;
     connection.execute(
         "INSERT INTO journal_metadata
          (singleton, generation, retention_floor, high_water, sync_enabled, bootstrap_required)
          VALUES (1, ?1, 0, 0, 0, 1)",
-        [generation],
+        [generation.as_str()],
     )?;
     Ok(())
 }

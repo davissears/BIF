@@ -12,8 +12,9 @@ See the
 [release manifest](bif-v2-release-evidence.json) and
 [Phase D evidence](bif-v2-phase-d-evidence.md). The separate
 [Phase E proof](baselines/v2-phase-e/README.md) records only disposable executable
-and process evidence. Journal rollout procedures, restore-generation reset,
-activation and live operational release gates remain unfinished.
+and process evidence. V2-033 adds offline current-schema backup/restore and
+restore-generation reset below. Journal rollout, activation, reconciliation and
+live operational release gates remain unfinished.
 
 ## Compatibility and maintenance window
 
@@ -46,9 +47,9 @@ and launcher in that inventory:
    finish or explicitly terminate them, and **wait/reap or obtain the service
    manager's equivalent exit confirmation**. Check that no old writer remains.
    An intended stop command or a fixed sleep is not drain evidence.
-3. Pause readers too. Stop persistent `bif-mcp` servers; their configuration and
-   schema resources are pinned for the process lifetime. Only after confirmed
-   drain may the candidate open the database and run migration.
+3. Stop/reap readers too, including persistent `bif-mcp` servers; their
+   configuration and schema resources are pinned for the process lifetime.
+   Only after confirmed drain may maintenance or candidate migration proceed.
 4. Verify the candidate, replace all inventoried launch commands with the chosen
    executable, confirm no old process remains, and only then remove maintenance
    restart prevention and restart the approved services.
@@ -62,18 +63,99 @@ generation/schema inside `BEGIN IMMEDIATE`, before replay/no-op/effective writes
 Those guards do not retrofit old binaries, enforce the operator window, or
 protect direct SQL. Direct SQL and out-of-band writers are unsupported.
 
-There is still no BIF-specific backup/restore command; use the SQLite-consistent
-procedure below, not an invented CLI operation.
+## Current-schema offline backup and restore (V2-033)
 
-## SQLite-consistent backup: existing executable procedure
+The CLI and `storage::maintenance::{backup, restore}` API both require the
+operator window above: **stop/reap every reader and writer, and disable automatic
+restarts and new launches** through verification. `--offline` is a required
+explicit acknowledgement, **not proof that anything has shut down**. A SQLite
+lock, a generation guard, or a successful command cannot prove shutdown either.
+Keep all source/output directories trusted, private as appropriate, and unchanged
+by other actors. Do not use this procedure on a live store without separate
+authorization.
+
+Set `DB` to the exact existing database (normally `ROOT/.bif/bif.sqlite`), `BACKUP`
+to a **new** backup file in an existing trusted directory, and `LATER` to a
+different **new** preservation file. Maintenance ignores configuration/environment
+store selection and accepts no `--root` override.
+
+```sh
+# After confirmed stop/reap and restart prevention:
+bif maintenance backup --store "$DB" --output "$BACKUP" --offline
+
+# A separately authorized recovery decision; keep BACKUP pristine:
+bif maintenance restore --store "$DB" --from "$BACKUP" \
+    --preserve-later "$LATER" --offline
+```
+
+Both commands require the exact current embedded migration/name/checksum history
+and SQLite schema; old, future, missing/gapped or malformed histories are refused
+without implicit migration/down-migration. Full integrity and foreign-key checks,
+store identity, journal metadata, retained `(F,H]` coverage/operation links and the
+durable allocator are validated. Arbitrary extra schema objects are unsupported.
+Historical schema-2/schema-3 backups cannot be restored using this command.
+
+Backups use the [SQLite Online Backup API](https://www.sqlite.org/backup.html),
+including committed WAL frames, and are verified standalone DELETE-journal SQLite
+files. Never copy a mainfile/WAL pair yourself or delete WAL/SHM files. An existing
+output/preservation destination or sidecar, a path alias (including hard links),
+or a collision with an input's SQLite sidecar is rejected. A failed operation
+may retain an incomplete claimed output; never treat it as verified, overwrite it,
+or reuse that destination on retry.
+
+Restore first copies the input into a private stage, validates it, then draws a
+**fresh independent OS-random 128-bit generation on every restore**, including
+repeated restores of the very same backup. Independent random collision
+probability is assumed negligible, not impossible. In a staging transaction it
+changes only generation, `sync_enabled=0`, and `bootstrap_required=1`. Store ID,
+schema/migration history, item revisions, audit, receipts, journal rows, H and F
+are preserved from the input. Before target publication it creates and verifies
+`LATER` as a SQLite-consistent backup of the current target. This preservation is
+never overwritten/deleted by the tool, even if publication fails.
+
+Publication uses Online Backup into the existing target inode, not rename or
+filesystem replacement. SQLite owns the destination write transaction: a backup
+abandoned before `SQLITE_DONE` rolls back; completion commits the whole stage.
+No user transaction may already be open on that destination handle. The target
+is closed/reopened and validated before success is reported. SQLite advances its
+internal `PRAGMA schema_version` cookie during backup; preserving the schema means
+unchanged DDL and migrations, **not** preserving that physical cookie. The tool
+does not write the cookie back. Incompatible WAL page sizes and busy/locked
+transfers fail closed without retry loops.
+
+On any error or interrupted process, keep restart prevention active, retain both
+backups, reopen/inspect the target and verify its integrity/metadata/full reads
+before deciding whether to retry to a new preservation destination. An error
+after publication can mean a complete restore committed but final verification
+failed; an error is not an assertion that no commit happened. After verified
+restore, restart **all** clients. Old page/history continuations fail as stale;
+old item validators must refetch, never falsely return `not_modified`.
+Later writes are preserved, **not reconciled or reapplied**. Actual sync expiry,
+bootstrap and reconciliation remain V2-036/V2-039 work; this command activates
+neither synchronization nor a sync cycle.
+
+Focused disposable tests cover WAL-only committed frames, pre-publication
+failures, incomplete Online Backup rollback and killed/reaped test-only backup
+processes at before/incomplete/completed boundaries. CLI commands are separately
+tested in subprocesses; the crash boundary child tests the actual SQLite primitive,
+not an instrumented production CLI interior. This is logical process recovery
+evidence, **not physical power-loss/torn-write** or live/platform release approval.
+`FULL` SQLite synchronization and output-file sync are not a substitute for the
+operator's durable filesystem/directory sync, off-machine retention, encryption
+and access-control policy.
+
+## Historical-schema SQLite-consistent backup: executable procedure
 
 Use SQLite's online backup API, not a filesystem copy of a live main database.
 Committed data may still be in the WAL. Never discard WAL/SHM files to make a
 backup appear readable. The source and destination directories must be trusted,
 and no other process may replace their entries during this procedure.
 
-The example requires Python 3 with `sqlite3`. Set `SOURCE` to the inventoried
-database. For rehearsals, use only a generated disposable fixture. Choose a
+The following retained procedure supports historical-schema upgrade rehearsals
+that the current-schema-only BIF maintenance API refuses. It does not implement
+restore-generation reset. The example requires Python 3 with `sqlite3`. Set
+`SOURCE` to the inventoried database. For rehearsals, use only a generated
+disposable fixture. Choose a
 private destination on durable storage for a real backup; `target/` below is
 only a rehearsal destination.
 
@@ -180,9 +262,9 @@ encryption, and access-control policy before approving a real upgrade.
    there are no old processes. Resume normal work only after verification.
 
 The Phase D and disposable Phase E procedures below supplement this checklist.
-V2-035 will add journal-release procedures, and V2-033
-will implement restore-generation reset. Those later features do not exist in
-the read candidate and must not appear as executable restore instructions.
+V2-035 will add journal-release procedures. V2-033's current-schema restore above
+does not exist in the historical read candidate; never use its commands to
+restore a historical-schema backup.
 
 ## Phase D indexed-read candidate
 
@@ -279,8 +361,8 @@ Phase E remains **not approved**. Its separate manifest gates require the live
 operator's exact retained binary/service/launcher inventory, a verified live
 stop/drain/prevent-restart window, explicit Phase E authorization, configured-host
 and platform validation, and durable/power-loss recovery validation. Phase D's
-read-candidate approval and host evidence do not satisfy these gates. This task
-does not supply rollout/restore tooling or activate synchronization.
+read-candidate approval and host evidence do not satisfy these gates. The V2-032
+proof itself does not supply rollout/restore tooling or activate synchronization.
 
 ## Rollback is recovery, not transparent undo
 
@@ -291,17 +373,20 @@ down-migration.
 
 Restoring the pre-upgrade backup discards every later write unless those writes
 are separately preserved and reconciled. The operator must explicitly accept
-that loss or approve a reconciliation plan. Restore into a new root, verify it,
-and change launch/config paths as one maintenance decision; do not overwrite
-an active database or leave stale WAL/SHM files beside a replacement. Keep both
-stores and inventories until the operator approves their disposition.
+that loss or approve a reconciliation plan. For an older-schema rollback, restore
+into a new root using the historical SQLite procedure, verify it, and change
+launch/config paths as one maintenance decision; current-schema restore above
+cannot down-migrate. Do not overwrite an active database or leave stale WAL/SHM
+files beside a replacement. Keep both stores and inventories until the operator
+approves their disposition.
 
 After restore, verify metadata, integrity, full reads and history using the old
 binary against the restored root. For this read candidate, restart all MCP
 servers and invalidate retained validators/cursors unconditionally. Current
-tokens bind to generation, but unsupported manual restore does not automatically
-rotate it. Preserving the backup's old generation is not a promise of restore
-detection. Future journal releases must also rebuild
+tokens bind to generation, but unsupported manual/historical restore does not
+automatically rotate it. Only the current-schema maintenance restore above
+provides a fresh generation. Preserving a backup's old generation manually is
+not a promise of restore detection. Future journal releases must also rebuild
 mirrors according to their generation-aware procedure.
 
 ## Disposable v1 rehearsal evidence
