@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "python3",
+    "docs/baselines/v2-phase-e/final-gate/gate.py",
+    "--output",
+    "docs/baselines/v2-phase-e/final-gate",
+    "--work-dir",
+    "target/phase-e-final-gate-corrected-run-2"
+  ],
+  "command": "python3 docs/baselines/v2-phase-e/final-gate/gate.py --output docs/baselines/v2-phase-e/final-gate --work-dir target/phase-e-final-gate-corrected-run-2",
+  "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+  "started_at_unix_ns": 1792019437352216000,
+  "finished_at_unix_ns": 1792019520464317000,
+  "exit_code": 0,
+  "stdout": "Build authentic old/candidate and rerun drain/upgrade/refusal proof\nGenerate comparable fixtures before protocol freeze\nProtocol frozen: d9f39fe14da2ee7e5161580bb3055421aeacc695aa4873f48a4e33d89358abb1\nMeasure 100 items: 5 warmups + 30 paired samples x six workloads\nMeasure 10000 items: 5 warmups + 30 paired samples x six workloads\nMeasure 100000 items: 5 warmups + 30 paired samples x six workloads\nRecorded evidence passed deterministic validation; independent disposition/release review still required.\n",
+  "stderr": ""
+}

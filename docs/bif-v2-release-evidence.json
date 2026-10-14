@@ -156,7 +156,26 @@
       "configured_host_and_platform_validation",
       "power_loss_and_durable_recovery_validation"
     ],
-    "disclosure": "Phase D approval, host evidence and old schema-2 rehearsal remain intact and do not approve Phase E. No live store, ledger, launcher configuration, sync activation, restore, prune, migration SQL or Phase F change."
+    "disclosure": "Phase D approval, host evidence and old schema-2 rehearsal remain intact and do not approve Phase E. No live store, ledger, launcher configuration, sync activation, restore, prune, migration SQL or Phase F change.",
+    "final_gate": {
+      "task": "V2-035",
+      "status": "awaiting_independent_foundation_review",
+      "release_approved": false,
+      "sync_enabled": 0,
+      "bootstrap_required": 1,
+      "phase_f_dependency": false,
+      "deferred": ["V2-036 sync-cursor expiry", "V2-039 bootstrap/reconciliation"],
+      "proof": "docs/baselines/v2-phase-e/final-gate/proof.json",
+      "protocol": "docs/baselines/v2-phase-e/final-gate/protocol.json",
+      "measurements": "docs/baselines/v2-phase-e/final-gate/measurements.json",
+      "report": "docs/baselines/v2-phase-e/final-gate/REPORT.md",
+      "validation": "docs/baselines/v2-phase-e/final-gate/validation-results.json",
+      "harness": "docs/baselines/v2-phase-e/final-gate/gate.py",
+      "check": "cargo test --locked --test phase_e_final_gate",
+      "timing_thresholds_in_ci": false,
+      "manual_workflow": ".github/workflows/phase-e-evidence.yml",
+      "policy": "Deterministic correctness and recorded proof/provenance validation run in ordinary CI. Runtime write measurements require manual/release execution and disposition review, never absolute timing gates or automatic live approval."
+    }
   },
   "release_gate": {
     "status": "approved",

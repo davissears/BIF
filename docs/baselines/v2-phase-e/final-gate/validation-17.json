@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "cargo",
+    "fmt",
+    "--all",
+    "--check"
+  ],
+  "command": "cargo fmt --all --check",
+  "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+  "started_at_unix_ns": 1792019595544331000,
+  "finished_at_unix_ns": 1792019595786785000,
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": ""
+}

@@ -1,0 +1,18 @@
+{
+  "docs/baselines/v2-phase-e/final-gate/REPORT.md": "4d1b8296f02bf3badb1662e5c258fe126952da3f790a35e6f54877528a9e2972",
+  "docs/baselines/v2-phase-e/final-gate/gate.py": "027a37416d342590dc3f26ac746e184e9cd466d30e7bd975341217382cfe9ac2",
+  "docs/baselines/v2-phase-e/final-gate/measurements.json": "c16a74dced289c36c797a14f4b594c05c64c63709e061f8a2ad65f9182e145b2",
+  "docs/baselines/v2-phase-e/final-gate/proof.json": "745f4a7724db25f4c6bee3389f6202d1a02d92193d7d6e67cd65092c34f2b6f7",
+  "docs/baselines/v2-phase-e/final-gate/protocol.json": "ec52a4cf676f64ae6d6ace299b604924337ad79caa55caeb904354b8a4647cc8",
+  "docs/baselines/v2-phase-e/final-gate/test_gate.py": "d315bf05980646779b0f0ec6911244d1a562bd003679e3953b759846edc01e66",
+  "docs/baselines/v2-phase-e/final-gate/upgrade-proof.json": "00ccbc14e83b28ed2e9cefa96dbc6c229d69a119712112919e15c603ab31a8f2",
+  "docs/baselines/v2-phase-e/final-gate/validation-01.json": "95aaa4043c64208fe8b4ac6906f38870356fba2a62841581a9c9b7a37ee2a59d",
+  "docs/baselines/v2-phase-e/final-gate/validation-02.json": "a6d19b34fcbb6d4393e59def99766b3ef8f3ed9843a22124e571650ec6a07185",
+  "docs/baselines/v2-phase-e/final-gate/validation-03.json": "5bba395c156887301a6d1437c354ba356ffabf78d98193cdd28ca29b11f5af18",
+  "docs/baselines/v2-phase-e/final-gate/validation-04.json": "8d5764558ab38370f912b5be437dd48818cb88aa67f0e36f4f1ee5c10c7ebf5f",
+  "docs/baselines/v2-phase-e/final-gate/validation-05.json": "8b1959b7609d2a5cefb01fa294bb4d4996bf8286d0be1f39c5d8a81ac6b37da5",
+  "docs/baselines/v2-phase-e/final-gate/validation-06.json": "cb95abb6c1dd5fa232fdd10f041fb4cc46da7d343b6bb7a37e0cbfb0d07f6dec",
+  "docs/baselines/v2-phase-e/final-gate/validation-07.json": "52ed555a3f87f96cc0d47af78708924057fac1660c468a0c9d04b2f38941b3d5",
+  "docs/baselines/v2-phase-e/final-gate/validation-08.json": "5f6c022a5606396b066e524eaaaaa4bf108f6ba543e2875006798ed6788558a3",
+  "docs/baselines/v2-phase-e/final-gate/validation-results.json": "da0187c283717bb91542786d381d7d4fb4850f17616fad1f4bff60068d37edad"
+}

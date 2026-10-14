@@ -1,0 +1,176 @@
+{
+  "format": "bif-phase-e-final-gate-validation-v1",
+  "status": "passed",
+  "scope": "Fresh Step 3 evidence after both independently approved P2 harness corrections; final independent whole-task010 rereview remains required.",
+  "candidate_revision": "f0cd787f64a6bd3d301f11e616bb587e112a14fa",
+  "production_tree_unchanged": true,
+  "archived_phase_d_and_task007_evidence_unchanged": true,
+  "invalid_validation_originals_verified": 16,
+  "preexisting_noncurrent_files_verified": 35,
+  "cumulative_task010_issues": 3,
+  "arbitrary_issue_threshold": false,
+  "protocol_sha256": "d9f39fe14da2ee7e5161580bb3055421aeacc695aa4873f48a4e33d89358abb1",
+  "generated_artifacts_sha256": {
+    "proof.json": "8d5b75d576c5c0beb42c63bbbd80c53907906bd1af25e37bec65a1628ac079bf",
+    "protocol.json": "d9f39fe14da2ee7e5161580bb3055421aeacc695aa4873f48a4e33d89358abb1",
+    "measurements.json": "5309d2015a0e97d45c036374968587b861e475f9d6d8a48f8798b7832a5f7d02",
+    "upgrade-proof.json": "1c343d381a9a4c2f2b3084ffdb5e9724a19d575c7fe1efe95118f447c8856b9d"
+  },
+  "frozen_harness_sha256": {
+    "gate.py": "db450e1283c07a4b07693133f5930fab63c74f00d5c370bf95c8bfab567ca790",
+    "test_gate.py": "9e6e84158a65ce0f79da52d8e614901bf40ff94da67a706637feec74ae5b80b3"
+  },
+  "runtime_command": "python3 docs/baselines/v2-phase-e/final-gate/gate.py --output docs/baselines/v2-phase-e/final-gate --work-dir target/phase-e-final-gate-corrected-run-2",
+  "runtime_result": "passed; exact frozen generator rebuilt authentic old/candidate, reran all correctness cases, froze protocol and measured all 18 workloads directly into current paths",
+  "protocol_frozen_at_unix_ns": 1792019506513418000,
+  "measurements_started_at_unix_ns": 1792019506514319000,
+  "measurements_finished_at_unix_ns": 1792019519932614000,
+  "cost_disposition": {
+    "rule": ">=10% paired median plus CI95 wholly above parity requires explanation/disposition review; >=10% with overlapping CI is inconclusive and requires a complete repeat",
+    "no_trigger": 18,
+    "explanation_review_required": 0,
+    "inconclusive_repeat": 0,
+    "effective_note_compound_paired_overhead_percent_range": [5.168449201513692, 8.422248361076745],
+    "raw_samples_filtered_or_transplanted": false
+  },
+  "release_approved": false,
+  "sync_enabled": 0,
+  "bootstrap_required": 1,
+  "phase_f_deferred": true,
+  "red_before_status": "Historical partial record copied from the invalid-validation archive, not newly executed or a claim of a complete red phase. New fixture/semantic controls are recorded separately below.",
+  "red_before": [
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py",
+      "exit_code": 1,
+      "failure": "ModuleNotFoundError: No module named 'gate'"
+    },
+    {
+      "command": "cargo test --locked --test phase_e_final_gate --test read_release_manifest",
+      "exit_code": 101,
+      "failure": "final_gate_controls_and_recorded_provenance_are_valid failed because gate was missing"
+    },
+    {
+      "command": "cargo test --locked --test read_release_manifest phase_e_final_foundation_gate_registers_proof_and_manual_measurements -- --exact",
+      "exit_code": 101,
+      "failure": "absent phase_e.final_gate.task: Null != V2-035"
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py GateTests.test_bundled_version_accepts_rust_c_string_bindings",
+      "exit_code": 1,
+      "failure": "AttributeError: module 'gate' has no attribute 'sqlite_version'"
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py GateTests.test_observers_establish_sqlite_access_before_either_workload",
+      "exit_code": 1,
+      "failure": "AttributeError: module 'gate' has no attribute 'open_observer'"
+    }
+  ],
+  "checks": [
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/gate.py --output docs/baselines/v2-phase-e/final-gate --work-dir target/phase-e-final-gate-corrected-run-2",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-09.json",
+      "log_sha256": "f55d8d7ecfda7c6f948010b74649e4e7a9edb6acb9d99c1dcb8012104b1e7fe6",
+      "scope": "Complete fresh direct-output runtime, including exact readonly recipe; no writable-open workaround."
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/gate.py --validate --output docs/baselines/v2-phase-e/final-gate",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-10.json",
+      "log_sha256": "e22c26d5c924271aa12708f697c2a3fef12dd2bdf5724db9a2b0a7f17760c6ec"
+    },
+    {
+      "command": "python3 -",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-11.json",
+      "log_sha256": "cff0b2c40b3f4ae8d7b199cbb3e31dd96d4a2aca85d65911764c2ccde9a253b6",
+      "scope": "Exact stdin retained in log: real fresh full-gate original attacks, no envelope hash/timing/statistic changes; real canonical fixture counter-only and missing-table controls.",
+      "fresh_full_validate_attacks_rejected_semantically": 2,
+      "canonical_counter_only_change_detected": true,
+      "canonical_missing_table_cases_rejected": 16
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/test_rehearse.py",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-12.json",
+      "log_sha256": "57df9929e8cc536e4e45f233aa0bd9d67b17c11618aea89286e5c624a3d43f5e",
+      "python_tests": 4
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-13.json",
+      "log_sha256": "612514a4b0df7e8ed083c717b14101df8abc0fe7db220b70011cd1ed5fc09e82",
+      "python_tests": 22
+    },
+    {
+      "command": "cargo test --locked --test migrations --test generation_transactions --test journal_storage --test capture_journal --test capture_journal_process --test mutation_journal --test mutation_journal_process --test journal_retention --test maintenance_cli --test maintenance_restore --test maintenance_process",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-14.json",
+      "log_sha256": "c51d1b1e1c4f995a0acbe05ccf38f24bd1ba7f266be7a80258b2870be8b3ac5a",
+      "rust_test_totals": {"passed": 60, "failed": 0, "ignored": 4}
+    },
+    {
+      "command": "cargo test --locked --test phase_e_upgrade_proof --test phase_e_schema_guards --test read_release_manifest --test phase_e_final_gate",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-15.json",
+      "log_sha256": "b0707875a28d57318f68b5791ab42d83810ce71daf7e58d3109435f5d6b72ccd",
+      "rust_test_totals": {"passed": 15, "failed": 0, "ignored": 0}
+    },
+    {
+      "command": "cargo test --locked",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-16.json",
+      "log_sha256": "eaf82033b6b7ffeb82f1cae4fe9c490015af194246db323bf71438588cecdfd4",
+      "rust_test_totals": {"passed": 411, "failed": 0, "ignored": 6}
+    },
+    {
+      "command": "cargo fmt --all --check",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-17.json",
+      "log_sha256": "0811329e14dd67272783dba782e7b8b6dad70fef38a36382164acd661482c930"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-18.json",
+      "log_sha256": "8fbe5facfb3b67c068e3bf4277483ba01acbe7dfafecb9d7486c02ba5e317cba",
+      "warnings": "Pre-existing production/test warnings retained verbatim; no bound source edits.",
+      "warning_categories": ["clone_on_copy", "double_ended_iterator_last", "field_reassign_with_default", "io_other_error", "len_zero", "manual_is_multiple_of", "needless_option_as_deref", "needless_range_loop", "type_complexity", "unnecessary_lazy_evaluations", "wrong_self_convention"]
+    },
+    {
+      "command": "python3 -",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-19.json",
+      "log_sha256": "67e991627b1337b96021e33509d2a71ac5dec4e4c5f4da52f2223a06364e9473",
+      "scope": "Exact stdin retained in log: all 16 archived originals, all 35 pre-existing non-current files, frozen input hashes and exact git diff --exit-code f0cd787 comparison for production/historical Phase D/task007."
+    },
+    {
+      "command": "python3 -",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-20.json",
+      "log_sha256": "4974df4425da97997f7f21b71c632f3fc4e1cfe4e8af5cdefd976259d82e6610",
+      "scope": "Exact stdin retained in log: git diff --check and all 54 then-present new files via git diff --no-index --check -- /dev/null FILE; normal addition exit 1 accepted only with empty output."
+    }
+  ],
+  "final_companion": {
+    "log": "docs/baselines/v2-phase-e/final-gate/validation-21.json",
+    "purpose": "Generated after this manifest: verifies every referenced log hash/command/exit/count, report measurement table, current-path validation, immutable archives/source, and final tracked/new-file diff checks.",
+    "hash_policy": "Companion SHA256 is returned in the completion message, not inserted here: it observes this final manifest without a source-binding or self-hash cycle."
+  },
+  "superseded": {
+    "archive": "docs/baselines/v2-phase-e/final-gate/invalid-validation-attempt",
+    "current_validation_01_through_08": "Historical observations retained, not current acceptance evidence.",
+    "target_only_corrected_run_1": "Successful disposable prior attempt, not transplanted into current paths. Coordinator directed a second complete direct-output run after the inline-promotion capacity concern."
+  },
+  "limits": [
+    "Local macOS execution; Ubuntu workflow registered, not executed here.",
+    "Four top-level ignored crash-test children are invoked by passing parent tests; two unrelated ignored Phase C/index measurement tests were not run.",
+    "Process-crash/reopen/retry, not physical power-loss/torn-write proof; maintenance kills test primitive boundaries, not production CLI interior.",
+    "Readonly recipe passed on intended disposable APFS-backed target path; prior DeltaFS open-14 remains unresolved for DeltaFS.",
+    "One-host generated warm-cache workload, not isolated transaction latency or a throughput/concurrency benchmark.",
+    "Serial disposable launcher gate, not a live service inventory or hostile writer exclusion.",
+    "No live ledger/configuration/store, Git write, publication, maintenance of a live store, sync activation or Phase F implementation.",
+    "Final independent whole-task010 rereview remains required; this status is evidence validation, not live release approval."
+  ]
+}

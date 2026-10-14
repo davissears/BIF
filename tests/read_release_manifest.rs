@@ -381,6 +381,39 @@ fn phase_e_is_separate_from_the_approved_phase_d_read_candidate() {
 }
 
 #[test]
+fn phase_e_final_foundation_gate_registers_proof_and_manual_measurements() {
+    let value = manifest();
+    let gate = &value["phase_e"]["final_gate"];
+    assert_eq!(gate["task"], "V2-035");
+    assert_eq!(gate["release_approved"], false);
+    assert_eq!(gate["sync_enabled"], 0);
+    assert_eq!(gate["bootstrap_required"], 1);
+    assert_eq!(gate["timing_thresholds_in_ci"], false);
+    assert_eq!(gate["phase_f_dependency"], false);
+    for field in [
+        "proof",
+        "protocol",
+        "measurements",
+        "report",
+        "validation",
+        "harness",
+    ] {
+        path(&gate[field]);
+    }
+    assert_eq!(
+        gate["check"],
+        "cargo test --locked --test phase_e_final_gate"
+    );
+    let ci = fs::read_to_string(".github/workflows/ci.yml").unwrap();
+    assert!(ci.contains("python3 docs/baselines/v2-phase-e/test_rehearse.py"));
+    assert!(ci.contains("python3 docs/baselines/v2-phase-e/final-gate/test_gate.py"));
+    let manual = fs::read_to_string(".github/workflows/phase-e-evidence.yml").unwrap();
+    assert!(manual.contains("workflow_dispatch:"));
+    assert!(!manual.contains("pull_request:"));
+    assert!(manual.contains("fetch-depth: 0"));
+}
+
+#[test]
 fn explicit_operator_signoff_can_complete_the_candidate_gate() {
     let mut value = manifest();
     value["release_gate"]["status"] = json!("approved");

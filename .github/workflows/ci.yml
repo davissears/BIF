@@ -24,6 +24,10 @@ jobs:
         run: cargo fmt --all --check
       - name: Lint all targets
         run: cargo clippy --locked --all-targets
+      - name: Validate archived and final Phase E evidence controls
+        run: |
+          python3 docs/baselines/v2-phase-e/test_rehearse.py
+          python3 docs/baselines/v2-phase-e/final-gate/test_gate.py
       # The whole nonignored suite is the manifest's deterministic source of
       # truth: read_release_manifest, read_release_rehearsal, structural query
       # tests and the 100-item benchmark_harness instrumentation are included.

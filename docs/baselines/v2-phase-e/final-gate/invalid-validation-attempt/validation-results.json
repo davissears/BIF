@@ -1,0 +1,129 @@
+{
+  "format": "bif-phase-e-final-gate-validation-v1",
+  "status": "passed",
+  "candidate_revision": "f0cd787f64a6bd3d301f11e616bb587e112a14fa",
+  "production_tree_unchanged": true,
+  "archived_phase_d_and_task007_evidence_unchanged": true,
+  "protocol_sha256": "ec52a4cf676f64ae6d6ace299b604924337ad79caa55caeb904354b8a4647cc8",
+  "runtime_command": "python3 docs/baselines/v2-phase-e/final-gate/gate.py --output docs/baselines/v2-phase-e/final-gate --work-dir target/phase-e-final-gate-run-6",
+  "runtime_result": "passed; entire protocol rerun after rejecting unequal-observer attempt",
+  "release_approved": false,
+  "phase_f_deferred": true,
+  "red_before": [
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py",
+      "exit_code": 1,
+      "failure": "ModuleNotFoundError: No module named 'gate'"
+    },
+    {
+      "command": "cargo test --locked --test phase_e_final_gate --test read_release_manifest",
+      "exit_code": 101,
+      "failure": "final_gate_controls_and_recorded_provenance_are_valid failed because gate was missing"
+    },
+    {
+      "command": "cargo test --locked --test read_release_manifest phase_e_final_foundation_gate_registers_proof_and_manual_measurements -- --exact",
+      "exit_code": 101,
+      "failure": "absent phase_e.final_gate.task: Null != V2-035"
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py GateTests.test_bundled_version_accepts_rust_c_string_bindings",
+      "exit_code": 1,
+      "failure": "AttributeError: module 'gate' has no attribute 'sqlite_version'"
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py GateTests.test_observers_establish_sqlite_access_before_either_workload",
+      "exit_code": 1,
+      "failure": "AttributeError: module 'gate' has no attribute 'open_observer'"
+    }
+  ],
+  "checks": [
+    {
+      "command": "python3 docs/baselines/v2-phase-e/test_rehearse.py",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-01.json",
+      "log_sha256": "95aaa4043c64208fe8b4ac6906f38870356fba2a62841581a9c9b7a37ee2a59d",
+      "python_tests": 4
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-02.json",
+      "log_sha256": "a6d19b34fcbb6d4393e59def99766b3ef8f3ed9843a22124e571650ec6a07185",
+      "python_tests": 5
+    },
+    {
+      "command": "cargo test --locked --test migrations --test generation_transactions --test journal_storage --test capture_journal --test capture_journal_process --test mutation_journal --test mutation_journal_process --test journal_retention --test maintenance_cli --test maintenance_restore --test maintenance_process",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-03.json",
+      "log_sha256": "5bba395c156887301a6d1437c354ba356ffabf78d98193cdd28ca29b11f5af18",
+      "rust_test_totals": {"passed": 60, "failed": 0, "ignored": 4}
+    },
+    {
+      "command": "cargo test --locked --test phase_e_upgrade_proof --test phase_e_schema_guards --test read_release_manifest --test phase_e_final_gate",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-04.json",
+      "log_sha256": "8d5764558ab38370f912b5be437dd48818cb88aa67f0e36f4f1ee5c10c7ebf5f",
+      "rust_test_totals": {"passed": 15, "failed": 0, "ignored": 0}
+    },
+    {
+      "command": "cargo test --locked",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-05.json",
+      "log_sha256": "8b1959b7609d2a5cefb01fa294bb4d4996bf8286d0be1f39c5d8a81ac6b37da5",
+      "rust_test_totals": {"passed": 411, "failed": 0, "ignored": 6}
+    },
+    {
+      "command": "cargo fmt --all --check",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-06.json",
+      "log_sha256": "cb95abb6c1dd5fa232fdd10f041fb4cc46da7d343b6bb7a37e0cbfb0d07f6dec"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-07.json",
+      "log_sha256": "52ed555a3f87f96cc0d47af78708924057fac1660c468a0c9d04b2f38941b3d5",
+      "warnings": "Existing production/test warnings retained; no production source edits.",
+      "warning_categories": ["clone_on_copy", "double_ended_iterator_last", "field_reassign_with_default", "io_other_error", "len_zero", "manual_is_multiple_of", "needless_option_as_deref", "needless_range_loop", "type_complexity", "unnecessary_lazy_evaluations", "wrong_self_convention"]
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-08.json",
+      "log_sha256": "5f6c022a5606396b066e524eaaaaa4bf108f6ba543e2875006798ed6788558a3"
+    },
+    {
+      "command": "git diff --exit-code f0cd787f64a6bd3d301f11e616bb587e112a14fa -- src migrations Cargo.toml Cargo.lock rust-toolchain.toml docs/baselines/v2-phase-d docs/baselines/v2-phase-e/rehearse.py docs/baselines/v2-phase-e/test_rehearse.py docs/baselines/v2-phase-e/upgrade-proof.json docs/baselines/v2-phase-e/validation-results.json",
+      "exit_code": 0,
+      "scope": "Production inputs, approved Phase D artifacts and immutable task007 evidence unchanged."
+    },
+    {
+      "command": "cargo test --locked --test phase_e_upgrade_proof --test phase_e_schema_guards --test read_release_manifest",
+      "exit_code": 0,
+      "rust_test_totals": {"passed": 14, "failed": 0, "ignored": 0},
+      "scope": "Exact requested proof/schema/manifest command rerun after final report/results were populated."
+    },
+    {
+      "command": "cargo test --locked --test phase_e_final_gate",
+      "exit_code": 0,
+      "rust_test_totals": {"passed": 1, "failed": 0, "ignored": 0}
+    },
+    {
+      "command": "git diff --check; git ls-files --others --exclude-standard -z; for each new file: git diff --no-index --check -- /dev/null FILE",
+      "result": "passed",
+      "new_files_checked": 25,
+      "disclosure": "The per-file --no-index command returns 1 for a file addition, not a whitespace error; accepted only 0/1 with empty stdout/stderr. An earlier check wrapper incorrectly treated that normal 1 as a failure, then was corrected and all 25 files checked."
+    },
+    {
+      "check": "Verify every validation-01..08 JSON SHA256 and embedded exact command/exit_code against this manifest.",
+      "result": "passed"
+    }
+  ],
+  "limits": [
+    "Local macOS execution; Ubuntu workflow registered, not executed here.",
+    "Top-level ignored crash-test children are invoked by passing parent tests; unrelated ignored Phase C/index measurement tests were not run.",
+    "Process-crash/reopen/retry, not power-loss/torn-write proof; maintenance kills test primitive boundaries, not CLI interior.",
+    "Readonly recipe passed on intended disposable APFS-backed target path; prior DeltaFS open-14 is not resolved for DeltaFS.",
+    "No live ledger/configuration/store, Git write, publication, sync activation or Phase F implementation."
+  ]
+}

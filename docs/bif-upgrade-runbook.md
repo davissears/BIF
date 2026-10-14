@@ -1,7 +1,8 @@
 # BIF upgrade and rollback runbook
 
 **Status:** V2-054 operator checklist, Phase D indexed-read candidate procedure,
-and V2-032 disposable Phase E schema-3 to schema-4 proof. The required Phase D
+V2-032 archived schema-3 to schema-4 proof, and the separate V2-035
+[final foundation gate](baselines/v2-phase-e/final-gate/REPORT.md). The required Phase D
 [Codex configured-host evidence](baselines/v2-phase-d/configured-host/host-evidence.json)
 is recorded; the
 [operator signoff](baselines/v2-phase-d/configured-host/operator-signoff.json)
@@ -312,7 +313,8 @@ encryption, and access-control policy before approving a real upgrade.
    there are no old processes. Resume normal work only after verification.
 
 The Phase D and disposable Phase E procedures below supplement this checklist.
-V2-035 will add journal-release procedures. V2-033's current-schema restore above
+V2-035 verifies the journal foundation procedures separately from live release.
+V2-033's current-schema restore above
 does not exist in the historical read candidate; never use its commands to
 restore a historical-schema backup.
 
@@ -413,6 +415,81 @@ stop/drain/prevent-restart window, explicit Phase E authorization, configured-ho
 and platform validation, and durable/power-loss recovery validation. Phase D's
 read-candidate approval and host evidence do not satisfy these gates. The V2-032
 proof itself does not supply rollout/restore tooling or activate synchronization.
+
+## Phase E final foundation gate (V2-035)
+
+The [final report](baselines/v2-phase-e/final-gate/REPORT.md),
+[frozen protocol](baselines/v2-phase-e/final-gate/protocol.json),
+[current proof](baselines/v2-phase-e/final-gate/proof.json), and
+[raw measurements](baselines/v2-phase-e/final-gate/measurements.json) bind
+production candidate `f0cd787f64a6bd3d301f11e616bb587e112a14fa` and the exact
+harness/tests. This is evidence-only work: no production source or migration
+change. The archived Phase D approvals and V2-032/task007 proofs are not replaced.
+V2-054 and V2-055 are document-local prerequisite labels, not ledger IDs.
+
+The final gate reruns the authentic `d4399a9` archive/locked-build, actual old
+writer stop/drain/reap and disposable restart exclusion. It separately rehearses:
+
+1. Fresh schema-4 initialization and schema-3 upgrade, including recorded
+   migration names/checksums. Fresh old opens refuse schema 4; this is not warm
+   old-writer fencing.
+2. Historical-schema rollback into another root from a pristine schema-3 online
+   backup, reopened/read/replayed with the real historical binary. Candidate
+   later writes remain in a separately verified current-schema preservation.
+3. Current-schema CLI backup including a journal row; two restores of the
+   identical immutable input, each drawing an independent generation. Preserve
+   and verify the entire later target before each restore. Never delete it as
+   cleanup or imply that its writes have been reconciled.
+4. Exact `sqlite3 -readonly` metadata inspection above, then generation-bound
+   pruning and retained `(F,H]` coverage checks with audit/receipts/allocator
+   unchanged. This run's intended disposable path is APFS-backed `target/`.
+   The exact recipe passed there with SQLite CLI 3.54.0. The earlier DeltaFS
+   read-only open-14 failure is **not resolved for that filesystem** by this
+   result; successful CLI/API maintenance alone never proves the diagnostic
+   recipe works. Rehearse it on the intended deployment filesystem before
+   approval. Do not change live configuration or silently use a writable open
+   as a workaround.
+
+Ordinary CI runs deterministic correctness, process-crash/retry tests and
+recorded provenance controls. Reproduce runtime evidence only on disposable
+stores, using **new** output and work directories:
+
+```sh
+python3 docs/baselines/v2-phase-e/test_rehearse.py
+python3 docs/baselines/v2-phase-e/final-gate/test_gate.py
+cargo test --locked --test phase_e_final_gate --test read_release_manifest
+python3 docs/baselines/v2-phase-e/final-gate/gate.py \
+  --output target/phase-e-new-evidence \
+  --work-dir target/phase-e-new-disposable
+```
+
+The manual workflow `.github/workflows/phase-e-evidence.yml` performs the same
+runtime command. It does not replace recorded evidence, run on ordinary PRs or
+approve release. Before any timed samples the harness freezes both builds,
+toolchain/locks/SQLite/platform, comparable seed-2003 100/10k/100k fixtures,
+and all relevant harness/test/source hashes. It collects 5 warmups and 30 pairs
+per workload with alternating baseline/candidate order. Timing is supported
+one-shot CLI wall latency including startup/preflight/response/reap, not isolated
+SQL time. Raw pairs, median, nearest-rank p95 and a deterministic 95% paired
+bootstrap interval are retained.
+
+The predeclared effective-write trigger is **>=10% paired median slowdown and
+95% interval wholly above parity**, requiring explanation/disposition review.
+Overlapping intervals at that magnitude are inconclusive and require repeating
+the whole protocol, not cherry-picking samples. There is no absolute time gate
+in CI. Main-DB and WAL bytes are observed separately before/after each workload
+and after explicitly named `wal_checkpoint(TRUNCATE)`. Both idle observers
+establish SQLite access before setup, with no active read transaction/external
+reader; production WAL/FULL and default 1000-page auto-checkpoint remain unchanged.
+Logical retention does not promise file shrinkage.
+
+The report recommends foundation review only. `sync_enabled=0` and
+`bootstrap_required=1` remain mandatory; live release/maintenance remains
+unapproved. Actual sync-cursor expiry, successful bootstrap and reconciliation
+are deferred to Phase F V2-036/V2-039; they are not prerequisites of this
+foundation gate (no dependency cycle). Process-kill evidence is process-crash/
+reopen only, not power-loss/torn-write proof. Maintenance interruption tests
+exercise the SQLite publication primitive, not an instrumented CLI interior.
 
 ## Rollback is recovery, not transparent undo
 
