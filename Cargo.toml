@@ -26,6 +26,7 @@ path = "src/bin/bif-benchmark.rs"
 
 [dependencies]
 cap-std = "4.0.3"
+getrandom = "0.3.4"
 rusqlite = { version = "0.38.0", features = ["backup", "bundled", "trace"] }
 same-file = "1.0.6"
 serde = { version = "1.0.228", features = ["derive"] }

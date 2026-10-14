@@ -44,7 +44,10 @@ fn normalized(sql: &str) -> String {
 fn fresh_schema_has_exactly_the_four_measured_indexes_with_binary_collation() {
     let connection = storage::open(":memory:").unwrap();
     let mut actual: Vec<(String, String)> = connection
-        .prepare("SELECT name, sql FROM sqlite_schema WHERE type = 'index' AND sql IS NOT NULL")
+        .prepare(
+            "SELECT name, sql FROM sqlite_schema
+                  WHERE type = 'index' AND name LIKE 'idx_items_read_%'",
+        )
         .unwrap()
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
         .unwrap()
@@ -180,4 +183,108 @@ fn production_common_page_plans_use_intended_indexes_without_order_by_sort() {
             }
         }
     }
+}
+
+#[test]
+fn journal_project_range_index_has_measured_plan_and_vm_work_not_a_wall_clock_gate() {
+    use bif::domain::ProjectId;
+    use bif::storage::journal::{JOURNAL_RANGE_SQL, JournalSnapshot};
+    use rusqlite::{StatementStatus, params};
+    use std::num::NonZeroU32;
+
+    let connection = storage::open(":memory:").unwrap();
+    connection
+        .execute_batch(
+            "INSERT INTO projects VALUES ('target', 'time'), ('noise', 'time');
+         INSERT INTO items (item_id, requester, project_id, sequence, title, status,
+          revision, captured_at, updated_at) VALUES
+         ('ALICE:target:001', 'ALICE', 'target', 1, 'Title', 'proposed', 1, 'time', 'time'),
+         ('ALICE:noise:001', 'ALICE', 'noise', 1, 'Title', 'proposed', 1, 'time', 'time');
+         WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x < 20000)
+         INSERT INTO operations
+         SELECT printf('op-%d', x),
+          CASE WHEN x % 1000 = 0 THEN 'ALICE:target:001' ELSE 'ALICE:noise:001' END,
+          'triage', x, x+1, 'time' FROM n;
+         INSERT INTO change_journal (operation_id, item_id, project_id, item_revision)
+         SELECT o.operation_id, o.item_id, i.project_id, o.item_revision
+         FROM operations o JOIN items i USING (item_id) ORDER BY o.item_revision;",
+        )
+        .unwrap();
+    let sql: String = connection
+        .query_row(
+            "SELECT sql FROM sqlite_schema WHERE name = 'idx_change_journal_project_seq'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        normalized(&sql),
+        "CREATE INDEX idx_change_journal_project_seq ON change_journal (project_id, change_seq)"
+    );
+    let measure = |connection: &Connection| {
+        let mut statement = connection.prepare(JOURNAL_RANGE_SQL).unwrap();
+        let sequences: Vec<i64> = statement
+            .query_map(params!["target", 0, 20000, 10], |row| row.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        (
+            sequences,
+            statement.get_status(StatementStatus::VmStep),
+            statement.get_status(StatementStatus::Sort),
+        )
+    };
+    for analyzed in [false, true] {
+        if analyzed {
+            connection.execute_batch("ANALYZE").unwrap();
+        }
+        let plan: Vec<String> = connection
+            .prepare(&format!("EXPLAIN QUERY PLAN {JOURNAL_RANGE_SQL}"))
+            .unwrap()
+            .query_map(params!["target", 0, 20000, 10], |row| row.get(3))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert!(
+            plan.iter()
+                .any(|detail| detail.contains("USING INDEX idx_change_journal_project_seq")),
+            "{plan:?}"
+        );
+        assert!(
+            plan.iter().all(|detail| !detail.contains("TEMP B-TREE")),
+            "{plan:?}"
+        );
+        let (sequences, steps, sorts) = measure(&connection);
+        assert_eq!(sequences, (1..=10).map(|n| n * 1000).collect::<Vec<_>>());
+        assert_eq!(sorts, 0);
+        assert!(steps < 300, "indexed steps={steps}");
+        let snapshot = JournalSnapshot::begin(&connection).unwrap();
+        let actual = snapshot
+            .select_range(
+                &snapshot.metadata().generation,
+                &ProjectId::new("target").unwrap(),
+                0,
+                20000,
+                NonZeroU32::new(10).unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            actual
+                .iter()
+                .map(|change| change.change_seq)
+                .collect::<Vec<_>>(),
+            sequences
+        );
+        snapshot.finish().unwrap();
+        println!("journal range analyzed={analyzed}: {steps} VM steps; plan={plan:?}");
+    }
+    connection
+        .execute_batch("DROP INDEX idx_change_journal_project_seq")
+        .unwrap();
+    let (_, unindexed_steps, _) = measure(&connection);
+    assert!(
+        unindexed_steps > 30000,
+        "comparison steps={unindexed_steps}"
+    );
+    println!("journal range without project index: {unindexed_steps} VM steps");
 }

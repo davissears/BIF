@@ -94,7 +94,9 @@ fn durable_state(connection: &Connection) -> Vec<(String, Vec<Vec<Value>>)> {
     let tables: Vec<String> = connection
         .prepare(
             "SELECT name FROM sqlite_schema WHERE type = 'table'
-             AND name NOT LIKE 'sqlite_%' AND name != 'schema_migrations' ORDER BY name",
+             AND name NOT LIKE 'sqlite_%'
+             AND name NOT IN ('schema_migrations', 'journal_metadata', 'change_journal')
+             ORDER BY name",
         )
         .unwrap()
         .query_map([], |row| row.get(0))
@@ -205,7 +207,7 @@ fn online_backup_upgrade_and_separate_root_rollback_preserve_schema_two() {
     online_backup(&pristine, &candidate_path);
 
     let mut candidate = storage::open(&candidate_path).unwrap();
-    verify(&candidate, 3);
+    verify(&candidate, 4);
     assert_eq!(storage::read_store_identity(&candidate).unwrap(), identity);
     assert_eq!(durable_state(&candidate), before);
     assert_eq!(
@@ -218,12 +220,15 @@ fn online_backup_upgrade_and_separate_root_rollback_preserve_schema_two() {
     assert_eq!(
         rows(
             &candidate,
-            "SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'idx_items_read_%' ORDER BY name"
+            "SELECT type, name, tbl_name, sql FROM sqlite_schema
+             WHERE name NOT LIKE 'idx_items_read_%'
+              AND tbl_name NOT IN ('journal_metadata', 'change_journal', 'sqlite_sequence')
+             ORDER BY name"
         ),
         schema
     );
     write(&mut candidate, "candidate-only-key");
-    verify(&candidate, 3);
+    verify(&candidate, 4);
     assert_ne!(durable_state(&candidate), before);
     drop(candidate);
 

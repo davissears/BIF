@@ -6,6 +6,7 @@
 mod projection_reads;
 pub use projection_reads::ProjectionRepository;
 mod history_pages;
+pub mod journal;
 
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -31,6 +32,7 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 const IMMUTABLE_EVENTS: &str = include_str!("../migrations/0002_immutable_events.sql");
 const PROJECTION_READ_INDEXES: &str =
     include_str!("../migrations/0003_projection_read_indexes.sql");
+const CHANGE_JOURNAL: &str = include_str!("../migrations/0004_change_journal.sql");
 
 const MIGRATIONS: &[Migration] = &[
     Migration {
@@ -38,18 +40,28 @@ const MIGRATIONS: &[Migration] = &[
         name: "initial",
         sql: INITIAL_SCHEMA,
         checksum: "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
+        initialize: None,
     },
     Migration {
         version: 2,
         name: "immutable_events",
         sql: IMMUTABLE_EVENTS,
         checksum: "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
+        initialize: None,
     },
     Migration {
         version: 3,
         name: "projection_read_indexes",
         sql: PROJECTION_READ_INDEXES,
         checksum: "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
+        initialize: None,
+    },
+    Migration {
+        version: 4,
+        name: "change_journal",
+        sql: CHANGE_JOURNAL,
+        checksum: "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
+        initialize: Some(journal::initialize),
     },
 ];
 
@@ -62,12 +74,16 @@ const CREATE_MIGRATION_TABLE: &str = "
     );
 ";
 
+type MigrationStep = fn(&Connection) -> Result<(), MigrationError>;
+
 #[derive(Clone, Copy)]
 struct Migration {
     version: i64,
     name: &'static str,
     sql: &'static str,
     checksum: &'static str,
+    // Non-SQL initialization shares the schema/bookkeeping transaction.
+    initialize: Option<MigrationStep>,
 }
 
 /// An error encountered while checking or advancing the database schema.
@@ -85,6 +101,12 @@ pub enum MigrationError {
         expected: String,
         found: String,
     },
+    /// History must be an exact contiguous prefix of the embedded migrations.
+    InvalidHistory,
+    /// OS entropy was unavailable; no migration changes are committed.
+    GenerationRandomness(getrandom::Error),
+    /// Existing journal metadata is invalid and must not be silently repaired.
+    Journal(journal::JournalError),
 }
 
 impl fmt::Display for MigrationError {
@@ -107,6 +129,15 @@ impl fmt::Display for MigrationError {
                 formatter,
                 "migration {version} checksum mismatch: expected {expected}, found {found}"
             ),
+            Self::InvalidHistory => formatter.write_str(
+                "migration history is missing or is not an exact contiguous version/name prefix",
+            ),
+            Self::GenerationRandomness(error) => {
+                write!(formatter, "journal generation entropy unavailable: {error}")
+            }
+            Self::Journal(error) => {
+                write!(formatter, "journal metadata validation failed: {error}")
+            }
         }
     }
 }
@@ -115,9 +146,12 @@ impl std::error::Error for MigrationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Sqlite(error) => Some(error),
+            Self::Journal(error) => Some(error),
             Self::NoFollowUnsupportedPlatform
             | Self::NewerSchema { .. }
-            | Self::ChecksumMismatch { .. } => None,
+            | Self::ChecksumMismatch { .. }
+            | Self::InvalidHistory
+            | Self::GenerationRandomness(_) => None,
         }
     }
 }
@@ -1741,55 +1775,93 @@ fn configure(connection: &Connection) -> rusqlite::Result<()> {
 /// Validation, schema changes, and migration bookkeeping share one transaction,
 /// so an unsuccessful startup leaves the database at its previous version.
 pub fn migrate(connection: &mut Connection) -> Result<(), MigrationError> {
-    migrate_all(connection, MIGRATIONS)
+    migrate_all(connection, MIGRATIONS, |connection| {
+        journal::read_metadata(connection)
+            .map(|_| ())
+            .map_err(MigrationError::Journal)
+    })
+}
+
+/// Preflight the entire applied prefix before executing any DDL. An empty history
+/// is allowed only for an otherwise empty database, never an untracked old store.
+fn migration_prefix(
+    connection: &Connection,
+    migrations: &[Migration],
+) -> Result<usize, MigrationError> {
+    let history_exists: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'schema_migrations')",
+        [], |row| row.get(0),
+    )?;
+    let applied: Vec<(i64, String, String)> = if history_exists {
+        connection
+            .prepare(
+                "SELECT version, name, checksum FROM schema_migrations ORDER BY version LIMIT ?1",
+            )?
+            .query_map([(migrations.len() + 1) as i64], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })?
+            .collect::<rusqlite::Result<_>>()?
+    } else {
+        Vec::new()
+    };
+    if applied.is_empty() {
+        let nonempty: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema
+             WHERE name NOT LIKE 'sqlite_%' AND name != 'schema_migrations')",
+            [],
+            |row| row.get(0),
+        )?;
+        if nonempty {
+            return Err(MigrationError::InvalidHistory);
+        }
+    }
+    let supported = migrations.last().map_or(0, |migration| migration.version);
+    for (index, (version, name, checksum)) in applied.iter().enumerate() {
+        if *version > supported {
+            return Err(MigrationError::NewerSchema {
+                found: *version,
+                supported,
+            });
+        }
+        let expected = migrations
+            .get(index)
+            .ok_or(MigrationError::InvalidHistory)?;
+        if *version != expected.version || name != expected.name {
+            return Err(MigrationError::InvalidHistory);
+        }
+        if checksum != expected.checksum {
+            return Err(MigrationError::ChecksumMismatch {
+                version: *version,
+                expected: expected.checksum.to_owned(),
+                found: checksum.clone(),
+            });
+        }
+    }
+    Ok(applied.len())
 }
 
 fn migrate_all(
     connection: &mut Connection,
     migrations: &[Migration],
+    validate: MigrationStep,
 ) -> Result<(), MigrationError> {
-    let supported = migrations.last().map_or(0, |migration| migration.version);
-    let transaction = connection.transaction()?;
+    let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let applied = migration_prefix(&transaction, migrations)?;
     transaction.execute_batch(CREATE_MIGRATION_TABLE)?;
 
-    let found = transaction.query_row(
-        "SELECT COALESCE(MAX(version), 0) FROM schema_migrations",
-        [],
-        |row| row.get::<_, i64>(0),
-    )?;
-    if found > supported {
-        return Err(MigrationError::NewerSchema { found, supported });
-    }
-
-    for migration in migrations {
-        let expected = migration.checksum;
-        let applied: Option<String> = transaction
-            .query_row(
-                "SELECT checksum FROM schema_migrations WHERE version = ?1",
-                [migration.version],
-                |row| row.get(0),
-            )
-            .optional()?;
-
-        if let Some(found) = applied {
-            if found != expected {
-                return Err(MigrationError::ChecksumMismatch {
-                    version: migration.version,
-                    expected: expected.to_owned(),
-                    found,
-                });
-            }
-            continue;
-        }
-
+    for migration in &migrations[applied..] {
         transaction.execute_batch(migration.sql)?;
+        if let Some(initialize) = migration.initialize {
+            initialize(&transaction)?;
+        }
         transaction.execute(
             "INSERT INTO schema_migrations (version, name, checksum, applied_at)
              VALUES (?1, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
-            params![migration.version, migration.name, expected],
+            params![migration.version, migration.name, migration.checksum],
         )?;
     }
 
+    validate(&transaction)?;
     transaction.commit()?;
     Ok(())
 }
@@ -1803,6 +1875,7 @@ mod tests {
         name: "successful",
         sql: "CREATE TABLE retained (value TEXT NOT NULL);",
         checksum: "successful-checksum",
+        initialize: None,
     };
     const FAILING: Migration = Migration {
         version: 2,
@@ -1812,13 +1885,14 @@ mod tests {
             INSERT INTO table_that_does_not_exist VALUES (1);
         ",
         checksum: "failing-checksum",
+        initialize: None,
     };
 
     #[test]
     fn failed_migration_rolls_back_all_changes_from_startup() {
         let mut connection = Connection::open_in_memory().unwrap();
 
-        assert!(migrate_all(&mut connection, &[SUCCESSFUL, FAILING]).is_err());
+        assert!(migrate_all(&mut connection, &[SUCCESSFUL, FAILING], |_| Ok(())).is_err());
 
         let tables: i64 = connection
             .query_row(
