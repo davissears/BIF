@@ -477,6 +477,7 @@ impl<'connection> CaptureRepository<'connection> {
 pub enum CaptureStorageError {
     SequenceExhausted,
     Sqlite(rusqlite::Error),
+    Journal(journal::JournalError),
 }
 
 impl fmt::Display for CaptureStorageError {
@@ -484,6 +485,7 @@ impl fmt::Display for CaptureStorageError {
         match self {
             Self::SequenceExhausted => formatter.write_str("item sequence is exhausted"),
             Self::Sqlite(error) => write!(formatter, "SQLite capture error: {error}"),
+            Self::Journal(error) => write!(formatter, "capture journal error: {error}"),
         }
     }
 }
@@ -493,6 +495,7 @@ impl std::error::Error for CaptureStorageError {
         match self {
             Self::SequenceExhausted => None,
             Self::Sqlite(error) => Some(error),
+            Self::Journal(error) => Some(error),
         }
     }
 }
@@ -511,6 +514,16 @@ impl From<rusqlite::Error> for CaptureStoreError<CaptureStorageError> {
             Self::Busy(error)
         } else {
             Self::Storage(error)
+        }
+    }
+}
+
+impl From<journal::JournalError> for CaptureStoreError<CaptureStorageError> {
+    fn from(error: journal::JournalError) -> Self {
+        match error {
+            // Preserve the existing SQLite busy/storage classification.
+            journal::JournalError::Sqlite(error) => Self::from(error),
+            error => Self::Storage(CaptureStorageError::Journal(error)),
         }
     }
 }
@@ -678,6 +691,9 @@ impl CaptureRepository<'_> {
                 item.captured_at().as_str(),
             ],
         )?;
+        // New captures only: operation, audit, receipt, journal and H commit
+        // together. Any append error drops this transaction, not just its INSERT.
+        journal::append_change(&transaction, &identity.operation_id)?;
         transaction.commit()?;
         Ok(CaptureResult {
             item,

@@ -135,7 +135,14 @@ fn concurrent_captures_have_gap_free_ids_and_complete_history() {
     assert_eq!(sequences, (1..=CAPTURES as u64).collect::<Vec<_>>());
 
     let connection = storage::open(&database).unwrap();
-    for table in ["items", "item_provenance", "operations", "events"] {
+    for table in [
+        "items",
+        "item_provenance",
+        "operations",
+        "events",
+        "mutation_receipts",
+        "change_journal",
+    ] {
         let count: i64 = connection
             .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| {
                 row.get(0)
@@ -161,6 +168,21 @@ fn concurrent_captures_have_gap_free_ids_and_complete_history() {
         )
         .unwrap();
     assert_eq!(malformed_history, 0);
+    let positions: Vec<i64> = connection
+        .prepare("SELECT change_seq FROM change_journal ORDER BY change_seq")
+        .unwrap()
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(positions, (1..=CAPTURES as i64).collect::<Vec<_>>());
+    assert_eq!(
+        connection
+            .query_row("SELECT high_water FROM journal_metadata", [], |row| row
+                .get::<_, i64>(0),)
+            .unwrap(),
+        CAPTURES as i64,
+    );
 }
 
 #[test]
