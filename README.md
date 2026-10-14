@@ -237,7 +237,7 @@ bif --api-version 2 selected-work --project my-project --json
 
 A conditional read returns `result.outcome` as `modified` with the complete
 `item`, or `not_modified` with `item: null`. Validators are opaque and bound to
-the store, item, projection, schema and revision. A summary validator cannot
+the store, persisted generation, item, projection, schema and revision. A summary validator cannot
 suppress a first work read. Missing items are still `not_found`.
 `selected-work` returns `selected` with one work item or `empty` with
 `item: null`; start it separately using the returned revision. Another writer
@@ -268,9 +268,13 @@ mutations.
 
 Restart the host's BIF server after changing configuration, upgrading schema,
 or restoring/replacing the database. Normal restart preserves cursor and
-validator meaning. The read release has no persisted restore generation yet:
-invalidate retained validators and restart pagination after restore, even if
-the store ID and revision numbers were preserved.
+validator meaning. Tokens bind to the persisted generation: rotation invalidates
+old pagination and makes old validators refetch, even if store ID and revision
+numbers are preserved. Generation-less legacy cursors require restarting
+pagination; legacy validators require refetching without a token. Restore
+maintenance and automatic generation rotation are not implemented yet; stop all
+servers before restoring and invalidate tokens after any unsupported manual
+restore that did not rotate generation.
 
 ### Preserve context across an agent handoff
 

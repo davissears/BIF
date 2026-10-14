@@ -506,3 +506,218 @@ fn errors_and_small_budgets_do_not_leak_transactions() {
         serde_json::json!([])
     );
 }
+
+fn token_json(token: &str) -> Value {
+    let bytes = token
+        .strip_prefix("bifc1.")
+        .unwrap()
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
+        .collect::<Vec<_>>();
+    serde_json::from_slice(&bytes).unwrap()
+}
+
+fn json_token(value: &Value) -> String {
+    format!(
+        "bifc1.{}",
+        serde_json::to_vec(value)
+            .unwrap()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    )
+}
+
+#[test]
+fn generation_less_cursors_and_validators_require_explicit_restart_or_refetch() {
+    let fixture = Fixture::new();
+    let first = run(&mut fixture.session(), page("alpha", None));
+    let token = first["result"]["next_cursor"].as_str().unwrap();
+    for omitted in [false, true] {
+        let mut envelope = token_json(token);
+        if omitted {
+            envelope.as_object_mut().unwrap().remove("generation");
+        } else {
+            envelope["generation"] = Value::Null;
+        }
+        let error = fixture
+            .session()
+            .execute(
+                &authorization(),
+                page("alpha", Some(json_token(&envelope))),
+                ResponseBudget::default(),
+            )
+            .unwrap_err();
+        assert_eq!(
+            serde_json::to_value(error).unwrap()["details"],
+            serde_json::json!({"reason":"generation_missing","restart_required":true})
+        );
+    }
+    let legacy = format!(
+        "bifv1.{}.{}.work.{}.1",
+        storage::read_store_identity(&fixture.writer)
+            .unwrap()
+            .bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>(),
+        fixture
+            .id()
+            .to_string()
+            .bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>(),
+        fixture
+            .writer
+            .query_row("PRAGMA schema_version", [], |row| row.get::<_, i64>(0))
+            .unwrap()
+    );
+    for token in [legacy.clone(), format!("{legacy}.null")] {
+        let error = fixture
+            .session()
+            .execute(
+                &authorization(),
+                fixture.get(ItemProjectionKind::Work, Some(token), true),
+                ResponseBudget::default(),
+            )
+            .unwrap_err();
+        let value = serde_json::to_value(error).unwrap();
+        assert_eq!(value["code"], "invalid_input");
+        assert_eq!(
+            value["details"],
+            serde_json::json!({"reason":"generation_missing","refetch_required":true})
+        );
+    }
+}
+
+#[test]
+fn same_file_restore_rotates_tokens_and_latches_warm_session_restart() {
+    let fixture = Fixture::new();
+    let mut warm = fixture.session();
+    let first = run(&mut warm, page("alpha", None));
+    let cursor = first["result"]["next_cursor"].as_str().unwrap().to_owned();
+    let first = run(&mut warm, fixture.get(ItemProjectionKind::Work, None, true));
+    let version = first["result"]["version"].as_str().unwrap().to_owned();
+    fixture.writer.execute_batch(
+        "INSERT INTO operations VALUES ('history-op', 'ALICE:alpha:001', 'triage', 1, 2, 'now');
+         INSERT INTO events (event_id, operation_id, item_id, item_revision, event_index,
+          event_type, before_value, after_value, actor_kind, actor_id, actor_surface, actor_host,
+          execution_kind, execution_surface, execution_host, occurred_at, event_schema_version)
+         VALUES ('h0', 'history-op', 'ALICE:alpha:001', 2, 0, 'note_added', NULL, 'one',
+          'human', 'ALICE', 'cli', 'local', 'direct', 'cli', 'local', 'now', 1),
+         ('h1', 'history-op', 'ALICE:alpha:001', 2, 1, 'note_added', NULL, 'two',
+          'human', 'ALICE', 'cli', 'local', 'direct', 'cli', 'local', 'now', 1);").unwrap();
+    let history = ReadRequest::History {
+        item_id: fixture.id(),
+        limit: 1,
+        cursor: None,
+    };
+    let first_history = run(&mut warm, history.clone());
+    let history_cursor = first_history["result"]["next_cursor"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let continuation = ReadRequest::History {
+        item_id: fixture.id(),
+        limit: 1,
+        cursor: Some(history_cursor),
+    };
+    assert_eq!(
+        run(&mut fixture.session(), continuation.clone())["result"]["events"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        run(
+            &mut fixture.session(),
+            fixture.get(ItemProjectionKind::Work, Some(version.clone()), true)
+        )["result"]["outcome"],
+        "not_modified"
+    );
+    let database = fixture.config.store_paths().unwrap().database;
+    let file = same_file::Handle::from_path(&database).unwrap();
+    let store = storage::read_store_identity(&fixture.writer).unwrap();
+    let old_generation: String = fixture
+        .writer
+        .query_row("SELECT generation FROM journal_metadata", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let schema: i64 = fixture
+        .writer
+        .query_row("PRAGMA schema_version", [], |row| row.get(0))
+        .unwrap();
+    fixture
+        .writer
+        .execute_batch(
+            "BEGIN IMMEDIATE;
+         UPDATE journal_metadata SET generation = '00000000000000000000000000000000';
+         UPDATE items SET title = 'restored content' WHERE item_id = 'ALICE:alpha:001';
+         COMMIT;",
+        )
+        .unwrap();
+    assert_eq!(file, same_file::Handle::from_path(&database).unwrap());
+    assert_eq!(
+        store,
+        storage::read_store_identity(&fixture.writer).unwrap()
+    );
+    assert_eq!(
+        schema,
+        fixture
+            .writer
+            .query_row("PRAGMA schema_version", [], |row| row.get::<_, i64>(0))
+            .unwrap()
+    );
+    assert_eq!(
+        fixture
+            .writer
+            .query_row(
+                "SELECT revision FROM items WHERE item_id = 'ALICE:alpha:001'",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+        1
+    );
+    assert!(matches!(
+        fixture.session().execute(
+            &authorization(),
+            page("alpha", Some(cursor)),
+            ResponseBudget::default()
+        ),
+        Err(ReadError::InvalidCursor { .. })
+    ));
+    assert!(matches!(
+        fixture
+            .session()
+            .execute(&authorization(), continuation, ResponseBudget::default()),
+        Err(ReadError::InvalidCursor { .. })
+    ));
+    let changed = run(
+        &mut fixture.session(),
+        fixture.get(ItemProjectionKind::Work, Some(version), true),
+    );
+    assert_eq!(changed["result"]["outcome"], "modified");
+    assert_eq!(changed["result"]["item"]["title"], "restored content");
+    for _ in 0..2 {
+        assert!(matches!(
+            warm.execute(
+                &authorization(),
+                page("alpha", None),
+                ResponseBudget::default()
+            ),
+            Err(ReadError::RestartRequired { .. })
+        ));
+        assert!(warm.is_autocommit());
+        fixture
+            .writer
+            .execute(
+                "UPDATE journal_metadata SET generation = ?1",
+                [&old_generation],
+            )
+            .unwrap();
+        run(&mut fixture.session(), page("alpha", None));
+    }
+}

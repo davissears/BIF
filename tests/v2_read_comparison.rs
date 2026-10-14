@@ -171,7 +171,12 @@ fn projection_measurement(
     name: &str,
     request: &ItemProjectionPageRequest,
 ) -> Value {
-    let context = CursorContext::item_page(identity, request).unwrap();
+    let generation: String = connection
+        .query_row("SELECT generation FROM journal_metadata", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let context = CursorContext::item_page(identity, generation, request).unwrap();
     let repository = ProjectionRepository::new(connection);
     let plan = repository.explain_projection_page(request).unwrap();
     let measurement = measure(
@@ -450,7 +455,12 @@ fn history_comparison(connection: &Connection, identity: &str, samples: usize) -
     };
     let mut cases = Vec::new();
     for name in ["history_first", "history_after_10"] {
-        let context = CursorContext::history(identity, &request);
+        let generation: String = connection
+            .query_row("SELECT generation FROM journal_metadata", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let context = CursorContext::history(identity, generation, &request);
         let measurement = measure(
             connection,
             samples,

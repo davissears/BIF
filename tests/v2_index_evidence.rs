@@ -219,7 +219,7 @@ fn write_samples(connection: &mut Connection) -> Vec<u128> {
             };
             let start = Instant::now();
             let result = mutate_item_idempotent(
-                &mut MutationRepository::new(connection),
+                &mut MutationRepository::new(connection).unwrap(),
                 &mut FixedClock,
                 &mut identities,
                 &authorization,

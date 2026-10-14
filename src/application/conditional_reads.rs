@@ -35,6 +35,7 @@ pub enum ConditionalReadError<E> {
     Unauthorized(Unauthorized),
     NotFound,
     InvalidValidator,
+    GenerationMissing,
     Storage(E),
 }
 
@@ -44,6 +45,9 @@ impl<E: fmt::Display> fmt::Display for ConditionalReadError<E> {
             Self::Unauthorized(error) => error.fmt(formatter),
             Self::NotFound => formatter.write_str("The item was not found"),
             Self::InvalidValidator => formatter.write_str("The validator is invalid"),
+            Self::GenerationMissing => {
+                formatter.write_str("The validator has no generation; refetch required")
+            }
             Self::Storage(error) => error.fmt(formatter),
         }
     }
@@ -82,6 +86,7 @@ pub struct ProjectionValidator(String);
 impl ProjectionValidator {
     pub fn new(
         store: &str,
+        generation: &str,
         schema: i64,
         item: &ItemId,
         projection: ItemProjectionKind,
@@ -93,7 +98,7 @@ impl ProjectionValidator {
             ItemProjectionKind::Audit => "audit",
         };
         Self(format!(
-            "bifv1.{}.{}.{kind}.{schema}.{}",
+            "bifv1.{}.{}.{kind}.{schema}.{}.{generation}",
             hex(store),
             hex(&item.to_string()),
             revision.get()
@@ -107,12 +112,13 @@ impl ProjectionValidator {
     /// Malformed/unknown formats are rejected; valid bindings to another scope
     /// are ordinary misses, including wrong stores and projections.
     pub fn matches(&self, known: &str) -> Result<bool, InvalidValidator> {
+        use InvalidValidator::Malformed;
         if known.len() > crate::limits::MAXIMUM_REQUEST_BYTES {
-            return Err(InvalidValidator);
+            return Err(Malformed);
         }
         let parts = known.split('.').collect::<Vec<_>>();
-        if parts.len() != 6 || parts[0] != "bifv1" {
-            return Err(InvalidValidator);
+        if !matches!(parts.len(), 6 | 7) || parts[0] != "bifv1" {
+            return Err(Malformed);
         }
         let store = unhex(parts[1])?;
         let item = unhex(parts[2])?;
@@ -120,23 +126,30 @@ impl ProjectionValidator {
             || !canonical_item_id(&item)
             || !matches!(parts[3], "summary" | "work" | "audit")
         {
-            return Err(InvalidValidator);
+            return Err(Malformed);
         }
-        let schema = parts[4].parse::<i64>().map_err(|_| InvalidValidator)?;
-        let revision = parts[5].parse::<u64>().map_err(|_| InvalidValidator)?;
+        let schema = parts[4].parse::<i64>().map_err(|_| Malformed)?;
+        let revision = parts[5].parse::<u64>().map_err(|_| Malformed)?;
         if schema < 0
             || revision == 0
             || schema.to_string() != parts[4]
             || revision.to_string() != parts[5]
         {
-            return Err(InvalidValidator);
+            return Err(Malformed);
         }
+        if parts.len() == 6 || parts[6] == "null" {
+            return Err(InvalidValidator::GenerationMissing);
+        }
+        crate::storage::journal::Generation::parse(parts[6]).map_err(|_| Malformed)?;
         Ok(self.0 == known)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct InvalidValidator;
+pub enum InvalidValidator {
+    Malformed,
+    GenerationMissing,
+}
 
 fn canonical_item_id(value: &str) -> bool {
     let parts = value.split(':').collect::<Vec<_>>();
@@ -167,20 +180,21 @@ fn hex(value: &str) -> String {
 }
 
 fn unhex(value: &str) -> Result<String, InvalidValidator> {
+    use InvalidValidator::Malformed;
     if !value.len().is_multiple_of(2) {
-        return Err(InvalidValidator);
+        return Err(Malformed);
     }
     let digit = |byte: u8| match byte {
         b'0'..=b'9' => Ok(byte - b'0'),
         b'a'..=b'f' => Ok(byte - b'a' + 10),
-        _ => Err(InvalidValidator),
+        _ => Err(Malformed),
     };
     let bytes = value
         .as_bytes()
         .chunks_exact(2)
         .map(|pair| Ok(digit(pair[0])? * 16 + digit(pair[1])?))
         .collect::<Result<Vec<_>, InvalidValidator>>()?;
-    String::from_utf8(bytes).map_err(|_| InvalidValidator)
+    String::from_utf8(bytes).map_err(|_| Malformed)
 }
 
 /// Next ready work for an explicit project; never claims or mutates the item.

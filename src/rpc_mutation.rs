@@ -403,6 +403,7 @@ fn stable(code: ErrorCode, message: &'static str) -> RpcError {
 }
 fn map_capture_error<E: Display>(error: application::CaptureError<E>) -> RpcError {
     match error {
+        application::CaptureError::RestartRequired => RpcError::restart_required(),
         application::CaptureError::Unauthorized(_) => stable(
             ErrorCode::Unauthorized,
             "The requested operation is not authorized",
@@ -419,6 +420,7 @@ fn map_capture_error<E: Display>(error: application::CaptureError<E>) -> RpcErro
 }
 fn map_mutation_error<E: Display>(error: application::MutationUseCaseError<E>) -> RpcError {
     match error {
+        application::MutationUseCaseError::RestartRequired => RpcError::restart_required(),
         application::MutationUseCaseError::Unauthorized(_) => stable(
             ErrorCode::Unauthorized,
             "The requested operation is not authorized",
@@ -445,5 +447,32 @@ fn map_mutation_error<E: Display>(error: application::MutationUseCaseError<E>) -
             stable(ErrorCode::StorageBusy, "The BIF store is busy")
         }
         application::MutationUseCaseError::Storage(_) => internal(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn typed_capture_and_mutation_restart_errors_preserve_v1_contract() {
+        for error in [
+            map_capture_error::<rusqlite::Error>(application::CaptureError::RestartRequired),
+            map_mutation_error::<rusqlite::Error>(
+                application::MutationUseCaseError::RestartRequired,
+            ),
+        ] {
+            assert_eq!(error.code, ErrorCode::RestartRequired);
+            assert_eq!(error.code.exit_code(), 11);
+            assert_eq!(
+                error.details,
+                json!({
+                    "reason": "store_identity_changed", "restart_required": true
+                })
+                .as_object()
+                .unwrap()
+                .clone()
+            );
+        }
     }
 }

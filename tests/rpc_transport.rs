@@ -83,6 +83,7 @@ fn consumes_rpc_fixture_and_matches_strict_examples() {
         ),
         ("not_initialized", ErrorCode::NotInitialized.exit_code()),
         ("storage_busy", ErrorCode::StorageBusy.exit_code()),
+        ("restart_required", ErrorCode::RestartRequired.exit_code()),
         ("internal", ErrorCode::Internal.exit_code()),
     ]);
     for (name, code) in actual {
@@ -101,6 +102,32 @@ fn accepts_one_value_with_json_whitespace() {
     assert_eq!(response["request_id"], "req-001");
     assert_eq!(response["ok"], true);
     assert!(stderr.is_empty());
+}
+
+#[test]
+fn writer_restart_response_matches_additive_v1_fixture_and_exit() {
+    struct Restart;
+    impl Dispatcher for Restart {
+        fn dispatch(&mut self, _: Request) -> Result<Value, RpcError> {
+            Err(RpcError::restart_required())
+        }
+    }
+    let fixture: Value =
+        serde_json::from_str(include_str!("../docs/fixtures/bif-v1-rpc.json")).unwrap();
+    let expected = fixture["stable_error_envelopes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["code"] == "restart_required")
+        .unwrap();
+    let input = br#"{"protocol_version":1,"request_id":"req-restart-required","operation":"capture","params":{}}"#;
+    let mut output = Vec::new();
+    let code = serve(input.as_slice(), &mut output, &mut Vec::new(), &mut Restart).unwrap();
+    assert_eq!(code, expected["exit_code"].as_i64().unwrap() as i32);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&output).unwrap(),
+        expected["response"]
+    );
 }
 
 #[test]

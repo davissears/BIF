@@ -187,16 +187,19 @@ process restart preserves valid cursors and validators. Concurrent membership
 or sort-key changes may cause repeats or omissions; history uses append-only
 revision/event order. See the [v2 read contract](bif-v2-read-contract.md).
 
-Changes to schema, migration history, store identity, or database-file identity
+Changes to schema, migration history, store identity, persisted generation, or database-file identity
 make a warm session return `restart_required` with
 `details.restart_required: true`; it does not reopen silently. Stop the host's
 server and restart it against the intended store/configuration.
 
-**Restore limitation:** no persisted generation exists until Phase E. An
-in-place unsupported restore preserving file identity, store ID and revisions
-cannot be reliably recognized by these tokens. Stop all servers before restore,
-restart them afterwards, and invalidate retained validators/pagination. Do not
-use old tokens to establish restored content equality.
+Generation rotation invalidates list/history cursors and makes old validators
+refetch content, including when file identity, store ID and revisions match.
+Generation-less legacy cursors require pagination restart; legacy validators
+return `invalid_input` with `generation_missing` and `refetch_required: true`.
+**Restore limitation:** maintenance/restore commands and automatic generation
+rotation are not implemented. Stop all servers before restore, restart them
+afterwards, and invalidate tokens after an unsupported manual restore that did
+not rotate generation. Such a restore cannot reliably be recognized by tokens.
 
 ## Cancellation and shutdown
 

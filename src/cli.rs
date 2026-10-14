@@ -118,10 +118,8 @@ where
             let _ = writeln!(stderr, "error: {error}");
             if matches!(error, CliError::Usage(_)) {
                 let _ = writeln!(stderr, "{USAGE}");
-                2
-            } else {
-                1
             }
+            error.exit_code()
         }
     }
 }
@@ -414,7 +412,7 @@ fn capture(options: CaptureOptions) -> Result<String, CliError> {
         human_authorization: None,
     };
     let result = crate::application::capture(
-        &mut CaptureRepository::new(&mut connection),
+        &mut CaptureRepository::new(&mut connection)?,
         &mut SystemClock,
         &mut SystemIdentities,
         &authorization,
@@ -422,7 +420,11 @@ fn capture(options: CaptureOptions) -> Result<String, CliError> {
             idempotency_key: options.idempotency_key,
             input,
         },
-    )?;
+    )
+    .map_err(|error| match error {
+        crate::application::CaptureError::RestartRequired => CliError::RestartRequired,
+        error => CliError::from(error),
+    })?;
     let source = match result.item.provenance().source_host() {
         Some(SourceHost::Delta) => "delta",
         Some(SourceHost::Codex) => "codex",
@@ -676,12 +678,26 @@ fn config_string(path: &Path) -> Result<String, CliError> {
 pub(crate) enum CliError {
     Usage(String),
     Operation(String),
+    RestartRequired,
+}
+
+impl CliError {
+    fn exit_code(&self) -> i32 {
+        match self {
+            Self::Usage(_) => 2,
+            Self::Operation(_) => 1,
+            Self::RestartRequired => 11,
+        }
+    }
 }
 
 impl fmt::Display for CliError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Usage(message) | Self::Operation(message) => formatter.write_str(message),
+            Self::RestartRequired => {
+                formatter.write_str("store identity changed; restart required")
+            }
         }
     }
 }
@@ -692,5 +708,22 @@ where
 {
     fn from(error: E) -> Self {
         Self::Operation(error.to_string())
+    }
+}
+
+#[cfg(test)]
+mod generation_error_tests {
+    use super::*;
+
+    #[test]
+    fn additive_writer_restart_exit_preserves_existing_cli_exits() {
+        assert_eq!(CliError::RestartRequired.exit_code(), 11);
+        assert!(
+            CliError::RestartRequired
+                .to_string()
+                .contains("store identity changed")
+        );
+        assert_eq!(CliError::Usage("bad input".into()).exit_code(), 2);
+        assert_eq!(CliError::Operation("storage error".into()).exit_code(), 1);
     }
 }

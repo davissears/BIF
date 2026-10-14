@@ -34,6 +34,8 @@ pub enum InvalidCursorReason {
     Oversized,
     WrongKind,
     WrongStore,
+    GenerationMissing,
+    WrongGeneration,
     WrongQuery,
     UnsupportedVersion,
 }
@@ -45,6 +47,8 @@ impl InvalidCursorReason {
             Self::Oversized => "oversized",
             Self::WrongKind => "wrong_kind",
             Self::WrongStore => "wrong_store",
+            Self::GenerationMissing => "generation_missing",
+            Self::WrongGeneration => "wrong_generation",
             Self::WrongQuery => "wrong_query",
             Self::UnsupportedVersion => "unsupported_version",
         }
@@ -151,6 +155,7 @@ impl<'de> Deserialize<'de> for CursorKind {
 pub struct DecodedCursor {
     kind: CursorKind,
     store_id: String,
+    generation: String,
     query_fingerprint: String,
     boundary: DecodedBoundary,
 }
@@ -183,10 +188,14 @@ impl DecodedCursor {
         if envelope.cursor_version != CURSOR_VERSION
             || envelope.order_version != ORDER_VERSION
             || envelope.projection_schema_version != PROJECTION_SCHEMA_VERSION
-            || envelope.generation.is_some()
         {
             return Err(InvalidCursor(UnsupportedVersion));
         }
+        let generation = envelope
+            .generation
+            .ok_or(InvalidCursor(GenerationMissing))?;
+        crate::storage::journal::Generation::parse(&generation)
+            .map_err(|_| InvalidCursor(Malformed))?;
         let boundary = match envelope.boundary {
             Boundary::Item(key) => {
                 let malformed = || InvalidCursor(Malformed);
@@ -220,6 +229,7 @@ impl DecodedCursor {
         Ok(Self {
             kind: envelope.kind,
             store_id: envelope.store_id,
+            generation,
             query_fingerprint: envelope.query_fingerprint,
             boundary,
         })
@@ -254,12 +264,14 @@ impl DecodedCursor {
 pub struct CursorContext {
     kind: CursorKind,
     store_id: String,
+    generation: String,
     query_fingerprint: String,
 }
 
 impl CursorContext {
     pub fn item_page(
         store_id: impl Into<String>,
+        generation: impl Into<String>,
         request: &ItemProjectionPageRequest,
     ) -> Result<Self, InvalidProjectionFilters> {
         let store_id = store_id.into();
@@ -287,11 +299,16 @@ impl CursorContext {
         Ok(Self {
             kind,
             store_id,
+            generation: generation.into(),
             query_fingerprint: super::sha256(&bytes),
         })
     }
 
-    pub fn history(store_id: impl Into<String>, request: &HistoryPageRequest) -> Self {
+    pub fn history(
+        store_id: impl Into<String>,
+        generation: impl Into<String>,
+        request: &HistoryPageRequest,
+    ) -> Self {
         let store_id = store_id.into();
         let mut bytes = b"BIF:history-query:1\0".to_vec();
         super::append_field(&mut bytes, Some(&store_id));
@@ -304,6 +321,7 @@ impl CursorContext {
         Self {
             kind: CursorKind::History,
             store_id,
+            generation: generation.into(),
             query_fingerprint: super::sha256(&bytes),
         }
     }
@@ -380,7 +398,7 @@ impl CursorContext {
             cursor_version: CURSOR_VERSION,
             kind: self.kind,
             store_id: self.store_id.as_str(),
-            generation: None,
+            generation: Some(self.generation.clone()),
             query_fingerprint: self.query_fingerprint.as_str(),
             order_version: ORDER_VERSION,
             projection_schema_version: PROJECTION_SCHEMA_VERSION,
@@ -412,6 +430,9 @@ impl CursorContext {
         cursor.require_kind(self.kind)?;
         if cursor.store_id != self.store_id {
             return Err(InvalidCursor(WrongStore));
+        }
+        if cursor.generation != self.generation {
+            return Err(InvalidCursor(WrongGeneration));
         }
         if cursor.query_fingerprint != self.query_fingerprint {
             return Err(InvalidCursor(WrongQuery));
@@ -458,8 +479,7 @@ struct Envelope<S = String> {
     cursor_version: u32,
     kind: CursorKind,
     store_id: S,
-    // Reserved for the journal migration: absent/null is supported, never a
-    // non-null generation that would imply restore safety we do not provide.
+    // Deserialize legacy absent/null values to a typed generation_missing error.
     generation: Option<String>,
     query_fingerprint: S,
     order_version: u32,

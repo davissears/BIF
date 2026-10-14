@@ -21,7 +21,8 @@ rejects a newer schema. Production connection opening automatically applies
 embedded migrations, including during ordinary reads and `doctor`. Do not
 point a candidate binary at the real store just to inspect it.
 
-The `bifc1.` hex cursor format is unchanged, but its encoded size ceiling is now
+The `bifc1.` prefix is unchanged, but tokens now require persisted generation,
+and generation-less legacy tokens cannot continue pagination. The encoded size ceiling is now
 1 MiB. Earlier binaries with a 16 KiB ceiling cannot resume larger continuations
 after rollback and may fail to generate continuations for supported long IDs.
 Restarting pagination does not remove that old-binary limitation; use a binary
@@ -226,9 +227,10 @@ stores and inventories until the operator approves their disposition.
 
 After restore, verify metadata, integrity, full reads and history using the old
 binary against the restored root. For this read candidate, restart all MCP
-servers and invalidate retained validators/cursors unconditionally. File/store
-identity checks catch many warm-handle changes, but store-ID/revision-only tokens
-are not a promise of restore detection. Future journal releases must also rebuild
+servers and invalidate retained validators/cursors unconditionally. Current
+tokens bind to generation, but unsupported manual restore does not automatically
+rotate it. Preserving the backup's old generation is not a promise of restore
+detection. Future journal releases must also rebuild
 mirrors according to their generation-aware procedure.
 
 ## Disposable v1 rehearsal evidence

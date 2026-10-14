@@ -216,14 +216,16 @@ impl CaptureStore for WriteStore {
         occurred_at: Timestamp,
         identity: CaptureIdentity,
     ) -> Result<CaptureResult, CaptureStoreError<Self::Error>> {
-        CaptureRepository::new(&mut self.connection).capture(
-            request,
-            payload_hash,
-            actor,
-            execution,
-            occurred_at,
-            identity,
-        )
+        CaptureRepository::new(&mut self.connection)
+            .map_err(CaptureStoreError::from)?
+            .capture(
+                request,
+                payload_hash,
+                actor,
+                execution,
+                occurred_at,
+                identity,
+            )
     }
 }
 
@@ -239,14 +241,16 @@ impl MutationStore for WriteStore {
         occurred_at: Timestamp,
         identity: MutationIdentity,
     ) -> Result<MutationResult, MutationStoreError<Self::Error>> {
-        MutationRepository::new(&mut self.connection).mutate(
-            request,
-            payload_hash,
-            actor,
-            execution,
-            occurred_at,
-            identity,
-        )
+        MutationRepository::new(&mut self.connection)
+            .map_err(MutationStoreError::from)?
+            .mutate(
+                request,
+                payload_hash,
+                actor,
+                execution,
+                occurred_at,
+                identity,
+            )
     }
 }
 

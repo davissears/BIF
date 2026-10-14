@@ -79,7 +79,7 @@ fn retry_ignores_new_server_values_and_conflicting_order_writes_nothing() {
     let mut connection = storage::open(&database).unwrap();
 
     let first = {
-        let mut repository = CaptureRepository::new(&mut connection);
+        let mut repository = CaptureRepository::new(&mut connection).unwrap();
         capture(
             &mut repository,
             &mut FixedClock("2025-01-01T00:00:00Z"),
@@ -90,7 +90,7 @@ fn retry_ignores_new_server_values_and_conflicting_order_writes_nothing() {
         .unwrap()
     };
     let replay = {
-        let mut repository = CaptureRepository::new(&mut connection);
+        let mut repository = CaptureRepository::new(&mut connection).unwrap();
         capture(
             &mut repository,
             &mut FixedClock("2099-01-01T00:00:00Z"),
@@ -107,7 +107,7 @@ fn retry_ignores_new_server_values_and_conflicting_order_writes_nothing() {
     assert_eq!(replay.item.captured_at(), first.item.captured_at());
 
     let conflict = {
-        let mut repository = CaptureRepository::new(&mut connection);
+        let mut repository = CaptureRepository::new(&mut connection).unwrap();
         capture(
             &mut repository,
             &mut FixedClock("2100-01-01T00:00:00Z"),
@@ -131,6 +131,67 @@ fn retry_ignores_new_server_values_and_conflicting_order_writes_nothing() {
 }
 
 #[test]
+fn stale_capture_handle_rejects_new_and_replayed_receipts_after_generation_rotation() {
+    let temp = TempDirectory::new();
+    let database = temp.path().join("generation.sqlite");
+    let mut connection = storage::open(&database).unwrap();
+    let writer = storage::open(&database).unwrap();
+    let mut repository = CaptureRepository::new(&mut connection).unwrap();
+    capture(
+        &mut repository,
+        &mut FixedClock("now"),
+        &mut FixedIdentity("first".into()),
+        &authorization(),
+        request("first", &[]),
+    )
+    .unwrap();
+    writer
+        .execute(
+            "UPDATE journal_metadata SET generation = '00000000000000000000000000000000'",
+            [],
+        )
+        .unwrap();
+    for key in ["new", "first"] {
+        let error = capture(
+            &mut repository,
+            &mut FixedClock("now"),
+            &mut FixedIdentity(key.into()),
+            &authorization(),
+            request(key, &[]),
+        )
+        .unwrap_err();
+        assert_eq!(error.code(), "restart_required");
+    }
+    assert_eq!(
+        writer
+            .query_row("SELECT count(*) FROM mutation_receipts", [], |row| row
+                .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    drop(repository);
+    assert!(connection.is_autocommit());
+    let replay = capture(
+        &mut CaptureRepository::new(&mut connection).unwrap(),
+        &mut FixedClock("now"),
+        &mut FixedIdentity("unused".into()),
+        &authorization(),
+        request("first", &[]),
+    )
+    .unwrap();
+    assert!(replay.replayed);
+    let fresh = capture(
+        &mut CaptureRepository::new(&mut connection).unwrap(),
+        &mut FixedClock("now"),
+        &mut FixedIdentity("fresh".into()),
+        &authorization(),
+        request("fresh", &[]),
+    )
+    .unwrap();
+    assert!(!fresh.replayed);
+}
+
+#[test]
 fn concurrent_identical_keys_allocate_one_item() {
     const ATTEMPTS: usize = 10;
     let temp = TempDirectory::new();
@@ -144,7 +205,7 @@ fn concurrent_identical_keys_allocate_one_item() {
             let barrier = Arc::clone(&barrier);
             thread::spawn(move || {
                 let mut connection = storage::open(database).unwrap();
-                let mut repository = CaptureRepository::new(&mut connection);
+                let mut repository = CaptureRepository::new(&mut connection).unwrap();
                 barrier.wait();
                 capture(
                     &mut repository,

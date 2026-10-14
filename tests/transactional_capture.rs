@@ -105,7 +105,7 @@ fn concurrent_captures_have_gap_free_ids_and_complete_history() {
             let barrier = Arc::clone(&barrier);
             thread::spawn(move || {
                 let mut connection = storage::open(database).unwrap();
-                let mut repository = CaptureRepository::new(&mut connection);
+                let mut repository = CaptureRepository::new(&mut connection).unwrap();
                 let mut clock = FixedClock("2025-02-03T04:05:06Z");
                 let mut identities = FixedIdentity {
                     operation: format!("operation-{index}"),
@@ -171,7 +171,7 @@ fn failed_capture_rolls_back_allocated_sequence_and_all_rows() {
     let mut clock = FixedClock("2025-02-03T04:05:06Z");
 
     let first = {
-        let mut repository = CaptureRepository::new(&mut connection);
+        let mut repository = CaptureRepository::new(&mut connection).unwrap();
         capture(
             &mut repository,
             &mut clock,
@@ -188,7 +188,7 @@ fn failed_capture_rolls_back_allocated_sequence_and_all_rows() {
     assert_eq!(first.id().sequence(), 1);
 
     {
-        let mut repository = CaptureRepository::new(&mut connection);
+        let mut repository = CaptureRepository::new(&mut connection).unwrap();
         let error = capture(
             &mut repository,
             &mut clock,
@@ -204,7 +204,7 @@ fn failed_capture_rolls_back_allocated_sequence_and_all_rows() {
     }
 
     let second = {
-        let mut repository = CaptureRepository::new(&mut connection);
+        let mut repository = CaptureRepository::new(&mut connection).unwrap();
         capture(
             &mut repository,
             &mut clock,
@@ -237,7 +237,7 @@ fn capture_persists_canonical_content_provenance_and_attribution() {
     let database = temp.path().join("bif.sqlite");
     let mut connection = storage::open(&database).unwrap();
     let item = {
-        let mut repository = CaptureRepository::new(&mut connection);
+        let mut repository = CaptureRepository::new(&mut connection).unwrap();
         capture(
             &mut repository,
             &mut FixedClock("2025-02-03T04:05:06Z"),
@@ -311,7 +311,7 @@ fn writer_lock_maps_capture_timeout_to_storage_busy() {
     writer.execute_batch("BEGIN IMMEDIATE").unwrap();
 
     let error = capture(
-        &mut CaptureRepository::new(&mut contender),
+        &mut CaptureRepository::new(&mut contender).unwrap(),
         &mut FixedClock("2025-02-03T04:05:06Z"),
         &mut FixedIdentity {
             operation: "locked-operation".to_owned(),

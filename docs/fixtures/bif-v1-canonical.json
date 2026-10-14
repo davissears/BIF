@@ -49,6 +49,7 @@
       "unsupported_version",
       "not_initialized",
       "storage_busy",
+      "restart_required",
       "internal"
     ]
   },

@@ -187,12 +187,18 @@ pub fn read_store_identity(connection: &Connection) -> Result<String, rusqlite::
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ReadStoreState {
     pub store_id: String,
+    pub generation: journal::Generation,
     pub schema_version: i64,
     migrations: Vec<(i64, String, String, String)>,
 }
 
 pub(crate) fn read_store_state(connection: &Connection) -> rusqlite::Result<ReadStoreState> {
     let store_id = read_store_identity(connection)?;
+    let generation: String = connection
+        .prepare_cached("SELECT generation FROM journal_metadata WHERE singleton = 1")?
+        .query_row([], |row| row.get(0))?;
+    let generation =
+        journal::Generation::parse(&generation).map_err(|_| rusqlite::Error::InvalidQuery)?;
     let schema_version = connection
         .prepare_cached("PRAGMA schema_version")?
         .query_row([], |row| row.get(0))?;
@@ -214,6 +220,7 @@ pub(crate) fn read_store_state(connection: &Connection) -> rusqlite::Result<Read
     }
     Ok(ReadStoreState {
         store_id,
+        generation,
         schema_version,
         migrations,
     })
@@ -453,11 +460,15 @@ impl NamedViewStore for ItemRepository<'_> {
 /// SQLite implementation of the atomic capture persistence boundary.
 pub struct CaptureRepository<'connection> {
     connection: &'connection mut Connection,
+    state: ReadStoreState,
 }
 
 impl<'connection> CaptureRepository<'connection> {
-    pub fn new(connection: &'connection mut Connection) -> Self {
-        Self { connection }
+    pub fn new(connection: &'connection mut Connection) -> rusqlite::Result<Self> {
+        let snapshot = ReadSnapshot::begin(connection)?;
+        let state = read_store_state(&snapshot)?;
+        snapshot.commit()?;
+        Ok(Self { connection, state })
     }
 }
 
@@ -558,6 +569,13 @@ impl CaptureRepository<'_> {
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(CaptureStoreError::from)?;
+        // BEGIN IMMEDIATE serializes writers; pin identity before accepting
+        // receipts (including replay), counters, or any new content.
+        match check_write_state(&transaction, &self.state) {
+            Ok(true) => {}
+            Ok(false) => return Err(CaptureStoreError::RestartRequired),
+            Err(error) => return Err(CaptureStoreError::from(error)),
+        }
         let receipt: Option<(String, String)> = transaction
             .query_row(
                 "SELECT payload_hash, item_id FROM mutation_receipts
@@ -958,11 +976,25 @@ fn parse_history_priority(value: &str) -> Option<Priority> {
 /// SQLite implementation of atomic item mutation persistence.
 pub struct MutationRepository<'connection> {
     connection: &'connection mut Connection,
+    state: ReadStoreState,
 }
 
 impl<'connection> MutationRepository<'connection> {
-    pub fn new(connection: &'connection mut Connection) -> Self {
-        Self { connection }
+    pub fn new(connection: &'connection mut Connection) -> rusqlite::Result<Self> {
+        let snapshot = ReadSnapshot::begin(connection)?;
+        let state = read_store_state(&snapshot)?;
+        snapshot.commit()?;
+        Ok(Self { connection, state })
+    }
+}
+
+/// An invalidated identity cannot authorize writes. Busy remains retryable;
+/// malformed/missing boundary metadata requires a new handle, never repair.
+fn check_write_state(connection: &Connection, pinned: &ReadStoreState) -> rusqlite::Result<bool> {
+    match read_store_state(connection) {
+        Ok(state) => Ok(&state == pinned),
+        Err(error) if is_busy(&error) => Err(error),
+        Err(_) => Ok(false),
     }
 }
 
@@ -982,6 +1014,13 @@ impl MutationStore for MutationRepository<'_> {
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(MutationStoreError::from)?;
+        // This check is inside the serialized writer transaction, before even
+        // replay or a no-op may be accepted.
+        match check_write_state(&transaction, &self.state) {
+            Ok(true) => {}
+            Ok(false) => return Err(MutationStoreError::RestartRequired),
+            Err(error) => return Err(MutationStoreError::from(error)),
+        }
         let receipt: Option<(String, String)> = transaction
             .query_row(
                 "SELECT payload_hash, item_id FROM mutation_receipts WHERE mutation_key = ?1",
