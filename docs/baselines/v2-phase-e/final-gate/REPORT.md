@@ -2,8 +2,13 @@
 
 ## Disposition
 
-**Fresh evidence is ready for independent aggregate review, not aggregate approval.
+**Independent aggregate review approved the foundation batch through `cd4a505`
+for local integration, with no actionable findings.
 No live Phase E release, sync activation or Phase F approval.**
+The separate [review record](../review-record.json) identifies the exact reviewed
+range and decision; the [release checklist](../../../bif-v2-phase-e-release-candidate.md)
+tracks the remaining gates. This bookkeeping update does not regenerate evidence
+or extend that review to later changes.
 No production change was necessary: the production inputs match
 `f0cd787f64a6bd3d301f11e616bb587e112a14fa` exactly. V2-054 runbook and V2-055 CI
 foundation are verified prerequisite document labels, not ledger IDs. Phase D's
@@ -249,8 +254,10 @@ new executions; expected attack rejections are not production failures.
 No material out-of-scope production blocker was found. No arbitrary issue-count
 threshold was used. Coordinator-reported cumulative counts are task002=3,
 task008=2, task010=5; other task counts remain 0.
-Ledger/Git operations and final independent whole-task010 rereview remain
-coordinator-owned. This evidence does not itself approve the whole task.
+That execution left ledger/Git operations and final independent review to the
+coordinator. Independent full-batch review subsequently approved `d4399a9` through
+`cd4a505` for local integration; see the review record above. This generated
+evidence does not itself supply review or human release approval.
 
 ## Residual release limits
 

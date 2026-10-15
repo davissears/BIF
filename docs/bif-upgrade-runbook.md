@@ -483,13 +483,30 @@ establish SQLite access before setup, with no active read transaction/external
 reader; production WAL/FULL and default 1000-page auto-checkpoint remain unchanged.
 Logical retention does not promise file shrinkage.
 
-The report recommends foundation review only. `sync_enabled=0` and
+The report and recorded review cover the inactive foundation only. `sync_enabled=0` and
 `bootstrap_required=1` remain mandatory; live release/maintenance remains
 unapproved. Actual sync-cursor expiry, successful bootstrap and reconciliation
 are deferred to Phase F V2-036/V2-039; they are not prerequisites of this
 foundation gate (no dependency cycle). Process-kill evidence is process-crash/
 reopen only, not power-loss/torn-write proof. Maintenance interruption tests
 exercise the SQLite publication primitive, not an instrumented CLI interior.
+
+### Phase E release-readiness handoff
+
+Independent aggregate review of `d4399a9` through `cd4a505` passed for **local
+integration only**; the [review record](baselines/v2-phase-e/review-record.json)
+retains the exact range and exclusions. It does not authorize publication,
+deployment, live-store opening or maintenance. The later evidence cleanup and
+release bookkeeping are separate review scopes.
+
+The [release-candidate draft and checklist](bif-v2-phase-e-release-candidate.md)
+identify the missing operator evidence and Ubuntu/macOS CI results. Every
+`phase_e.operational_release_gates` entry in the manifest remains open.
+Phase D's top-level `release_gate.approved=true` applies only to its historical
+schema-3 read candidate; Phase E's separate `release_approved=false` is unchanged.
+Complete the Phase E gates and obtain an explicit scoped operator decision
+before changing that value. Do not run candidate `doctor` or ordinary reads
+against a real store to collect inventory: those opens can migrate it.
 
 ## Rollback is recovery, not transparent undo
 

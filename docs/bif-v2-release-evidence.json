@@ -159,7 +159,9 @@
     "disclosure": "Phase D approval, host evidence and old schema-2 rehearsal remain intact and do not approve Phase E. No live store, ledger, launcher configuration, sync activation, restore, prune, migration SQL or Phase F change.",
     "final_gate": {
       "task": "V2-035",
-      "status": "awaiting_independent_foundation_review",
+      "status": "foundation_review_passed_operational_gates_pending",
+      "independent_review": "docs/baselines/v2-phase-e/review-record.json",
+      "release_checklist": "docs/bif-v2-phase-e-release-candidate.md",
       "release_approved": false,
       "sync_enabled": 0,
       "bootstrap_required": 1,
