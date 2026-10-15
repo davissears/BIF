@@ -7,6 +7,7 @@
 pub mod application;
 pub mod benchmark_fixture;
 pub mod cli;
+mod cli_maintenance;
 mod cli_mutation;
 mod cli_read;
 mod cli_v2_read;

@@ -105,7 +105,7 @@ fn concurrent_captures_have_gap_free_ids_and_complete_history() {
             let barrier = Arc::clone(&barrier);
             thread::spawn(move || {
                 let mut connection = storage::open(database).unwrap();
-                let mut repository = CaptureRepository::new(&mut connection);
+                let mut repository = CaptureRepository::new(&mut connection).unwrap();
                 let mut clock = FixedClock("2025-02-03T04:05:06Z");
                 let mut identities = FixedIdentity {
                     operation: format!("operation-{index}"),
@@ -135,7 +135,14 @@ fn concurrent_captures_have_gap_free_ids_and_complete_history() {
     assert_eq!(sequences, (1..=CAPTURES as u64).collect::<Vec<_>>());
 
     let connection = storage::open(&database).unwrap();
-    for table in ["items", "item_provenance", "operations", "events"] {
+    for table in [
+        "items",
+        "item_provenance",
+        "operations",
+        "events",
+        "mutation_receipts",
+        "change_journal",
+    ] {
         let count: i64 = connection
             .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| {
                 row.get(0)
@@ -161,6 +168,21 @@ fn concurrent_captures_have_gap_free_ids_and_complete_history() {
         )
         .unwrap();
     assert_eq!(malformed_history, 0);
+    let positions: Vec<i64> = connection
+        .prepare("SELECT change_seq FROM change_journal ORDER BY change_seq")
+        .unwrap()
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(positions, (1..=CAPTURES as i64).collect::<Vec<_>>());
+    assert_eq!(
+        connection
+            .query_row("SELECT high_water FROM journal_metadata", [], |row| row
+                .get::<_, i64>(0),)
+            .unwrap(),
+        CAPTURES as i64,
+    );
 }
 
 #[test]
@@ -171,7 +193,7 @@ fn failed_capture_rolls_back_allocated_sequence_and_all_rows() {
     let mut clock = FixedClock("2025-02-03T04:05:06Z");
 
     let first = {
-        let mut repository = CaptureRepository::new(&mut connection);
+        let mut repository = CaptureRepository::new(&mut connection).unwrap();
         capture(
             &mut repository,
             &mut clock,
@@ -188,7 +210,7 @@ fn failed_capture_rolls_back_allocated_sequence_and_all_rows() {
     assert_eq!(first.id().sequence(), 1);
 
     {
-        let mut repository = CaptureRepository::new(&mut connection);
+        let mut repository = CaptureRepository::new(&mut connection).unwrap();
         let error = capture(
             &mut repository,
             &mut clock,
@@ -204,7 +226,7 @@ fn failed_capture_rolls_back_allocated_sequence_and_all_rows() {
     }
 
     let second = {
-        let mut repository = CaptureRepository::new(&mut connection);
+        let mut repository = CaptureRepository::new(&mut connection).unwrap();
         capture(
             &mut repository,
             &mut clock,
@@ -237,7 +259,7 @@ fn capture_persists_canonical_content_provenance_and_attribution() {
     let database = temp.path().join("bif.sqlite");
     let mut connection = storage::open(&database).unwrap();
     let item = {
-        let mut repository = CaptureRepository::new(&mut connection);
+        let mut repository = CaptureRepository::new(&mut connection).unwrap();
         capture(
             &mut repository,
             &mut FixedClock("2025-02-03T04:05:06Z"),
@@ -311,7 +333,7 @@ fn writer_lock_maps_capture_timeout_to_storage_busy() {
     writer.execute_batch("BEGIN IMMEDIATE").unwrap();
 
     let error = capture(
-        &mut CaptureRepository::new(&mut contender),
+        &mut CaptureRepository::new(&mut contender).unwrap(),
         &mut FixedClock("2025-02-03T04:05:06Z"),
         &mut FixedIdentity {
             operation: "locked-operation".to_owned(),

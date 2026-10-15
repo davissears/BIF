@@ -1,0 +1,308 @@
+{
+  "fixture_version": 1,
+  "contract": "V2-028",
+  "read_contract": "V2-001",
+  "execution_state": "pure_contract_models_no_sync_runtime",
+  "rules": {
+    "poll": "sync takes exactly project, projection=summary, limit (1..100), and a nonempty opaque cursor. No arbitrary view/status/assignee filters. A completed checkpoint starts a poll by capturing H; an incomplete continuation preserves H. Success is the v2 envelope with source_checkpoint (echo of request.cursor), high_water, through, complete, replacements, next_cursor. next_cursor is always nonempty: incomplete means continue the fixed H; complete means checkpoint at H for a later poll with a new H.",
+    "coverage": "Positions and the durable retention floor F are store-global within one generation; project selects rows and binds cursors but never narrows floor or high water. Validate F <= C <= H <= durable high water. C==F is valid; C<F returns invalid_cursor reason expired with restart_required=true. Select retained matching rows in (C,H], coalesce only consumed rows, and when another matching row remains set through to last consumed R; otherwise set through=H, even for empty/other-project-only windows. Gaps in committed sequence allocation are permitted; positions are never reused.",
+    "hydration": "Return each consumed identity once per chunk as kind=upsert plus a complete V2-001 summary, including explicit null clears. Select journal coverage and hydrate current summaries in one short read transaction. Hydration can be newer than fixed H: through is coverage, not historical visibility. An unexpectedly missing current item is corruption, never an inferred tombstone. Reject is an upsert, not deletion.",
+    "bounds": "Bound matching journal rows consumed to at most 100, output items to request.limit<=100, and compact UTF-8 response bytes to 1048576; sentinel examination is bounded separately (at most one extra matching row) and is never consumed. Test journal_limit is an internal smaller bound, not a wire option. Conservative chunks may consume at most min(journal_limit,limit) rows; coalescing need not fill an item page. Never skip unconsumed rows to fill output. On byte overflow shorten the consumed prefix and recompute coalescing/through, or return payload_too_large without any checkpoint advance if one full replacement cannot fit. Never truncate fields or emit partial success.",
+    "cursor": "Handles in tokens are illustrative, opaque and not runtime-generated. The test-only decoded semantics freeze kind, store_id, persisted generation, project, summary schema version, covered through, and fixed high_water for incomplete polls (null for completed checkpoints). Scan continuation additionally binds immutable identity boundary and original sync starting checkpoint. Clients must not construct, decode, sort or alter tokens. Tokens are continuation data, not authorization; every request retains normal authorization. Encoding is not frozen by these example handles.",
+    "scan": "scan takes exactly project, projection=summary, limit (1..100), cursor (null starts). Success is v2 envelope result items, next_cursor (null on exhaustion), sync_start_cursor (same opaque checkpoint on every page, including empty). Capture sync start S before scanning the first primary row in that read transaction. Scan all project summaries in ascending immutable canonical requester/project/numeric item sequence order, not queue priority/time; it is live and not a historical snapshot. Bind scope/generation/start to continuation, check S against the global floor on every page and catch-up poll, then replay from S toward a chosen finite H before publishing. Expiry or generation change requires discarding staging and restarting bootstrap. Reconciliation replaces old baseline contents, including absent items, rather than unioning them.",
+    "consumer": "One in-flight poll per mirror. The client owns baseline and a fresh local bootstrap identity; accept only if baseline exists and echoed source checkpoint plus captured local bootstrap identity equal persisted values. Apply higher revisions as full replacements; ignore lower revisions; equivalent same-revision replay is harmless; conflicting same-revision data fails the whole commit. Atomically persist replacements and next cursor. Discard delayed responses from old checkpoints or bootstrap identities. Baseline loss requires bootstrap even if the cursor remains and the delta is empty. Derive ready/mine queues from project state, not by filtering the feed.",
+    "atomicity": "An effective committed item operation appends exactly one operation-linked change record in the existing item/audit/receipt transaction and updates durable high water there. Compound component events do not multiply appends; a note-only revision change appends once. Idempotent replay and genuine no-op append nothing. Pruning is explicit transactional prefix pruning: F and durable high water never decrease within a generation, prune-all preserves high water and generation, restart preserves metadata, subsequent commits allocate above all prior committed positions. Each cursor-dependent storage read obtains generation, floor, high-water/coverage metadata, selected rows and hydration from the same read transaction; maintenance is wholly before or after its snapshot.",
+    "recovery": "Initial tracking activation creates a persisted independent random 128-bit generation, high water=0, floor=0 and requires full bootstrap. No timestamp-ordered audit backfill and no rewriting old audit/receipts. Sync stays disabled until supported writers all journal. Every supported offline restore, including repeated restore of the identical backup, persists a fresh independently OS-random 128-bit generation, not a counter or backup-derived value. Collision probability is assumed negligible, not mathematically impossible. Restored content may have identical item revisions; generation rejects all previous tokens anyway. Ordinary process restart preserves persisted store identity/generation and tokens. Supported restore requires stopping warm sessions, SQLite-consistent backup/restore and integrity validation; silent out-of-band replacement detection is not promised.",
+    "errors": "Use existing v2 error envelope api_version=2,schema_version=1,ok=false,error={code,message,details}. Reject cursor kind/store/project/schema/version mismatch, malformed/future positions, generation mismatch, and expired coverage explicitly with invalid_cursor details reason and restart_required=true. Generation-less page/history/scan/sync tokens return invalid_cursor details {reason:generation_missing,restart_required:true}. Generation-less validators return invalid_input details {reason:generation_missing,refetch_required:true}; changed generation validators also refetch and never return not_modified, even for restored content at the same revision. Warm sessions fail identity checks and request restart before another read or mutation is accepted. Missing baseline is client bootstrap_required, not a server not_modified or empty-queue success."
+  },
+  "activation": {
+    "new_generation": "17c4607f59e849e584627308cf9e1711",
+    "initial_high_water": 0,
+    "initial_floor": 0,
+    "full_bootstrap_required": true,
+    "timestamp_audit_backfill": false,
+    "sync_enabled_before_all_writers_participate": false,
+    "after_operations_high_water": 7
+  },
+  "operations": [
+    {"id": "capture-a", "kind": "capture", "item_id": "ALICE:bif:001", "project": "bif", "effective": true, "replay": false, "before_revision": 0, "after_revision": 1, "component_events": 1, "expected_high_water": 1},
+    {"id": "note-a", "kind": "note_only", "item_id": "ALICE:bif:001", "project": "bif", "effective": true, "replay": false, "before_revision": 1, "after_revision": 2, "component_events": 1, "expected_high_water": 2},
+    {"id": "triage-a", "kind": "compound", "item_id": "ALICE:bif:001", "project": "bif", "effective": true, "replay": false, "before_revision": 2, "after_revision": 3, "component_events": 3, "expected_high_water": 3},
+    {"id": "capture-b", "kind": "capture", "item_id": "ALICE:bif:002", "project": "bif", "effective": true, "replay": false, "before_revision": 0, "after_revision": 1, "component_events": 1, "expected_high_water": 4},
+    {"id": "start-clear-a", "kind": "mutation", "item_id": "ALICE:bif:001", "project": "bif", "effective": true, "replay": false, "before_revision": 3, "after_revision": 4, "component_events": 3, "expected_high_water": 5},
+    {"id": "capture-other", "kind": "capture", "item_id": "ALICE:other:001", "project": "other", "effective": true, "replay": false, "before_revision": 0, "after_revision": 1, "component_events": 1, "expected_high_water": 6},
+    {"id": "retry-start-a", "kind": "replay", "item_id": "ALICE:bif:001", "project": "bif", "effective": true, "replay": true, "before_revision": 4, "after_revision": 4, "component_events": 0, "expected_high_water": 6},
+    {"id": "same-value-a", "kind": "noop", "item_id": "ALICE:bif:001", "project": "bif", "effective": false, "replay": false, "before_revision": 4, "after_revision": 4, "component_events": 0, "expected_high_water": 6},
+    {"id": "capture-before-scan-boundary", "kind": "capture", "item_id": "AARON:bif:001", "project": "bif", "effective": true, "replay": false, "before_revision": 0, "after_revision": 1, "component_events": 1, "expected_high_water": 7}
+  ],
+  "journal": [
+    {"change_seq": 1, "operation_id": "capture-a", "item_id": "ALICE:bif:001", "project": "bif", "revision": 1},
+    {"change_seq": 2, "operation_id": "note-a", "item_id": "ALICE:bif:001", "project": "bif", "revision": 2},
+    {"change_seq": 3, "operation_id": "triage-a", "item_id": "ALICE:bif:001", "project": "bif", "revision": 3},
+    {"change_seq": 4, "operation_id": "capture-b", "item_id": "ALICE:bif:002", "project": "bif", "revision": 1},
+    {"change_seq": 5, "operation_id": "start-clear-a", "item_id": "ALICE:bif:001", "project": "bif", "revision": 4},
+    {"change_seq": 6, "operation_id": "capture-other", "item_id": "ALICE:other:001", "project": "other", "revision": 1},
+    {"change_seq": 7, "operation_id": "capture-before-scan-boundary", "item_id": "AARON:bif:001", "project": "bif", "revision": 1}
+  ],
+  "tokens": [
+    {"handle": "opaque-sync-0", "kind": "sync", "store_id": "store-a", "generation": "17c4607f59e849e584627308cf9e1711", "project": "bif", "projection_schema_version": 1, "through": 0, "high_water": null, "scan_boundary": null, "sync_start_cursor": null},
+    {"handle": "opaque-sync-2-h4", "kind": "sync", "store_id": "store-a", "generation": "17c4607f59e849e584627308cf9e1711", "project": "bif", "projection_schema_version": 1, "through": 2, "high_water": 4, "scan_boundary": null, "sync_start_cursor": null},
+    {"handle": "opaque-sync-4", "kind": "sync", "store_id": "store-a", "generation": "17c4607f59e849e584627308cf9e1711", "project": "bif", "projection_schema_version": 1, "through": 4, "high_water": null, "scan_boundary": null, "sync_start_cursor": null},
+    {"handle": "opaque-sync-5", "kind": "sync", "store_id": "store-a", "generation": "17c4607f59e849e584627308cf9e1711", "project": "bif", "projection_schema_version": 1, "through": 5, "high_water": null, "scan_boundary": null, "sync_start_cursor": null},
+    {"handle": "opaque-sync-6", "kind": "sync", "store_id": "store-a", "generation": "17c4607f59e849e584627308cf9e1711", "project": "bif", "projection_schema_version": 1, "through": 6, "high_water": null, "scan_boundary": null, "sync_start_cursor": null},
+    {"handle": "opaque-sync-7", "kind": "sync", "store_id": "store-a", "generation": "17c4607f59e849e584627308cf9e1711", "project": "bif", "projection_schema_version": 1, "through": 7, "high_water": null, "scan_boundary": null, "sync_start_cursor": null},
+    {"handle": "opaque-scan-after-alice-1", "kind": "scan", "store_id": "store-a", "generation": "17c4607f59e849e584627308cf9e1711", "project": "bif", "projection_schema_version": 1, "through": 4, "high_water": null, "scan_boundary": "ALICE:bif:001", "sync_start_cursor": "opaque-sync-4"}
+  ],
+  "polls": [
+    {
+      "id": "a_twice", "snapshot_high_water": 4, "snapshot_floor": 0, "journal_limit": 2,
+      "snapshot_items": [{"id": "ALICE:bif:001", "title": "A", "status": "ready", "priority": "P1", "assignee": "alice", "revision": 3}],
+      "request": {"project": "bif", "projection": "summary", "limit": 2, "cursor": "opaque-sync-0"},
+      "response": {"api_version": 2, "schema_version": 1, "ok": true, "result": {
+        "source_checkpoint": "opaque-sync-0", "high_water": 4, "through": 2, "complete": false,
+        "replacements": [{"kind": "upsert", "item": {"id": "ALICE:bif:001", "title": "A", "status": "ready", "priority": "P1", "assignee": "alice", "revision": 3}}],
+        "next_cursor": "opaque-sync-2-h4"
+      }}
+    },
+    {
+      "id": "fixed_h_continuation", "snapshot_high_water": 5, "snapshot_floor": 0, "journal_limit": 2,
+      "snapshot_items": [
+        {"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4},
+        {"id": "ALICE:bif:002", "title": "B", "status": "proposed", "priority": null, "assignee": null, "revision": 1}
+      ],
+      "request": {"project": "bif", "projection": "summary", "limit": 2, "cursor": "opaque-sync-2-h4"},
+      "response": {"api_version": 2, "schema_version": 1, "ok": true, "result": {
+        "source_checkpoint": "opaque-sync-2-h4", "high_water": 4, "through": 4, "complete": true,
+        "replacements": [
+          {"kind": "upsert", "item": {"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}},
+          {"kind": "upsert", "item": {"id": "ALICE:bif:002", "title": "B", "status": "proposed", "priority": null, "assignee": null, "revision": 1}}
+        ],
+        "next_cursor": "opaque-sync-4"
+      }}
+    },
+    {
+      "id": "queue_exit", "snapshot_high_water": 5, "snapshot_floor": 0, "journal_limit": 2,
+      "snapshot_items": [{"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}],
+      "request": {"project": "bif", "projection": "summary", "limit": 2, "cursor": "opaque-sync-4"},
+      "response": {"api_version": 2, "schema_version": 1, "ok": true, "result": {
+        "source_checkpoint": "opaque-sync-4", "high_water": 5, "through": 5, "complete": true,
+        "replacements": [{"kind": "upsert", "item": {"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}}],
+        "next_cursor": "opaque-sync-5"
+      }}
+    },
+    {
+      "id": "other_project_only", "snapshot_high_water": 6, "snapshot_floor": 0, "journal_limit": 2, "snapshot_items": [],
+      "request": {"project": "bif", "projection": "summary", "limit": 2, "cursor": "opaque-sync-5"},
+      "response": {"api_version": 2, "schema_version": 1, "ok": true, "result": {
+        "source_checkpoint": "opaque-sync-5", "high_water": 6, "through": 6, "complete": true, "replacements": [], "next_cursor": "opaque-sync-6"
+      }}
+    },
+    {
+      "id": "no_changes", "snapshot_high_water": 6, "snapshot_floor": 0, "journal_limit": 2, "snapshot_items": [],
+      "request": {"project": "bif", "projection": "summary", "limit": 2, "cursor": "opaque-sync-6"},
+      "response": {"api_version": 2, "schema_version": 1, "ok": true, "result": {
+        "source_checkpoint": "opaque-sync-6", "high_water": 6, "through": 6, "complete": true, "replacements": [], "next_cursor": "opaque-sync-6"
+      }}
+    }
+  ],
+  "bootstrap": {
+    "starting_checkpoint": "opaque-sync-4",
+    "captured_before_first_row": 4,
+    "catch_up_source_checkpoint": "opaque-sync-4",
+    "catch_up_high_water": 7,
+    "catch_up_complete": true,
+    "catch_up_checkpoint": "opaque-sync-7",
+    "pages": [
+      {
+        "request": {"project": "bif", "projection": "summary", "limit": 1, "cursor": null},
+        "response": {"api_version": 2, "schema_version": 1, "ok": true, "result": {
+          "items": [{"id": "ALICE:bif:001", "title": "A", "status": "ready", "priority": "P1", "assignee": "alice", "revision": 3}],
+          "next_cursor": "opaque-scan-after-alice-1", "sync_start_cursor": "opaque-sync-4"
+        }}
+      },
+      {
+        "request": {"project": "bif", "projection": "summary", "limit": 1, "cursor": "opaque-scan-after-alice-1"},
+        "response": {"api_version": 2, "schema_version": 1, "ok": true, "result": {
+          "items": [{"id": "ALICE:bif:002", "title": "B", "status": "proposed", "priority": null, "assignee": null, "revision": 1}],
+          "next_cursor": null, "sync_start_cursor": "opaque-sync-4"
+        }}
+      }
+    ],
+    "catch_up_replacements": [
+      {"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4},
+      {"id": "AARON:bif:001", "title": "Inserted before scan boundary after S", "status": "proposed", "priority": null, "assignee": null, "revision": 1}
+    ],
+    "published_items": [
+      {"id": "AARON:bif:001", "title": "Inserted before scan boundary after S", "status": "proposed", "priority": null, "assignee": null, "revision": 1},
+      {"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4},
+      {"id": "ALICE:bif:002", "title": "B", "status": "proposed", "priority": null, "assignee": null, "revision": 1}
+    ],
+    "publish_only_after_complete_catch_up": true,
+    "replace_old_baseline_not_merge": true
+  },
+  "consumer_cases": [
+    {
+      "id": "newer_than_h_and_queue_exit", "future_domain": false, "baseline_exists": true,
+      "bootstrap_identity": "baseline-1", "response_bootstrap_identity": "baseline-1",
+      "persisted_checkpoint": "opaque-sync-2-h4", "response_source": "opaque-sync-2-h4", "response_next": "opaque-sync-4",
+      "before_items": [{"id": "ALICE:bif:001", "title": "A", "status": "ready", "priority": "P1", "assignee": "alice", "revision": 3}],
+      "replacements": [{"kind": "upsert", "item": {"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}}],
+      "expected_outcome": "committed", "expected_checkpoint": "opaque-sync-4",
+      "expected_items": [{"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}],
+      "expected_ready_count": 0, "expected_mine_count": 0
+    },
+    {
+      "id": "lower_hydrated_revision_never_regresses", "future_domain": false, "baseline_exists": true,
+      "bootstrap_identity": "baseline-1", "response_bootstrap_identity": "baseline-1",
+      "persisted_checkpoint": "opaque-sync-4", "response_source": "opaque-sync-4", "response_next": "opaque-sync-5",
+      "before_items": [{"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}],
+      "replacements": [{"kind": "upsert", "item": {"id": "ALICE:bif:001", "title": "A", "status": "ready", "priority": "P1", "assignee": "alice", "revision": 3}}],
+      "expected_outcome": "committed", "expected_checkpoint": "opaque-sync-5",
+      "expected_items": [{"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}],
+      "expected_ready_count": 0, "expected_mine_count": 0
+    },
+    {
+      "id": "equivalent_same_revision_replay", "future_domain": false, "baseline_exists": true,
+      "bootstrap_identity": "baseline-1", "response_bootstrap_identity": "baseline-1",
+      "persisted_checkpoint": "opaque-sync-4", "response_source": "opaque-sync-4", "response_next": "opaque-sync-5",
+      "before_items": [{"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}],
+      "replacements": [{"kind": "upsert", "item": {"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}}],
+      "expected_outcome": "committed", "expected_checkpoint": "opaque-sync-5",
+      "expected_items": [{"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}],
+      "expected_ready_count": 0, "expected_mine_count": 0
+    },
+    {
+      "id": "same_revision_conflict_rolls_back_whole_response", "future_domain": false, "baseline_exists": true,
+      "bootstrap_identity": "baseline-1", "response_bootstrap_identity": "baseline-1",
+      "persisted_checkpoint": "opaque-sync-4", "response_source": "opaque-sync-4", "response_next": "opaque-sync-5",
+      "before_items": [{"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}],
+      "replacements": [
+        {"kind": "upsert", "item": {"id": "ALICE:bif:002", "title": "B", "status": "ready", "priority": null, "assignee": null, "revision": 1}},
+        {"kind": "upsert", "item": {"id": "ALICE:bif:001", "title": "Conflicting content", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}}
+      ],
+      "expected_outcome": "conflicting_same_revision", "expected_checkpoint": "opaque-sync-4",
+      "expected_items": [{"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}],
+      "expected_ready_count": 0, "expected_mine_count": 0
+    },
+    {
+      "id": "delayed_checkpoint_response", "future_domain": false, "baseline_exists": true,
+      "bootstrap_identity": "baseline-1", "response_bootstrap_identity": "baseline-1",
+      "persisted_checkpoint": "opaque-sync-5", "response_source": "opaque-sync-2-h4", "response_next": "opaque-sync-4",
+      "before_items": [{"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}],
+      "replacements": [{"kind": "upsert", "item": {"id": "ALICE:bif:001", "title": "A", "status": "ready", "priority": "P1", "assignee": "alice", "revision": 3}}],
+      "expected_outcome": "discarded", "expected_checkpoint": "opaque-sync-5",
+      "expected_items": [{"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}],
+      "expected_ready_count": 0, "expected_mine_count": 0
+    },
+    {
+      "id": "delayed_old_bootstrap_identity", "future_domain": false, "baseline_exists": true,
+      "bootstrap_identity": "baseline-2", "response_bootstrap_identity": "baseline-1",
+      "persisted_checkpoint": "opaque-sync-4", "response_source": "opaque-sync-4", "response_next": "opaque-sync-5",
+      "before_items": [], "replacements": [{"kind": "upsert", "item": {"id": "ALICE:bif:001", "title": "A", "status": "in_progress", "priority": null, "assignee": null, "revision": 4}}],
+      "expected_outcome": "discarded", "expected_checkpoint": "opaque-sync-4", "expected_items": [],
+      "expected_ready_count": 0, "expected_mine_count": 0
+    },
+    {
+      "id": "lost_baseline_empty_delta", "future_domain": false, "baseline_exists": false,
+      "bootstrap_identity": "baseline-1", "response_bootstrap_identity": "baseline-1",
+      "persisted_checkpoint": "opaque-sync-6", "response_source": "opaque-sync-6", "response_next": "opaque-sync-6",
+      "before_items": [], "replacements": [],
+      "expected_outcome": "bootstrap_required", "expected_checkpoint": "opaque-sync-6", "expected_items": [],
+      "expected_ready_count": 0, "expected_mine_count": 0
+    },
+    {
+      "id": "future_only_tombstone", "future_domain": true, "baseline_exists": true,
+      "bootstrap_identity": "baseline-1", "response_bootstrap_identity": "baseline-1",
+      "persisted_checkpoint": "opaque-sync-4", "response_source": "opaque-sync-4", "response_next": "opaque-future-checkpoint",
+      "before_items": [{"id": "ALICE:bif:001", "title": "A", "status": "ready", "priority": "P1", "assignee": "alice", "revision": 3}],
+      "replacements": [{"kind": "tombstone", "item_id": "ALICE:bif:001", "revision": 4}],
+      "expected_outcome": "committed", "expected_checkpoint": "opaque-future-checkpoint", "expected_items": [],
+      "expected_ready_count": 0, "expected_mine_count": 0
+    }
+  ],
+  "retention": {
+    "scope": "store_global_sequence_space",
+    "steps": [
+      {"action": "append", "floor": 0, "high_water": 6, "retained_sequences": [1, 2, 3, 4, 5, 6], "cursors": [{"project": "bif", "through": 0, "expected": "valid"}]},
+      {"action": "prune_none", "floor": 0, "high_water": 6, "retained_sequences": [1, 2, 3, 4, 5, 6], "cursors": [{"project": "other", "through": 0, "expected": "valid"}]},
+      {"action": "prune_some", "floor": 2, "high_water": 6, "retained_sequences": [3, 4, 5, 6], "cursors": [{"project": "bif", "through": 2, "expected": "valid"}, {"project": "other", "through": 1, "expected": "expired"}]},
+      {"action": "prune_all", "floor": 6, "high_water": 6, "retained_sequences": [], "cursors": [{"project": "bif", "through": 6, "expected": "valid"}, {"project": "other", "through": 5, "expected": "expired"}]},
+      {"action": "restart", "floor": 6, "high_water": 6, "retained_sequences": [], "cursors": [{"project": "bif", "through": 6, "expected": "valid"}]},
+      {"action": "append_after_prune_all", "floor": 6, "high_water": 8, "retained_sequences": [8], "cursors": [{"project": "other", "through": 6, "expected": "valid"}]}
+    ]
+  },
+  "recovery": {
+    "backup_id": "identical-backup-before-queue-exit",
+    "backup_generation": "17c4607f59e849e584627308cf9e1711",
+    "generation_bits": 128,
+    "generation_source": "independent_os_random_each_restore",
+    "collision_assumption": "negligible_probability_not_absolute_uniqueness",
+    "ordinary_restart_preserves_generation": true,
+    "validator_collision": {
+      "before_item": {"id": "ALICE:bif:001", "title": "Later branch", "status": "ready", "priority": "P1", "assignee": "alice", "revision": 3},
+      "restored_item": {"id": "ALICE:bif:001", "title": "Restored branch", "status": "ready", "priority": "P1", "assignee": "alice", "revision": 3}
+    },
+    "restores": [
+      {"backup_id": "identical-backup-before-queue-exit", "new_generation": "b6292466c59a47ff842f376743271aba", "rejected_generations": ["17c4607f59e849e584627308cf9e1711"]},
+      {"backup_id": "identical-backup-before-queue-exit", "new_generation": "ac1f9b2085d649bf9cdf616f37ef76c0", "rejected_generations": ["17c4607f59e849e584627308cf9e1711", "b6292466c59a47ff842f376743271aba"]}
+    ],
+    "token_cases": [
+      {"id": "page_ordinary_restart", "kind": "page", "token_generation": "17c4607f59e849e584627308cf9e1711", "store_generation": "17c4607f59e849e584627308cf9e1711", "outcome": "accepted", "error": null},
+      {"id": "history_ordinary_restart", "kind": "history", "token_generation": "17c4607f59e849e584627308cf9e1711", "store_generation": "17c4607f59e849e584627308cf9e1711", "outcome": "accepted", "error": null},
+      {"id": "validator_ordinary_restart", "kind": "validator", "token_generation": "17c4607f59e849e584627308cf9e1711", "store_generation": "17c4607f59e849e584627308cf9e1711", "outcome": "accepted", "error": null},
+      {"id": "warm_ordinary_restart", "kind": "warm_session", "token_generation": "17c4607f59e849e584627308cf9e1711", "store_generation": "17c4607f59e849e584627308cf9e1711", "outcome": "accepted", "error": null},
+      {"id": "sync_ordinary_restart", "kind": "sync", "token_generation": "17c4607f59e849e584627308cf9e1711", "store_generation": "17c4607f59e849e584627308cf9e1711", "outcome": "accepted", "error": null},
+      {"id": "scan_ordinary_restart", "kind": "scan", "token_generation": "17c4607f59e849e584627308cf9e1711", "store_generation": "17c4607f59e849e584627308cf9e1711", "outcome": "accepted", "error": null},
+      {"id": "page_generation_missing", "kind": "page", "token_generation": null, "store_generation": "17c4607f59e849e584627308cf9e1711", "outcome": "error", "error": {"code": "invalid_cursor", "message": "Restart with a generation-bound cursor", "details": {"reason": "generation_missing", "restart_required": true}}},
+      {"id": "history_generation_missing", "kind": "history", "token_generation": null, "store_generation": "17c4607f59e849e584627308cf9e1711", "outcome": "error", "error": {"code": "invalid_cursor", "message": "Restart with a generation-bound cursor", "details": {"reason": "generation_missing", "restart_required": true}}},
+      {"id": "validator_generation_missing", "kind": "validator", "token_generation": null, "store_generation": "17c4607f59e849e584627308cf9e1711", "outcome": "error", "error": {"code": "invalid_input", "message": "Refetch with a generation-bound validator", "details": {"reason": "generation_missing", "refetch_required": true}}},
+      {"id": "page_after_restore", "kind": "page", "token_generation": "17c4607f59e849e584627308cf9e1711", "store_generation": "b6292466c59a47ff842f376743271aba", "outcome": "error", "error": {"code": "invalid_cursor", "message": "Restart after restore", "details": {"reason": "wrong_generation", "restart_required": true}}},
+      {"id": "history_after_restore", "kind": "history", "token_generation": "17c4607f59e849e584627308cf9e1711", "store_generation": "b6292466c59a47ff842f376743271aba", "outcome": "error", "error": {"code": "invalid_cursor", "message": "Restart after restore", "details": {"reason": "wrong_generation", "restart_required": true}}},
+      {"id": "validator_same_revision_different_restored_content", "kind": "validator", "token_generation": "17c4607f59e849e584627308cf9e1711", "store_generation": "b6292466c59a47ff842f376743271aba", "outcome": "modified", "error": null},
+      {"id": "warm_after_restore", "kind": "warm_session", "token_generation": "17c4607f59e849e584627308cf9e1711", "store_generation": "b6292466c59a47ff842f376743271aba", "outcome": "restart_required", "error": null},
+      {"id": "sync_after_identical_backup_second_restore", "kind": "sync", "token_generation": "b6292466c59a47ff842f376743271aba", "store_generation": "ac1f9b2085d649bf9cdf616f37ef76c0", "outcome": "error", "error": {"code": "invalid_cursor", "message": "Restart after every restore", "details": {"reason": "wrong_generation", "restart_required": true}}},
+      {"id": "scan_after_identical_backup_second_restore", "kind": "scan", "token_generation": "b6292466c59a47ff842f376743271aba", "store_generation": "ac1f9b2085d649bf9cdf616f37ef76c0", "outcome": "error", "error": {"code": "invalid_cursor", "message": "Restart bootstrap after every restore", "details": {"reason": "wrong_generation", "restart_required": true}}}
+    ]
+  },
+  "read_interleavings": [
+    {
+      "id": "prune_after_snapshot_reads_complete_old_coverage", "maintenance_order": "after_read_snapshot",
+      "cursor_generation": "17c4607f59e849e584627308cf9e1711", "cursor_through": 0,
+      "snapshot": {"transaction_id": "read-1", "generation": "17c4607f59e849e584627308cf9e1711", "floor": 0, "high_water": 4, "covered_sequences": [1, 2, 3, 4]},
+      "generation_read": "read-1", "floor_read": "read-1", "coverage_read": "read-1", "rows_read": "read-1",
+      "selected_sequences": [1, 2, 3, 4], "expected": "complete_coverage"
+    },
+    {
+      "id": "prune_before_snapshot_expires_without_partial_gap", "maintenance_order": "before_read_snapshot",
+      "cursor_generation": "17c4607f59e849e584627308cf9e1711", "cursor_through": 0,
+      "snapshot": {"transaction_id": "read-2", "generation": "17c4607f59e849e584627308cf9e1711", "floor": 2, "high_water": 4, "covered_sequences": [3, 4]},
+      "generation_read": "read-2", "floor_read": "read-2", "coverage_read": "read-2", "rows_read": "read-2",
+      "selected_sequences": [], "expected": "expired"
+    },
+    {
+      "id": "restore_after_snapshot_reads_complete_old_generation", "maintenance_order": "after_read_snapshot",
+      "cursor_generation": "17c4607f59e849e584627308cf9e1711", "cursor_through": 0,
+      "snapshot": {"transaction_id": "read-3", "generation": "17c4607f59e849e584627308cf9e1711", "floor": 0, "high_water": 4, "covered_sequences": [1, 2, 3, 4]},
+      "generation_read": "read-3", "floor_read": "read-3", "coverage_read": "read-3", "rows_read": "read-3",
+      "selected_sequences": [1, 2, 3, 4], "expected": "complete_coverage"
+    },
+    {
+      "id": "restore_before_snapshot_rejects_old_generation", "maintenance_order": "before_read_snapshot",
+      "cursor_generation": "17c4607f59e849e584627308cf9e1711", "cursor_through": 0,
+      "snapshot": {"transaction_id": "read-4", "generation": "b6292466c59a47ff842f376743271aba", "floor": 0, "high_water": 4, "covered_sequences": [1, 2, 3, 4]},
+      "generation_read": "read-4", "floor_read": "read-4", "coverage_read": "read-4", "rows_read": "read-4",
+      "selected_sequences": [], "expected": "wrong_generation"
+    }
+  ],
+  "tombstones": {
+    "runtime_enabled": false,
+    "scope": "future_domain_pure_consumer_and_codec_only",
+    "future_enablement_requires": ["retain_audit_identity", "higher_item_revision", "transactional_tombstone", "deletion_tests"],
+    "unexpected_missing_row": "internal_corruption_no_cursor_advance"
+  },
+  "validation_scope": {
+    "phase_e_runtime": ["existing_page_history_validator_warm_session_invalidation", "storage_read_interleavings"],
+    "phase_f_runtime": ["V2-036_sync_expiry", "V2-039_bootstrap", "later_reconciliation_integration"],
+    "v2_035_depends_on_v2_037": false
+  }
+}

@@ -147,6 +147,7 @@
       "unsupported_version": 8,
       "not_initialized": 9,
       "storage_busy": 10,
+      "restart_required": 11,
       "internal": 1
     },
     "rule": "After writing exactly one response, exit with 0 for success or the mapped code for its error. A diagnostic on stderr does not alter the mapping."
@@ -358,6 +359,23 @@
         }
       },
       "exit_code": 10
+    },
+    {
+      "code": "restart_required",
+      "response": {
+        "protocol_version": 1,
+        "request_id": "req-restart-required",
+        "ok": false,
+        "error": {
+          "code": "restart_required",
+          "message": "The store identity changed; restart required",
+          "details": {
+            "reason": "store_identity_changed",
+            "restart_required": true
+          }
+        }
+      },
+      "exit_code": 11
     },
     {
       "code": "internal",

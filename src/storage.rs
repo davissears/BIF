@@ -6,6 +6,8 @@
 mod projection_reads;
 pub use projection_reads::ProjectionRepository;
 mod history_pages;
+pub mod journal;
+pub mod maintenance;
 
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -31,6 +33,7 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 const IMMUTABLE_EVENTS: &str = include_str!("../migrations/0002_immutable_events.sql");
 const PROJECTION_READ_INDEXES: &str =
     include_str!("../migrations/0003_projection_read_indexes.sql");
+const CHANGE_JOURNAL: &str = include_str!("../migrations/0004_change_journal.sql");
 
 const MIGRATIONS: &[Migration] = &[
     Migration {
@@ -38,18 +41,28 @@ const MIGRATIONS: &[Migration] = &[
         name: "initial",
         sql: INITIAL_SCHEMA,
         checksum: "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
+        initialize: None,
     },
     Migration {
         version: 2,
         name: "immutable_events",
         sql: IMMUTABLE_EVENTS,
         checksum: "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
+        initialize: None,
     },
     Migration {
         version: 3,
         name: "projection_read_indexes",
         sql: PROJECTION_READ_INDEXES,
         checksum: "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
+        initialize: None,
+    },
+    Migration {
+        version: 4,
+        name: "change_journal",
+        sql: CHANGE_JOURNAL,
+        checksum: "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
+        initialize: Some(journal::initialize),
     },
 ];
 
@@ -62,12 +75,16 @@ const CREATE_MIGRATION_TABLE: &str = "
     );
 ";
 
+type MigrationStep = fn(&Connection) -> Result<(), MigrationError>;
+
 #[derive(Clone, Copy)]
 struct Migration {
     version: i64,
     name: &'static str,
     sql: &'static str,
     checksum: &'static str,
+    // Non-SQL initialization shares the schema/bookkeeping transaction.
+    initialize: Option<MigrationStep>,
 }
 
 /// An error encountered while checking or advancing the database schema.
@@ -85,6 +102,12 @@ pub enum MigrationError {
         expected: String,
         found: String,
     },
+    /// History must be an exact contiguous prefix of the embedded migrations.
+    InvalidHistory,
+    /// OS entropy was unavailable; no migration changes are committed.
+    GenerationRandomness(getrandom::Error),
+    /// Existing journal metadata is invalid and must not be silently repaired.
+    Journal(journal::JournalError),
 }
 
 impl fmt::Display for MigrationError {
@@ -107,6 +130,15 @@ impl fmt::Display for MigrationError {
                 formatter,
                 "migration {version} checksum mismatch: expected {expected}, found {found}"
             ),
+            Self::InvalidHistory => formatter.write_str(
+                "migration history is missing or is not an exact contiguous version/name prefix",
+            ),
+            Self::GenerationRandomness(error) => {
+                write!(formatter, "journal generation entropy unavailable: {error}")
+            }
+            Self::Journal(error) => {
+                write!(formatter, "journal metadata validation failed: {error}")
+            }
         }
     }
 }
@@ -115,9 +147,12 @@ impl std::error::Error for MigrationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Sqlite(error) => Some(error),
+            Self::Journal(error) => Some(error),
             Self::NoFollowUnsupportedPlatform
             | Self::NewerSchema { .. }
-            | Self::ChecksumMismatch { .. } => None,
+            | Self::ChecksumMismatch { .. }
+            | Self::InvalidHistory
+            | Self::GenerationRandomness(_) => None,
         }
     }
 }
@@ -153,12 +188,18 @@ pub fn read_store_identity(connection: &Connection) -> Result<String, rusqlite::
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ReadStoreState {
     pub store_id: String,
+    pub generation: journal::Generation,
     pub schema_version: i64,
     migrations: Vec<(i64, String, String, String)>,
 }
 
 pub(crate) fn read_store_state(connection: &Connection) -> rusqlite::Result<ReadStoreState> {
     let store_id = read_store_identity(connection)?;
+    let generation: String = connection
+        .prepare_cached("SELECT generation FROM journal_metadata WHERE singleton = 1")?
+        .query_row([], |row| row.get(0))?;
+    let generation =
+        journal::Generation::parse(&generation).map_err(|_| rusqlite::Error::InvalidQuery)?;
     let schema_version = connection
         .prepare_cached("PRAGMA schema_version")?
         .query_row([], |row| row.get(0))?;
@@ -180,6 +221,7 @@ pub(crate) fn read_store_state(connection: &Connection) -> rusqlite::Result<Read
     }
     Ok(ReadStoreState {
         store_id,
+        generation,
         schema_version,
         migrations,
     })
@@ -419,11 +461,15 @@ impl NamedViewStore for ItemRepository<'_> {
 /// SQLite implementation of the atomic capture persistence boundary.
 pub struct CaptureRepository<'connection> {
     connection: &'connection mut Connection,
+    state: ReadStoreState,
 }
 
 impl<'connection> CaptureRepository<'connection> {
-    pub fn new(connection: &'connection mut Connection) -> Self {
-        Self { connection }
+    pub fn new(connection: &'connection mut Connection) -> rusqlite::Result<Self> {
+        let snapshot = ReadSnapshot::begin(connection)?;
+        let state = read_store_state(&snapshot)?;
+        snapshot.commit()?;
+        Ok(Self { connection, state })
     }
 }
 
@@ -432,6 +478,7 @@ impl<'connection> CaptureRepository<'connection> {
 pub enum CaptureStorageError {
     SequenceExhausted,
     Sqlite(rusqlite::Error),
+    Journal(journal::JournalError),
 }
 
 impl fmt::Display for CaptureStorageError {
@@ -439,6 +486,7 @@ impl fmt::Display for CaptureStorageError {
         match self {
             Self::SequenceExhausted => formatter.write_str("item sequence is exhausted"),
             Self::Sqlite(error) => write!(formatter, "SQLite capture error: {error}"),
+            Self::Journal(error) => write!(formatter, "capture journal error: {error}"),
         }
     }
 }
@@ -448,6 +496,7 @@ impl std::error::Error for CaptureStorageError {
         match self {
             Self::SequenceExhausted => None,
             Self::Sqlite(error) => Some(error),
+            Self::Journal(error) => Some(error),
         }
     }
 }
@@ -466,6 +515,16 @@ impl From<rusqlite::Error> for CaptureStoreError<CaptureStorageError> {
             Self::Busy(error)
         } else {
             Self::Storage(error)
+        }
+    }
+}
+
+impl From<journal::JournalError> for CaptureStoreError<CaptureStorageError> {
+    fn from(error: journal::JournalError) -> Self {
+        match error {
+            // Preserve the existing SQLite busy/storage classification.
+            journal::JournalError::Sqlite(error) => Self::from(error),
+            error => Self::Storage(CaptureStorageError::Journal(error)),
         }
     }
 }
@@ -524,6 +583,13 @@ impl CaptureRepository<'_> {
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(CaptureStoreError::from)?;
+        // BEGIN IMMEDIATE serializes writers; pin identity before accepting
+        // receipts (including replay), counters, or any new content.
+        match check_write_state(&transaction, &self.state) {
+            Ok(true) => {}
+            Ok(false) => return Err(CaptureStoreError::RestartRequired),
+            Err(error) => return Err(CaptureStoreError::from(error)),
+        }
         let receipt: Option<(String, String)> = transaction
             .query_row(
                 "SELECT payload_hash, item_id FROM mutation_receipts
@@ -626,6 +692,9 @@ impl CaptureRepository<'_> {
                 item.captured_at().as_str(),
             ],
         )?;
+        // New captures only: operation, audit, receipt, journal and H commit
+        // together. Any append error drops this transaction, not just its INSERT.
+        journal::append_change(&transaction, &identity.operation_id)?;
         transaction.commit()?;
         Ok(CaptureResult {
             item,
@@ -924,11 +993,25 @@ fn parse_history_priority(value: &str) -> Option<Priority> {
 /// SQLite implementation of atomic item mutation persistence.
 pub struct MutationRepository<'connection> {
     connection: &'connection mut Connection,
+    state: ReadStoreState,
 }
 
 impl<'connection> MutationRepository<'connection> {
-    pub fn new(connection: &'connection mut Connection) -> Self {
-        Self { connection }
+    pub fn new(connection: &'connection mut Connection) -> rusqlite::Result<Self> {
+        let snapshot = ReadSnapshot::begin(connection)?;
+        let state = read_store_state(&snapshot)?;
+        snapshot.commit()?;
+        Ok(Self { connection, state })
+    }
+}
+
+/// An invalidated identity cannot authorize writes. Busy remains retryable;
+/// malformed/missing boundary metadata requires a new handle, never repair.
+fn check_write_state(connection: &Connection, pinned: &ReadStoreState) -> rusqlite::Result<bool> {
+    match read_store_state(connection) {
+        Ok(state) => Ok(&state == pinned),
+        Err(error) if is_busy(&error) => Err(error),
+        Err(_) => Ok(false),
     }
 }
 
@@ -948,6 +1031,13 @@ impl MutationStore for MutationRepository<'_> {
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(MutationStoreError::from)?;
+        // This check is inside the serialized writer transaction, before even
+        // replay or a no-op may be accepted.
+        match check_write_state(&transaction, &self.state) {
+            Ok(true) => {}
+            Ok(false) => return Err(MutationStoreError::RestartRequired),
+            Err(error) => return Err(MutationStoreError::from(error)),
+        }
         let receipt: Option<(String, String)> = transaction
             .query_row(
                 "SELECT payload_hash, item_id FROM mutation_receipts WHERE mutation_key = ?1",
@@ -1060,6 +1150,15 @@ impl MutationStore for MutationRepository<'_> {
                 ],
             )
             .map_err(MutationStoreError::from)?;
+        // One journal position covers the whole effective operation, not each event.
+        journal::append_change(&transaction, &identity.operation_id).map_err(
+            |error| match error {
+                journal::JournalError::Sqlite(error) => MutationStoreError::from(error),
+                error => MutationStoreError::Storage(rusqlite::Error::ToSqlConversionFailure(
+                    Box::new(error),
+                )),
+            },
+        )?;
         transaction.commit().map_err(MutationStoreError::from)?;
         Ok(MutationResult {
             item,
@@ -1741,55 +1840,93 @@ fn configure(connection: &Connection) -> rusqlite::Result<()> {
 /// Validation, schema changes, and migration bookkeeping share one transaction,
 /// so an unsuccessful startup leaves the database at its previous version.
 pub fn migrate(connection: &mut Connection) -> Result<(), MigrationError> {
-    migrate_all(connection, MIGRATIONS)
+    migrate_all(connection, MIGRATIONS, |connection| {
+        journal::read_metadata(connection)
+            .map(|_| ())
+            .map_err(MigrationError::Journal)
+    })
+}
+
+/// Preflight the entire applied prefix before executing any DDL. An empty history
+/// is allowed only for an otherwise empty database, never an untracked old store.
+fn migration_prefix(
+    connection: &Connection,
+    migrations: &[Migration],
+) -> Result<usize, MigrationError> {
+    let history_exists: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'schema_migrations')",
+        [], |row| row.get(0),
+    )?;
+    let applied: Vec<(i64, String, String)> = if history_exists {
+        connection
+            .prepare(
+                "SELECT version, name, checksum FROM schema_migrations ORDER BY version LIMIT ?1",
+            )?
+            .query_map([(migrations.len() + 1) as i64], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })?
+            .collect::<rusqlite::Result<_>>()?
+    } else {
+        Vec::new()
+    };
+    if applied.is_empty() {
+        let nonempty: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema
+             WHERE name NOT LIKE 'sqlite_%' AND name != 'schema_migrations')",
+            [],
+            |row| row.get(0),
+        )?;
+        if nonempty {
+            return Err(MigrationError::InvalidHistory);
+        }
+    }
+    let supported = migrations.last().map_or(0, |migration| migration.version);
+    for (index, (version, name, checksum)) in applied.iter().enumerate() {
+        if *version > supported {
+            return Err(MigrationError::NewerSchema {
+                found: *version,
+                supported,
+            });
+        }
+        let expected = migrations
+            .get(index)
+            .ok_or(MigrationError::InvalidHistory)?;
+        if *version != expected.version || name != expected.name {
+            return Err(MigrationError::InvalidHistory);
+        }
+        if checksum != expected.checksum {
+            return Err(MigrationError::ChecksumMismatch {
+                version: *version,
+                expected: expected.checksum.to_owned(),
+                found: checksum.clone(),
+            });
+        }
+    }
+    Ok(applied.len())
 }
 
 fn migrate_all(
     connection: &mut Connection,
     migrations: &[Migration],
+    validate: MigrationStep,
 ) -> Result<(), MigrationError> {
-    let supported = migrations.last().map_or(0, |migration| migration.version);
-    let transaction = connection.transaction()?;
+    let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let applied = migration_prefix(&transaction, migrations)?;
     transaction.execute_batch(CREATE_MIGRATION_TABLE)?;
 
-    let found = transaction.query_row(
-        "SELECT COALESCE(MAX(version), 0) FROM schema_migrations",
-        [],
-        |row| row.get::<_, i64>(0),
-    )?;
-    if found > supported {
-        return Err(MigrationError::NewerSchema { found, supported });
-    }
-
-    for migration in migrations {
-        let expected = migration.checksum;
-        let applied: Option<String> = transaction
-            .query_row(
-                "SELECT checksum FROM schema_migrations WHERE version = ?1",
-                [migration.version],
-                |row| row.get(0),
-            )
-            .optional()?;
-
-        if let Some(found) = applied {
-            if found != expected {
-                return Err(MigrationError::ChecksumMismatch {
-                    version: migration.version,
-                    expected: expected.to_owned(),
-                    found,
-                });
-            }
-            continue;
-        }
-
+    for migration in &migrations[applied..] {
         transaction.execute_batch(migration.sql)?;
+        if let Some(initialize) = migration.initialize {
+            initialize(&transaction)?;
+        }
         transaction.execute(
             "INSERT INTO schema_migrations (version, name, checksum, applied_at)
              VALUES (?1, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
-            params![migration.version, migration.name, expected],
+            params![migration.version, migration.name, migration.checksum],
         )?;
     }
 
+    validate(&transaction)?;
     transaction.commit()?;
     Ok(())
 }
@@ -1803,6 +1940,7 @@ mod tests {
         name: "successful",
         sql: "CREATE TABLE retained (value TEXT NOT NULL);",
         checksum: "successful-checksum",
+        initialize: None,
     };
     const FAILING: Migration = Migration {
         version: 2,
@@ -1812,13 +1950,14 @@ mod tests {
             INSERT INTO table_that_does_not_exist VALUES (1);
         ",
         checksum: "failing-checksum",
+        initialize: None,
     };
 
     #[test]
     fn failed_migration_rolls_back_all_changes_from_startup() {
         let mut connection = Connection::open_in_memory().unwrap();
 
-        assert!(migrate_all(&mut connection, &[SUCCESSFUL, FAILING]).is_err());
+        assert!(migrate_all(&mut connection, &[SUCCESSFUL, FAILING], |_| Ok(())).is_err());
 
         let tables: i64 = connection
             .query_row(

@@ -180,8 +180,8 @@ impl ReadSession {
             .connection
             .unchecked_transaction()
             .map_err(|error| sqlite_error(&error))?;
-        self.check_boundary(&transaction)?;
-        let delivery = self.read(&transaction, authorization, request)?;
+        let state = self.check_boundary(&transaction)?;
+        let delivery = self.read(&transaction, &state, authorization, request)?;
         transaction.commit().map_err(|error| sqlite_error(&error))?;
         // Encoding (including all cursor byte-budget candidates) holds no lock.
         let mut bytes = Vec::new();
@@ -199,7 +199,7 @@ impl ReadSession {
         transaction.commit().map_err(|error| sqlite_error(&error))
     }
 
-    fn check_boundary(&self, connection: &Connection) -> Result<(), ReadError> {
+    fn check_boundary(&self, connection: &Connection) -> Result<ReadStoreState, ReadError> {
         if let Some(reason) = &self.restart_reason {
             return Err(restart(reason));
         }
@@ -220,12 +220,13 @@ impl ReadSession {
         if state != self.state {
             return Err(restart("store_or_schema_changed"));
         }
-        Ok(())
+        Ok(state)
     }
 
     fn read(
         &self,
         connection: &Connection,
+        state: &ReadStoreState,
         authorization: &AuthorizationRequest<'_>,
         request: ReadRequest,
     ) -> Result<Delivery, ReadError> {
@@ -250,6 +251,7 @@ impl ReadSession {
                     ConditionalReadError::Unauthorized(_) => ReadError::Unauthorized,
                     ConditionalReadError::NotFound => ReadError::NotFound,
                     ConditionalReadError::InvalidValidator => ReadError::InvalidInput,
+                    ConditionalReadError::GenerationMissing => ReadError::GenerationMissing,
                     ConditionalReadError::Storage(error) => storage_error(&error),
                 })?;
                 Ok(Delivery::Conditional(result))
@@ -290,8 +292,9 @@ impl ReadSession {
                     configured_requester: self.config.requester.clone(),
                     page: ReadPageRequest::new(limit, None).map_err(|_| ReadError::InvalidInput)?,
                 };
-                let context = CursorContext::item_page(self.state.store_id.clone(), &request)
-                    .map_err(|_| ReadError::InvalidInput)?;
+                let context =
+                    CursorContext::item_page(&state.store_id, state.generation.as_str(), &request)
+                        .map_err(|_| ReadError::InvalidInput)?;
                 request.page.after = cursor
                     .as_deref()
                     .map(|token| {
@@ -315,7 +318,8 @@ impl ReadSession {
                     ordering: HistoryOrdering::RevisionThenEventIndex,
                     page: ReadPageRequest::new(limit, None).map_err(|_| ReadError::InvalidInput)?,
                 };
-                let context = CursorContext::history(self.state.store_id.clone(), &request);
+                let context =
+                    CursorContext::history(&state.store_id, state.generation.as_str(), &request);
                 request.page.after = cursor
                     .as_deref()
                     .map(|token| {
@@ -458,6 +462,106 @@ fn project_registration_error(error: ProjectRegistrationError) -> ReadError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rusqlite::trace::{TraceEvent, TraceEventCodes};
+    use std::cell::RefCell;
+
+    thread_local! {
+        static ROTATION: RefCell<Option<(Connection, bool)>> = const { RefCell::new(None) };
+    }
+
+    fn rotate_at_payload(event: TraceEvent<'_>) {
+        if let TraceEvent::Stmt(statement, _) = event {
+            let sql = statement.sql();
+            if sql.contains("FROM items AS i") || sql.contains("SELECT EXISTS") {
+                ROTATION.with(|slot| {
+                    let mut slot = slot.borrow_mut();
+                    let (writer, fired) = slot.as_mut().unwrap();
+                    if !*fired {
+                        *fired = true;
+                        writer.execute_batch(
+                            "BEGIN IMMEDIATE;
+                             UPDATE journal_metadata SET generation = '00000000000000000000000000000000';
+                             UPDATE items SET title = 'restored';
+                             COMMIT;").unwrap();
+                    }
+                });
+            }
+        }
+    }
+
+    #[test]
+    fn rotation_between_session_binding_and_list_or_history_selection_latches_restart() {
+        for history in [false, true] {
+            let temp = tempfile::tempdir().unwrap();
+            std::fs::create_dir(temp.path().join(".bif")).unwrap();
+            let config = Config {
+                root: temp.path().to_owned(),
+                requester: RequesterId::new("ALICE").unwrap(),
+                source: None,
+            };
+            let writer = storage::open(config.store_paths().unwrap().database).unwrap();
+            writer
+                .execute_batch(
+                    "INSERT INTO projects VALUES ('bif', 'now');
+                 INSERT INTO items VALUES ('ALICE:bif:001','ALICE','bif',1,'original',NULL,
+                  'proposed',NULL,NULL,NULL,1,'now','now');",
+                )
+                .unwrap();
+            let mut session = ReadSession::open(config).unwrap();
+            ROTATION.with(|slot| *slot.borrow_mut() = Some((writer, false)));
+            session
+                .connection
+                .trace_v2(TraceEventCodes::all(), Some(rotate_at_payload));
+            let id = ItemId::new(
+                RequesterId::new("ALICE").unwrap(),
+                ProjectId::new("bif").unwrap(),
+                1,
+            )
+            .unwrap();
+            let request = if history {
+                ReadRequest::History {
+                    item_id: id,
+                    limit: 1,
+                    cursor: None,
+                }
+            } else {
+                ReadRequest::Page {
+                    view: NamedView::All,
+                    ordering: ItemListOrdering::NewestFirst,
+                    projection: ItemProjectionKind::Summary,
+                    filters: ItemListFilters::default(),
+                    limit: 1,
+                    cursor: None,
+                }
+            };
+            let authorization = AuthorizationRequest {
+                actor: application::Actor {
+                    kind: application::ActorKind::Human,
+                    id: "ALICE",
+                    surface: "cli",
+                    host: "local",
+                },
+                execution: application::Execution::Direct {
+                    surface: "cli",
+                    host: "local",
+                },
+                observed_execution: application::ObservedExecution::Direct,
+                command: Command::Read,
+                human_authorization: None,
+            };
+            assert!(matches!(
+                session.execute(&authorization, request.clone(), ResponseBudget::default()),
+                Err(ReadError::RestartRequired { .. })
+            ));
+            session.connection.trace_v2(TraceEventCodes::empty(), None);
+            assert!(ROTATION.with(|slot| slot.borrow_mut().take().unwrap().1));
+            assert!(session.is_autocommit());
+            assert!(matches!(
+                session.execute(&authorization, request, ResponseBudget::default()),
+                Err(ReadError::RestartRequired { .. })
+            ));
+        }
+    }
 
     #[test]
     fn project_metadata_preserves_busy_and_locked_errors() {

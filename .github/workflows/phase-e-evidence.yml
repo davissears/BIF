@@ -1,0 +1,32 @@
+name: Disposable Phase E foundation evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install the pinned Rust toolchain
+        run: rustup show
+      - name: Rehearse and measure disposable generated stores
+        # Never overwrite repository evidence, use private stores or approve release.
+        run: |
+          python3 docs/baselines/v2-phase-e/final-gate/gate.py \
+            --output target/phase-e-evidence \
+            --work-dir target/phase-e-disposable
+      - name: Retain raw samples and frozen provenance, not databases
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-e-${{ github.sha }}-${{ github.run_id }}
+          path: target/phase-e-evidence/*.json
+          if-no-files-found: error
+          retention-days: 30

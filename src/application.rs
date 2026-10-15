@@ -713,6 +713,7 @@ pub trait MutationStore {
 #[derive(Debug)]
 pub enum MutationStoreError<StorageError> {
     NotFound,
+    RestartRequired,
     VersionConflict,
     IdempotencyConflict,
     Invalid(MutationError),
@@ -724,6 +725,7 @@ pub enum MutationStoreError<StorageError> {
 pub enum MutationUseCaseError<StorageError> {
     Unauthorized(Unauthorized),
     NotFound,
+    RestartRequired,
     VersionConflict,
     IdempotencyConflict,
     Invalid(MutationError),
@@ -736,6 +738,7 @@ impl<StorageError> MutationUseCaseError<StorageError> {
         match self {
             Self::Unauthorized(_) => "unauthorized",
             Self::NotFound => "not_found",
+            Self::RestartRequired => "restart_required",
             Self::VersionConflict => "version_conflict",
             Self::IdempotencyConflict => "idempotency_conflict",
             Self::Invalid(error) => error.code(),
@@ -750,6 +753,9 @@ impl<StorageError: fmt::Display> fmt::Display for MutationUseCaseError<StorageEr
         match self {
             Self::Unauthorized(error) => error.fmt(formatter),
             Self::NotFound => formatter.write_str("item was not found"),
+            Self::RestartRequired => {
+                formatter.write_str("store identity changed; restart required")
+            }
             Self::VersionConflict => formatter.write_str("item revision does not match"),
             Self::IdempotencyConflict => {
                 formatter.write_str("the idempotency key was already used with different input")
@@ -767,7 +773,10 @@ impl<StorageError: Error + 'static> Error for MutationUseCaseError<StorageError>
             Self::Unauthorized(error) => Some(error),
             Self::Invalid(error) => Some(error),
             Self::Busy(error) | Self::Storage(error) => Some(error),
-            Self::NotFound | Self::VersionConflict | Self::IdempotencyConflict => None,
+            Self::NotFound
+            | Self::RestartRequired
+            | Self::VersionConflict
+            | Self::IdempotencyConflict => None,
         }
     }
 }
@@ -797,6 +806,7 @@ pub fn mutate_item_idempotent<S: MutationStore>(
         )
         .map_err(|error| match error {
             MutationStoreError::NotFound => MutationUseCaseError::NotFound,
+            MutationStoreError::RestartRequired => MutationUseCaseError::RestartRequired,
             MutationStoreError::VersionConflict => MutationUseCaseError::VersionConflict,
             MutationStoreError::IdempotencyConflict => MutationUseCaseError::IdempotencyConflict,
             MutationStoreError::Invalid(error) => MutationUseCaseError::Invalid(error),
@@ -953,6 +963,7 @@ pub trait CaptureStore {
 #[derive(Debug)]
 pub enum CaptureStoreError<StorageError> {
     IdempotencyConflict,
+    RestartRequired,
     Busy(StorageError),
     Storage(StorageError),
 }
@@ -962,6 +973,7 @@ pub enum CaptureStoreError<StorageError> {
 pub enum CaptureError<StorageError> {
     Unauthorized(Unauthorized),
     IdempotencyConflict,
+    RestartRequired,
     Busy(StorageError),
     Storage(StorageError),
 }
@@ -971,6 +983,7 @@ impl<StorageError> CaptureError<StorageError> {
         match self {
             Self::Unauthorized(_) => "unauthorized",
             Self::IdempotencyConflict => "idempotency_conflict",
+            Self::RestartRequired => "restart_required",
             Self::Busy(_) => "storage_busy",
             Self::Storage(_) => "storage_error",
         }
@@ -985,6 +998,9 @@ impl<StorageError: fmt::Display> fmt::Display for CaptureError<StorageError> {
                 formatter.write_str("the idempotency key was already used with different input")
             }
             Self::Busy(error) => write!(formatter, "capture storage is busy: {error}"),
+            Self::RestartRequired => {
+                formatter.write_str("store identity changed; restart required")
+            }
             Self::Storage(error) => write!(formatter, "capture storage error: {error}"),
         }
     }
@@ -994,7 +1010,7 @@ impl<StorageError: Error + 'static> Error for CaptureError<StorageError> {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Unauthorized(error) => Some(error),
-            Self::IdempotencyConflict => None,
+            Self::IdempotencyConflict | Self::RestartRequired => None,
             Self::Busy(error) => Some(error),
             Self::Storage(error) => Some(error),
         }
@@ -1026,6 +1042,7 @@ pub fn capture<S: CaptureStore>(
         )
         .map_err(|error| match error {
             CaptureStoreError::IdempotencyConflict => CaptureError::IdempotencyConflict,
+            CaptureStoreError::RestartRequired => CaptureError::RestartRequired,
             CaptureStoreError::Busy(error) => CaptureError::Busy(error),
             CaptureStoreError::Storage(error) => CaptureError::Storage(error),
         })

@@ -88,6 +88,7 @@ pub struct PayloadTooLarge {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReadError {
     InvalidInput,
+    GenerationMissing,
     NotFound,
     Unauthorized,
     UnsupportedVersion,
@@ -107,7 +108,7 @@ pub enum ReadError {
 impl ReadError {
     pub const fn code(&self) -> ReadErrorCode {
         match self {
-            Self::InvalidInput => ReadErrorCode::InvalidInput,
+            Self::InvalidInput | Self::GenerationMissing => ReadErrorCode::InvalidInput,
             Self::NotFound => ReadErrorCode::NotFound,
             Self::Unauthorized => ReadErrorCode::Unauthorized,
             Self::UnsupportedVersion => ReadErrorCode::UnsupportedVersion,
@@ -123,6 +124,7 @@ impl ReadError {
     pub const fn message(&self) -> &'static str {
         match self {
             Self::InvalidInput => "The read request is invalid",
+            Self::GenerationMissing => "The validator has no generation; refetch required",
             Self::NotFound => "The item was not found",
             Self::Unauthorized => "The read request is not authorized",
             Self::UnsupportedVersion => "The API version is not supported",
@@ -160,6 +162,20 @@ impl Serialize for ReadError {
         object.serialize_field("code", &self.code())?;
         object.serialize_field("message", self.message())?;
         match self {
+            Self::GenerationMissing => {
+                #[derive(Serialize)]
+                struct ValidatorDetails {
+                    reason: &'static str,
+                    refetch_required: bool,
+                }
+                object.serialize_field(
+                    "details",
+                    &ValidatorDetails {
+                        reason: "generation_missing",
+                        refetch_required: true,
+                    },
+                )?;
+            }
             Self::RestartRequired { reason } => {
                 object.serialize_field(
                     "details",

@@ -188,7 +188,7 @@ Identity comparison uses canonical requester/project strings and the numeric
 `u64` sequence. Display-ID lexical order is not valid: sequence `999` sorts
 before `1000`.
 
-Cursors are opaque, versioned, and bound to operation kind, store, effective
+Cursors are opaque, versioned, and bound to operation kind, store, persisted generation, effective
 scope and filters, order, projection schema, and the last returned record.
 They describe a live continuation, not a historical snapshot. With unchanged
 data, traversal has no duplicates or omissions. With concurrent changes,
@@ -201,9 +201,11 @@ boundary grants no access, and authorization is re-evaluated on every request.
 Binding checks prevent accidental continuation against another store or query;
 they do not prove the token was issued by BIF. Decoding is bounded, strict, and
 versioned. Unsupported or mismatched tokens return `invalid_cursor` with restart
-guidance instead of falling back to the first page. Store generation is reserved
-for the later journal migration; Phase C does not claim restore-generation
-invalidation or historical snapshots.
+guidance instead of falling back to the first page. List and history cursors
+bind to generation from the same SQLite snapshot as their dependent reads.
+Legacy envelopes with omitted or null generation return `invalid_cursor` with
+`{"reason":"generation_missing","restart_required":true}`. A different generation
+returns reason `wrong_generation`. Neither case falls back to page one.
 
 ## Strict input, errors, and payload boundaries
 
@@ -269,9 +271,14 @@ select them explicitly rather than guessing from unknown fields:
 | `selected-work --project PROJECT` | `outcome`, `item` | `selected` includes one complete work projection; `empty` has `item: null`. |
 
 Conditional get validates permission and existence first, then accepts a
-bounded opaque validator bound to store, item, projection/schema and revision.
+bounded opaque validator bound to store, persisted generation, item, projection/schema and revision.
 Malformed/unknown-version validators are `invalid_input`; well-formed
-incompatible bindings are misses. Hits avoid criteria/provenance hydration.
+incompatible bindings are misses returning `modified`, including an old
+generation at the same item revision, never `not_modified`.
+Generation-less legacy validators (omitted or null generation) return `invalid_input` with
+`{"reason":"generation_missing","refetch_required":true}`, never `not_modified`.
+The validator binding, revision, comparison and payload hydration share one
+SQLite snapshot. Hits avoid criteria/provenance hydration.
 Validators are not authenticated capabilities. Selected work uses the unchanged
 next-ready queue policy, does not mutate, and cannot prevent a revision conflict
 at a later start.
@@ -280,10 +287,37 @@ The separate [MCP adapter](bif-mcp.md) exposes these extensions with explicit
 project scope. Its complete JSON-RPC wire limit includes duplicated text and
 structured output, so its inner BIF response budget is smaller than the CLI's.
 Byte-limited pages remain complete and resume from the last emitted record.
-The new `restart_required` error is a session-safety extension; existing CLI/RPC
-v1 framing and errors remain unchanged.
+The read `restart_required` error is a session-safety extension. CLI/RPC v1 also
+has an additive writer `restart_required` error (exit 11) with
+`{"reason":"store_identity_changed","restart_required":true}`; its previous
+codes, exits and framing are unchanged.
 
-There is no restore generation yet. Stop warm servers before restoring a store;
-restart them and invalidate validators/cursors afterward, even if store ID and
-revisions match.
-Generation-bound tokens and supported restore handling belong to Phase E.
+Persisted generation changes invalidate warm read sessions until process restart,
+even if the file, store ID, schema and revisions match. Ordinary process restart
+without a generation change preserves tokens. Capture/mutation constructors pin
+store/schema/generation in a short snapshot. Their guard runs immediately after
+`BEGIN IMMEDIATE`, before receipt/replay/no-op acceptance. SQLite serializes
+writers, so a rotation cannot commit between that guard and the write commit;
+readers instead retain the WAL snapshot established by their first read.
+
+The generation binding is not itself a maintenance interface. There is no MCP
+maintenance endpoint; the CLI and `storage::maintenance::{backup, restore}` API
+support offline current-schema backup and restore. Every supported restore draws
+a fresh independent OS-random 128-bit generation, including repeated restores
+of the same backup. Follow the
+[current-schema maintenance runbook](bif-upgrade-runbook.md#current-schema-offline-backup-and-restore-v2-033),
+not a live read-session workflow: stop/reap all readers and writers and prevent
+restarts and new launches. `--offline` is an acknowledgement, not an exclusion
+mechanism; restore requires `--preserve-later` before target publication.
+
+Unsupported manual/historical restore does not automatically rotate generation.
+Stop every reader and writer, restart them afterwards, and invalidate retained
+tokens unconditionally under the
+[rollback warnings](bif-upgrade-runbook.md#rollback-is-recovery-not-transparent-undo).
+Restoring a backup with its old generation unchanged is not detectable solely
+from generation-bound tokens. Current-schema restore rejects historical schemas
+and does not provide an in-place downgrade.
+
+Actual synchronization endpoints, bootstrap and reconciliation remain Phase F.
+The Phase E foundation remains inactive with `sync_enabled=0` and
+`bootstrap_required=1`; generation-aware reads and maintenance do not enable sync.

@@ -66,24 +66,33 @@ fn token_from_json(json: &str) -> String {
 }
 
 #[test]
-fn legacy_bifc1_envelope_still_decodes_and_encodes_byte_for_byte() {
+fn legacy_bifc1_envelope_requires_generation_in_null_and_omitted_forms() {
     // Fixed pre-budget-change envelope, including the unchanged query binding.
     let legacy = token_from_json(concat!(
         r#"{"cursor_version":1,"kind":"list","store_id":"store","generation":null,"query_fingerprint":"#,
         r#""ccef68ac438d83bc7206c51d844917b946d4a19ae066cc079e2e6a7fdcd1503d","order_version":1,"projection_schema_version":1,"boundary":{"item":{"requester":"ALICE","project":"bif","sequence":1,"captured_at":"opaque time\n雪","priority":null}}}"#,
     ));
     assert!(legacy.len() < 16_384);
-    let context =
-        CursorContext::item_page("store", &item_request(ItemListOrdering::NewestFirst)).unwrap();
-    let key = item_key(1, None);
-    assert_eq!(context.decode_item_key(&legacy).unwrap(), key);
-    assert_eq!(context.encode_item_key(&key).unwrap(), legacy);
+    assert_invalid(
+        DecodedCursor::parse(&legacy).unwrap_err(),
+        "generation_missing",
+    );
+    let omitted = token_from_json(&token_json(&legacy).replace("\"generation\":null,", ""));
+    assert_invalid(
+        DecodedCursor::parse(&omitted).unwrap_err(),
+        "generation_missing",
+    );
 }
 
 #[test]
 fn round_trips_all_operations_and_full_width_keys() {
     for ordering in [ItemListOrdering::NewestFirst, ItemListOrdering::Next] {
-        let context = CursorContext::item_page("store", &item_request(ordering)).unwrap();
+        let context = CursorContext::item_page(
+            "store",
+            "00000000000000000000000000000000",
+            &item_request(ordering),
+        )
+        .unwrap();
         for sequence in [999, 1000, (1_u64 << 53) + 1, u64::MAX] {
             for priority in [
                 None,
@@ -104,7 +113,11 @@ fn round_trips_all_operations_and_full_width_keys() {
             }
         }
     }
-    let context = CursorContext::history("store", &history_request(1));
+    let context = CursorContext::history(
+        "store",
+        "00000000000000000000000000000000",
+        &history_request(1),
+    );
     for event_index in [0, (1_u64 << 53) + 1, u64::MAX] {
         let key = HistoryReadKey {
             item_revision: Revision::new(u64::MAX).unwrap(),
@@ -131,10 +144,11 @@ fn round_trips_all_operations_and_full_width_keys() {
 #[test]
 fn binds_store_operation_projection_and_effective_query_not_page_size_or_boundary() {
     let request = item_request(ItemListOrdering::NewestFirst);
-    let context = CursorContext::item_page("store", &request).unwrap();
+    let context =
+        CursorContext::item_page("store", "00000000000000000000000000000000", &request).unwrap();
     let token = context.encode_item_key(&item_key(1, None)).unwrap();
     assert_invalid(
-        CursorContext::item_page("other", &request)
+        CursorContext::item_page("other", "00000000000000000000000000000000", &request)
             .unwrap()
             .decode_item_key(&token)
             .unwrap_err(),
@@ -167,7 +181,7 @@ fn binds_store_operation_projection_and_effective_query_not_page_size_or_boundar
         ),
     ] {
         assert_invalid(
-            CursorContext::item_page("store", &changed)
+            CursorContext::item_page("store", "00000000000000000000000000000000", &changed)
                 .unwrap()
                 .decode_item_key(&token)
                 .unwrap_err(),
@@ -180,7 +194,7 @@ fn binds_store_operation_projection_and_effective_query_not_page_size_or_boundar
         ..request
     };
     assert!(
-        CursorContext::item_page("store", &changed)
+        CursorContext::item_page("store", "00000000000000000000000000000000", &changed)
             .unwrap()
             .decode_item_key(&token)
             .is_ok()
@@ -196,12 +210,12 @@ fn equivalent_normalized_filters_share_tokens() {
     second.view = NamedView::Ready;
     second.filters.status = None;
     second.filters.text = Some(ItemTextFilter::new("work %_雪").unwrap());
-    let token = CursorContext::item_page("store", &first)
+    let token = CursorContext::item_page("store", "00000000000000000000000000000000", &first)
         .unwrap()
         .encode_item_key(&item_key(1, None))
         .unwrap();
     assert!(
-        CursorContext::item_page("store", &second)
+        CursorContext::item_page("store", "00000000000000000000000000000000", &second)
             .unwrap()
             .decode_item_key(&token)
             .is_ok()
@@ -211,12 +225,12 @@ fn equivalent_normalized_filters_share_tokens() {
     // have identical semantics; raw view spelling is not part of the binding.
     first.view = NamedView::Mine;
     second.filters.assignee = Some(bif::domain::AssigneeId::new("Alice").unwrap());
-    let token = CursorContext::item_page("store", &first)
+    let token = CursorContext::item_page("store", "00000000000000000000000000000000", &first)
         .unwrap()
         .encode_item_key(&item_key(1, None))
         .unwrap();
     assert!(
-        CursorContext::item_page("store", &second)
+        CursorContext::item_page("store", "00000000000000000000000000000000", &second)
             .unwrap()
             .decode_item_key(&token)
             .is_ok()
@@ -231,12 +245,12 @@ fn resolved_mine_identity_is_bound_even_when_query_is_contradictory() {
         alice.filters.unassigned = empty;
         let mut bob = alice.clone();
         bob.configured_requester = RequesterId::new("Bob").unwrap();
-        let token = CursorContext::item_page("store", &alice)
+        let token = CursorContext::item_page("store", "00000000000000000000000000000000", &alice)
             .unwrap()
             .encode_item_key(&item_key(1, None))
             .unwrap();
         assert_invalid(
-            CursorContext::item_page("store", &bob)
+            CursorContext::item_page("store", "00000000000000000000000000000000", &bob)
                 .unwrap()
                 .decode_item_key(&token)
                 .unwrap_err(),
@@ -250,25 +264,61 @@ fn rejects_invalid_filter_contexts() {
     let mut request = item_request(ItemListOrdering::NewestFirst);
     request.filters.assignee = Some(bif::domain::AssigneeId::new("Alice").unwrap());
     request.filters.unassigned = true;
-    assert!(CursorContext::item_page("store", &request).is_err());
+    assert!(
+        CursorContext::item_page("store", "00000000000000000000000000000000", &request).is_err()
+    );
 }
 
 #[test]
 fn history_binds_item_and_rejects_item_cursor_swaps_and_wrong_encoding_api() {
-    let history = CursorContext::history("store", &history_request(1));
+    let history = CursorContext::history(
+        "store",
+        "00000000000000000000000000000000",
+        &history_request(1),
+    );
     let history_key = HistoryReadKey {
         item_revision: Revision::new(1).unwrap(),
         event_index: 0,
     };
     let token = history.encode_history_key(&history_key).unwrap();
+    for omitted in [false, true] {
+        let mut value: serde_json::Value = serde_json::from_str(&token_json(&token)).unwrap();
+        if omitted {
+            value.as_object_mut().unwrap().remove("generation");
+        } else {
+            value["generation"] = serde_json::Value::Null;
+        }
+        assert_invalid(
+            DecodedCursor::parse(&token_from_json(&value.to_string())).unwrap_err(),
+            "generation_missing",
+        );
+    }
     assert_invalid(
-        CursorContext::history("store", &history_request(2))
-            .decode_history_key(&token)
-            .unwrap_err(),
+        CursorContext::history(
+            "store",
+            "11111111111111111111111111111111",
+            &history_request(1),
+        )
+        .decode_history_key(&token)
+        .unwrap_err(),
+        "wrong_generation",
+    );
+    assert_invalid(
+        CursorContext::history(
+            "store",
+            "00000000000000000000000000000000",
+            &history_request(2),
+        )
+        .decode_history_key(&token)
+        .unwrap_err(),
         "wrong_query",
     );
-    let items =
-        CursorContext::item_page("store", &item_request(ItemListOrdering::NewestFirst)).unwrap();
+    let items = CursorContext::item_page(
+        "store",
+        "00000000000000000000000000000000",
+        &item_request(ItemListOrdering::NewestFirst),
+    )
+    .unwrap();
     assert_invalid(items.decode_item_key(&token).unwrap_err(), "wrong_kind");
     assert_invalid(
         history
@@ -294,8 +344,12 @@ fn history_binds_item_and_rejects_item_cursor_swaps_and_wrong_encoding_api() {
 
 #[test]
 fn rejects_unsupported_envelope_order_projection_versions_and_generation() {
-    let context =
-        CursorContext::item_page("store", &item_request(ItemListOrdering::NewestFirst)).unwrap();
+    let context = CursorContext::item_page(
+        "store",
+        "00000000000000000000000000000000",
+        &item_request(ItemListOrdering::NewestFirst),
+    )
+    .unwrap();
     let json = token_json(&context.encode_item_key(&item_key(1, None)).unwrap());
     for (from, to) in [
         ("\"cursor_version\":1", "\"cursor_version\":2"),
@@ -304,7 +358,6 @@ fn rejects_unsupported_envelope_order_projection_versions_and_generation() {
             "\"projection_schema_version\":1",
             "\"projection_schema_version\":2",
         ),
-        ("\"generation\":null", "\"generation\":\"future\""),
     ] {
         assert!(json.contains(from));
         assert_invalid(
@@ -318,23 +371,31 @@ fn rejects_unsupported_envelope_order_projection_versions_and_generation() {
             "unsupported_version",
         );
     }
-    assert!(
-        context
-            .decode_item_key(&token_from_json(&json.replace("\"generation\":null,", "")))
-            .is_ok()
+    assert_invalid(
+        DecodedCursor::parse(&token_from_json(&json.replace(
+            "\"generation\":\"00000000000000000000000000000000\"",
+            "\"generation\":\"future\"",
+        )))
+        .unwrap_err(),
+        "malformed",
     );
 }
 
 #[test]
 fn rejects_unknown_duplicate_missing_fields_wrong_types_and_overflow() {
-    let context = CursorContext::item_page("store", &item_request(ItemListOrdering::Next)).unwrap();
+    let context = CursorContext::item_page(
+        "store",
+        "00000000000000000000000000000000",
+        &item_request(ItemListOrdering::Next),
+    )
+    .unwrap();
     let json = token_json(&context.encode_item_key(&item_key(1, None)).unwrap());
     for changed in [
         json.replacen('{', "{\"unknown\":0,", 1),
         json.replace("\"sequence\":1", "\"sequence\":1,\"sequence\":2"),
         json.replace("\"priority\":null", "\"priority\":null,\"priority\":null"),
         json.replace(
-            "\"generation\":null",
+            "\"generation\":\"00000000000000000000000000000000\"",
             "\"generation\":null,\"generation\":null",
         ),
         json.replace("\"sequence\":1", "\"sequence\":18446744073709551616"),
@@ -351,7 +412,10 @@ fn rejects_unknown_duplicate_missing_fields_wrong_types_and_overflow() {
             "\"store_id\":\"store\"",
             "\"store_id\":\"store\",\"store_id\":\"store\"",
         ),
-        json.replace("\"generation\":null", "\"generation\":1"),
+        json.replace(
+            "\"generation\":\"00000000000000000000000000000000\"",
+            "\"generation\":1",
+        ),
         json.replace("\"cursor_version\":1", "\"cursor_version\":4294967296"),
         json.replace("\"kind\":\"next\"", "\"kind\":\"NEXT\""),
         json.replace("\"item\":{", "\"item\":{\"unknown\":0,"),
@@ -369,7 +433,11 @@ fn rejects_unknown_duplicate_missing_fields_wrong_types_and_overflow() {
             "malformed",
         );
     }
-    let history = CursorContext::history("store", &history_request(1));
+    let history = CursorContext::history(
+        "store",
+        "00000000000000000000000000000000",
+        &history_request(1),
+    );
     let json = token_json(
         &history
             .encode_history_key(&HistoryReadKey {
@@ -399,7 +467,12 @@ fn rejects_unknown_duplicate_missing_fields_wrong_types_and_overflow() {
 #[test]
 fn rejects_positional_objects_and_object_form_unit_enums_for_item_cursors() {
     for ordering in [ItemListOrdering::NewestFirst, ItemListOrdering::Next] {
-        let context = CursorContext::item_page("store", &item_request(ordering)).unwrap();
+        let context = CursorContext::item_page(
+            "store",
+            "00000000000000000000000000000000",
+            &item_request(ordering),
+        )
+        .unwrap();
         let key = item_key(1, None);
         let token = context.encode_item_key(&key).unwrap();
         assert_eq!(context.decode_item_key(&token).unwrap(), key);
@@ -450,7 +523,11 @@ fn rejects_positional_objects_and_object_form_unit_enums_for_item_cursors() {
 
 #[test]
 fn rejects_positional_objects_and_object_form_kind_for_history_cursors() {
-    let context = CursorContext::history("store", &history_request(1));
+    let context = CursorContext::history(
+        "store",
+        "00000000000000000000000000000000",
+        &history_request(1),
+    );
     let key = HistoryReadKey {
         item_revision: Revision::new(1).unwrap(),
         event_index: 0,
@@ -478,8 +555,12 @@ fn rejects_positional_objects_and_object_form_kind_for_history_cursors() {
 
 #[test]
 fn rejects_malformed_and_oversized_tokens_and_bounds_encoding() {
-    let context =
-        CursorContext::item_page("store", &item_request(ItemListOrdering::NewestFirst)).unwrap();
+    let context = CursorContext::item_page(
+        "store",
+        "00000000000000000000000000000000",
+        &item_request(ItemListOrdering::NewestFirst),
+    )
+    .unwrap();
     for token in [
         "",
         "opaque",
@@ -507,8 +588,12 @@ fn rejects_malformed_and_oversized_tokens_and_bounds_encoding() {
 
 #[test]
 fn exact_size_limit_is_supported_and_one_more_byte_is_rejected() {
-    let context =
-        CursorContext::item_page("store", &item_request(ItemListOrdering::NewestFirst)).unwrap();
+    let context = CursorContext::item_page(
+        "store",
+        "00000000000000000000000000000000",
+        &item_request(ItemListOrdering::NewestFirst),
+    )
+    .unwrap();
     let mut key = item_key(1, None);
     key.captured_at = Timestamp::new("");
     let overhead = context.encode_item_key(&key).unwrap().len();
@@ -530,9 +615,12 @@ fn exact_size_limit_is_supported_and_one_more_byte_is_rejected() {
 #[test]
 fn generated_overflow_counts_the_complete_borrowed_envelope_exactly() {
     assert_eq!(MAX_CURSOR_BYTES, 1_048_576);
-    let context =
-        CursorContext::item_page("store\n雪\"", &item_request(ItemListOrdering::NewestFirst))
-            .unwrap();
+    let context = CursorContext::item_page(
+        "store\n雪\"",
+        "00000000000000000000000000000000",
+        &item_request(ItemListOrdering::NewestFirst),
+    )
+    .unwrap();
     let mut key = item_key(u64::MAX, Some(Priority::P4));
     let token = context.encode_item_key(&key).unwrap();
     let mut oracle: serde_json::Value = serde_json::from_str(&token_json(&token)).unwrap();
@@ -615,7 +703,8 @@ fn decoded_and_modified_cursors_never_authorize_item_or_history_reads() {
     let mut history = history_request(1);
     read_item_projection_page(&store, &authorization, &items).unwrap();
     read_item_history_page(&store, &authorization, &history).unwrap();
-    let context = CursorContext::item_page("store", &items).unwrap();
+    let context =
+        CursorContext::item_page("store", "00000000000000000000000000000000", &items).unwrap();
     let token = context.encode_item_key(&item_key(1, None)).unwrap();
     // No MAC is promised: a valid edited boundary is accepted as parameter data,
     // not as permission, and still cannot bypass the read authorization policy.
@@ -623,7 +712,7 @@ fn decoded_and_modified_cursors_never_authorize_item_or_history_reads() {
     let decoded = DecodedCursor::parse(&edited).unwrap();
     items.page.after = Some(context.bind_item_key(&decoded).unwrap());
     assert_eq!(items.page.after.as_ref().unwrap().id.sequence(), 2);
-    let context = CursorContext::history("store", &history);
+    let context = CursorContext::history("store", "00000000000000000000000000000000", &history);
     let key = HistoryReadKey {
         item_revision: Revision::new(1).unwrap(),
         event_index: 0,

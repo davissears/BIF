@@ -73,6 +73,55 @@ mutation advances the item revision; reread the item before the next change.
 Reuse an idempotency key only when retrying the same request, and choose a new
 key for a new operation.
 
+## Offline backup, restore and journal retention
+
+Before any maintenance command, **stop/reap all readers and writers and disable automatic
+restart/new launches until verification finishes**. `--offline` is explicit
+operator acknowledgement, **not proof of shutdown**. Use trusted directories and
+explicit database paths; maintenance does not use configured store selection.
+
+```sh
+bif maintenance backup --store /trusted/ROOT/.bif/bif.sqlite \
+  --output /trusted/backups/pristine.sqlite --offline
+bif maintenance restore --store /trusted/ROOT/.bif/bif.sqlite \
+  --from /trusted/backups/pristine.sqlite \
+  --preserve-later /trusted/backups/later.sqlite --offline
+```
+
+All paths above are placeholders; output and preservation files must not exist.
+Both operations use SQLite's Online Backup API, not mainfile/WAL copies. Restore
+validates a private stage, requires the exact current schema/migration history
+(no migration/down-migration), makes a verified never-overwritten preservation
+of the current target, and publishes in place without replacing its inode.
+Every restore draws a fresh OS-random 128-bit generation and leaves sync inactive
+with bootstrap required; it preserves the backup's store ID, item revisions,
+audit/receipts, journal history and H/F. SQLite advances its internal schema
+cookie; DDL/migrations are unchanged. Restart all clients after verification.
+Later writes are preserved, not reconciled; actual sync/bootstrap work remains
+deferred. On failure keep maintenance in force and inspect the target/backups
+before retrying with a new preservation path. See the
+[maintenance and recovery runbook](docs/bif-upgrade-runbook.md) for prerequisites,
+failure behavior, historical-schema recovery and durability/test limits.
+
+Journal retention is explicit and global, with no automatic default policy.
+After establishing the same offline window, obtain generation, floor F and
+high-water H with **read-only diagnostic SQL** (not an inspect endpoint):
+
+```sh
+sqlite3 -readonly "$DB" \
+  'SELECT generation, retention_floor AS F, high_water AS H FROM journal_metadata WHERE singleton = 1;'
+bif maintenance prune --store "$DB" --expected-generation "$GEN" \
+  --through "$N" --offline
+```
+
+`DB` is an explicit existing database path, `GEN` is the observed generation,
+and `N` is a deliberately chosen inclusive bound satisfying `F <= N <= H`.
+Prune atomically deletes all projects' journal rows through `N` and advances only
+F; it preserves H, the allocator, generation, audit, receipts and inactive flags.
+Coverage at `C == F` remains valid; `C < F` is expired even for an empty project.
+This does not activate sync, implement sync expiry/bootstrap, run `VACUUM`, or
+promise to shrink the database file. Direct SQL writes are unsupported.
+
 ## Example workflows
 
 These recipes show common ways to use BIF after completing the quick start.
@@ -237,7 +286,7 @@ bif --api-version 2 selected-work --project my-project --json
 
 A conditional read returns `result.outcome` as `modified` with the complete
 `item`, or `not_modified` with `item: null`. Validators are opaque and bound to
-the store, item, projection, schema and revision. A summary validator cannot
+the store, persisted generation, item, projection, schema and revision. A summary validator cannot
 suppress a first work read. Missing items are still `not_found`.
 `selected-work` returns `selected` with one work item or `empty` with
 `item: null`; start it separately using the returned revision. Another writer
@@ -268,9 +317,13 @@ mutations.
 
 Restart the host's BIF server after changing configuration, upgrading schema,
 or restoring/replacing the database. Normal restart preserves cursor and
-validator meaning. The read release has no persisted restore generation yet:
-invalidate retained validators and restart pagination after restore, even if
-the store ID and revision numbers were preserved.
+validator meaning. Tokens bind to the persisted generation: rotation invalidates
+old pagination and makes old validators refetch, even if store ID and revision
+numbers are preserved. Generation-less legacy cursors require restarting
+pagination; legacy validators require refetching without a token. Supported
+offline restore rotates generation; prune does not. Stop all servers before
+maintenance. Any unsupported manual restore that did not rotate generation
+requires external token invalidation.
 
 ### Preserve context across an agent handoff
 

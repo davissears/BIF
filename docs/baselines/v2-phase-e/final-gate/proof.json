@@ -1,0 +1,2578 @@
+{
+  "format": "bif-phase-e-final-gate-proof-v1",
+  "candidate_revision": "f0cd787f64a6bd3d301f11e616bb587e112a14fa",
+  "protocol_sha256": "dff0bd5e5413a0a4dfcb2eda0b23494fd1d5189047ecf572f2546cb13ea0be5e",
+  "release_approved": false,
+  "sync_enabled": 0,
+  "bootstrap_required": 1,
+  "fresh": {
+    "schema": {
+      "catalog": [
+        [
+          "index",
+          "idx_change_journal_project_seq",
+          "change_journal",
+          42,
+          "CREATE INDEX idx_change_journal_project_seq ON change_journal (project_id, change_seq)"
+        ],
+        [
+          "index",
+          "idx_items_read_active",
+          "items",
+          36,
+          "CREATE INDEX idx_items_read_active ON items\n    (captured_at DESC, requester, project_id, sequence)\n    WHERE status IN ('in_progress', 'blocked')"
+        ],
+        [
+          "index",
+          "idx_items_read_list",
+          "items",
+          33,
+          "CREATE INDEX idx_items_read_list ON items\n    (captured_at DESC, requester, project_id, sequence)"
+        ],
+        [
+          "index",
+          "idx_items_read_mine",
+          "items",
+          37,
+          "CREATE INDEX idx_items_read_mine ON items\n    (assignee, captured_at DESC, requester, project_id, sequence)\n    WHERE status IN ('proposed', 'ready', 'in_progress', 'blocked')"
+        ],
+        [
+          "index",
+          "idx_items_read_ready",
+          "items",
+          34,
+          "CREATE INDEX idx_items_read_ready ON items\n    (CASE priority WHEN 'P0' THEN 0 WHEN 'P1' THEN 1 WHEN 'P2' THEN 2\n     WHEN 'P3' THEN 3 WHEN 'P4' THEN 4 ELSE 5 END,\n     captured_at, requester, project_id, sequence) WHERE status = 'ready'"
+        ],
+        [
+          "index",
+          "sqlite_autoindex_change_journal_1",
+          "change_journal",
+          40,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_events_1",
+          "events",
+          27,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_events_2",
+          "events",
+          28,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_events_3",
+          "events",
+          29,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_item_acceptance_criteria_1",
+          "item_acceptance_criteria",
+          17,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_item_provenance_1",
+          "item_provenance",
+          19,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_items_1",
+          "items",
+          14,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_items_2",
+          "items",
+          15,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_mutation_receipts_1",
+          "mutation_receipts",
+          31,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_mutation_receipts_2",
+          "mutation_receipts",
+          32,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_operations_1",
+          "operations",
+          21,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_operations_2",
+          "operations",
+          23,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_operations_3",
+          "operations",
+          24,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_project_path_mappings_1",
+          "project_path_mappings",
+          8,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_project_remote_mappings_1",
+          "project_remote_mappings",
+          10,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_projects_1",
+          "projects",
+          6,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_requester_project_counters_1",
+          "requester_project_counters",
+          12,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_store_metadata_1",
+          "store_metadata",
+          4,
+          null
+        ],
+        [
+          "table",
+          "change_journal",
+          "change_journal",
+          39,
+          "CREATE TABLE change_journal (\n    change_seq INTEGER PRIMARY KEY AUTOINCREMENT CHECK (change_seq > 0),\n    operation_id TEXT NOT NULL UNIQUE REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0)\n) STRICT"
+        ],
+        [
+          "table",
+          "events",
+          "events",
+          26,
+          "CREATE TABLE events (\n    event_id TEXT PRIMARY KEY CHECK (length(event_id) > 0),\n    operation_id TEXT NOT NULL REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0),\n    event_index INTEGER NOT NULL CHECK (event_index >= 0),\n    event_type TEXT NOT NULL CHECK (\n        event_type IN (\n            'captured', 'approved', 'rejected', 'started', 'blocked', 'resumed',\n            'finished', 'priority_changed', 'assignee_changed', 'note_added'\n        )\n    ),\n    before_value TEXT,\n    after_value TEXT,\n    actor_kind TEXT NOT NULL CHECK (actor_kind IN ('human', 'agent')),\n    actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),\n    actor_surface TEXT NOT NULL CHECK (actor_surface IN ('thread', 'cli', 'rpc')),\n    actor_host TEXT NOT NULL CHECK (actor_host IN ('delta', 'codex', 'local')),\n    execution_kind TEXT NOT NULL CHECK (execution_kind IN ('direct', 'agent')),\n    execution_agent_id TEXT,\n    execution_surface TEXT NOT NULL CHECK (execution_surface IN ('thread', 'cli', 'rpc')),\n    execution_host TEXT NOT NULL CHECK (execution_host IN ('delta', 'codex', 'local')),\n    reason TEXT,\n    note TEXT,\n    occurred_at TEXT NOT NULL CHECK (length(occurred_at) > 0),\n    event_schema_version INTEGER NOT NULL CHECK (event_schema_version > 0),\n    CHECK (\n        (execution_kind = 'direct' AND execution_agent_id IS NULL) OR\n        (execution_kind = 'agent' AND length(execution_agent_id) > 0)\n    ),\n    UNIQUE (operation_id, event_index),\n    UNIQUE (item_id, item_revision, event_index),\n    FOREIGN KEY (operation_id, item_revision)\n        REFERENCES operations(operation_id, item_revision)\n)"
+        ],
+        [
+          "table",
+          "item_acceptance_criteria",
+          "item_acceptance_criteria",
+          16,
+          "CREATE TABLE item_acceptance_criteria (\n    item_id TEXT NOT NULL REFERENCES items(item_id) ON DELETE CASCADE,\n    criterion_index INTEGER NOT NULL CHECK (criterion_index >= 0),\n    criterion TEXT NOT NULL,\n    PRIMARY KEY (item_id, criterion_index)\n)"
+        ],
+        [
+          "table",
+          "item_provenance",
+          "item_provenance",
+          18,
+          "CREATE TABLE item_provenance (\n    item_id TEXT PRIMARY KEY REFERENCES items(item_id) ON DELETE CASCADE,\n    source_host TEXT CHECK (\n        source_host IS NULL OR source_host IN ('delta', 'codex', 'local')\n    ),\n    thread_id TEXT,\n    message_id TEXT,\n    url TEXT,\n    repository_reference TEXT,\n    revision_reference TEXT,\n    context_excerpt TEXT\n)"
+        ],
+        [
+          "table",
+          "items",
+          "items",
+          13,
+          "CREATE TABLE items (\n    item_id TEXT PRIMARY KEY CHECK (length(item_id) > 0),\n    requester TEXT NOT NULL CHECK (\n        length(requester) > 0 AND requester = upper(requester)\n    ),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    sequence INTEGER NOT NULL CHECK (sequence > 0),\n    title TEXT NOT NULL CHECK (length(title) > 0),\n    description TEXT,\n    status TEXT NOT NULL CHECK (\n        status IN ('proposed', 'ready', 'in_progress', 'blocked', 'done', 'rejected')\n    ),\n    priority TEXT CHECK (priority IS NULL OR priority IN ('P0', 'P1', 'P2', 'P3', 'P4')),\n    assignee TEXT CHECK (\n        assignee IS NULL OR (length(assignee) > 0 AND assignee = lower(assignee))\n    ),\n    status_reason TEXT,\n    revision INTEGER NOT NULL CHECK (revision > 0),\n    captured_at TEXT NOT NULL CHECK (length(captured_at) > 0),\n    updated_at TEXT NOT NULL CHECK (length(updated_at) > 0),\n    UNIQUE (requester, project_id, sequence)\n)"
+        ],
+        [
+          "table",
+          "journal_metadata",
+          "journal_metadata",
+          38,
+          "CREATE TABLE journal_metadata (\n    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),\n    generation TEXT NOT NULL CHECK (\n        length(generation) = 32 AND generation NOT GLOB '*[^0-9a-f]*'\n    ),\n    retention_floor INTEGER NOT NULL CHECK (retention_floor >= 0),\n    high_water INTEGER NOT NULL CHECK (high_water >= retention_floor),\n    sync_enabled INTEGER NOT NULL CHECK (sync_enabled IN (0, 1)),\n    bootstrap_required INTEGER NOT NULL CHECK (bootstrap_required IN (0, 1))\n) STRICT"
+        ],
+        [
+          "table",
+          "mutation_receipts",
+          "mutation_receipts",
+          30,
+          "CREATE TABLE mutation_receipts (\n    mutation_key TEXT PRIMARY KEY CHECK (length(mutation_key) > 0),\n    mutation_type TEXT NOT NULL CHECK (\n        mutation_type IN (\n            'capture', 'triage', 'approve', 'reject', 'prioritize', 'assign',\n            'start', 'block', 'resume', 'finish'\n        )\n    ),\n    payload_hash TEXT NOT NULL CHECK (length(payload_hash) > 0),\n    operation_id TEXT NOT NULL UNIQUE REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    response_json TEXT NOT NULL CHECK (length(response_json) > 0),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+        ],
+        [
+          "table",
+          "operations",
+          "operations",
+          20,
+          "CREATE TABLE operations (\n    operation_id TEXT PRIMARY KEY CHECK (length(operation_id) > 0),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    operation_type TEXT NOT NULL CHECK (\n        operation_type IN (\n            'capture', 'triage', 'approve', 'reject', 'prioritize', 'assign',\n            'start', 'block', 'resume', 'finish'\n        )\n    ),\n    expected_revision INTEGER CHECK (expected_revision IS NULL OR expected_revision > 0),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0),\n    occurred_at TEXT NOT NULL CHECK (length(occurred_at) > 0),\n    UNIQUE (operation_id, item_revision),\n    UNIQUE (item_id, item_revision)\n)"
+        ],
+        [
+          "table",
+          "project_path_mappings",
+          "project_path_mappings",
+          7,
+          "CREATE TABLE project_path_mappings (\n    canonical_path TEXT PRIMARY KEY CHECK (length(canonical_path) > 0),\n    project_id TEXT NOT NULL REFERENCES projects(project_id)\n)"
+        ],
+        [
+          "table",
+          "project_remote_mappings",
+          "project_remote_mappings",
+          9,
+          "CREATE TABLE project_remote_mappings (\n    normalized_remote TEXT PRIMARY KEY CHECK (length(normalized_remote) > 0),\n    project_id TEXT NOT NULL REFERENCES projects(project_id)\n)"
+        ],
+        [
+          "table",
+          "projects",
+          "projects",
+          5,
+          "CREATE TABLE projects (\n    project_id TEXT PRIMARY KEY CHECK (\n        length(project_id) > 0 AND project_id = lower(project_id)\n    ),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+        ],
+        [
+          "table",
+          "requester_project_counters",
+          "requester_project_counters",
+          11,
+          "CREATE TABLE requester_project_counters (\n    requester TEXT NOT NULL CHECK (\n        length(requester) > 0 AND requester = upper(requester)\n    ),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    next_sequence INTEGER NOT NULL CHECK (next_sequence > 0),\n    PRIMARY KEY (requester, project_id)\n)"
+        ],
+        [
+          "table",
+          "schema_migrations",
+          "schema_migrations",
+          2,
+          "CREATE TABLE schema_migrations (\n        version INTEGER PRIMARY KEY CHECK (version > 0),\n        name TEXT NOT NULL CHECK (length(name) > 0),\n        checksum TEXT NOT NULL CHECK (length(checksum) > 0),\n        applied_at TEXT NOT NULL CHECK (length(applied_at) > 0)\n    )"
+        ],
+        [
+          "table",
+          "sqlite_sequence",
+          "sqlite_sequence",
+          41,
+          "CREATE TABLE sqlite_sequence(name,seq)"
+        ],
+        [
+          "table",
+          "store_metadata",
+          "store_metadata",
+          3,
+          "CREATE TABLE store_metadata (\n    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),\n    store_id TEXT NOT NULL UNIQUE CHECK (length(store_id) > 0),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+        ],
+        [
+          "trigger",
+          "change_journal_append",
+          "change_journal",
+          0,
+          "CREATE TRIGGER change_journal_append\nAFTER INSERT ON change_journal\nBEGIN\n    SELECT CASE WHEN NOT EXISTS (\n        SELECT 1 FROM journal_metadata WHERE singleton = 1\n         AND NEW.change_seq > high_water\n    ) THEN RAISE(ABORT, 'journal metadata missing or allocation not increasing') END;\n    SELECT CASE WHEN NOT EXISTS (\n        SELECT 1 FROM operations o JOIN items i ON i.item_id = o.item_id\n         WHERE o.operation_id = NEW.operation_id AND o.item_id = NEW.item_id\n          AND o.item_revision = NEW.item_revision AND i.project_id = NEW.project_id\n    ) THEN RAISE(ABORT, 'journal operation identity mismatch') END;\n    UPDATE journal_metadata SET high_water = NEW.change_seq WHERE singleton = 1;\nEND"
+        ],
+        [
+          "trigger",
+          "change_journal_reject_update",
+          "change_journal",
+          0,
+          "CREATE TRIGGER change_journal_reject_update\nBEFORE UPDATE ON change_journal\nBEGIN\n    SELECT RAISE(ABORT, 'journal rows cannot be amended');\nEND"
+        ],
+        [
+          "trigger",
+          "events_reject_delete",
+          "events",
+          0,
+          "CREATE TRIGGER events_reject_delete\nBEFORE DELETE ON events\nBEGIN\n    SELECT RAISE(ABORT, 'events are immutable');\nEND"
+        ],
+        [
+          "trigger",
+          "events_reject_update",
+          "events",
+          0,
+          "CREATE TRIGGER events_reject_update\nBEFORE UPDATE ON events\nBEGIN\n    SELECT RAISE(ABORT, 'events are immutable');\nEND"
+        ],
+        [
+          "trigger",
+          "journal_metadata_monotonic",
+          "journal_metadata",
+          0,
+          "CREATE TRIGGER journal_metadata_monotonic\nBEFORE UPDATE ON journal_metadata\nWHEN NEW.generation = OLD.generation\n AND (NEW.retention_floor < OLD.retention_floor OR NEW.high_water < OLD.high_water)\nBEGIN\n    SELECT RAISE(ABORT, 'journal coverage cannot decrease within a generation');\nEND"
+        ]
+      ],
+      "persistent_pragmas": {
+        "schema_version": 24,
+        "user_version": 0,
+        "application_id": 0,
+        "page_size": 4096,
+        "auto_vacuum": 0,
+        "encoding": "UTF-8",
+        "journal_mode": "wal"
+      }
+    },
+    "tables": {
+      "change_journal": [],
+      "events": [],
+      "item_acceptance_criteria": [],
+      "item_provenance": [],
+      "items": [],
+      "journal_metadata": [
+        [
+          1,
+          "3bb1de89b61c75bcd06b645f87acb974",
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "mutation_receipts": [],
+      "operations": [],
+      "project_path_mappings": [],
+      "project_remote_mappings": [],
+      "projects": [],
+      "requester_project_counters": [],
+      "schema_migrations": [
+        [
+          1,
+          "initial",
+          "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
+          "2026-10-14T23:51:07.871Z"
+        ],
+        [
+          2,
+          "immutable_events",
+          "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
+          "2026-10-14T23:51:07.872Z"
+        ],
+        [
+          3,
+          "projection_read_indexes",
+          "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
+          "2026-10-14T23:51:07.872Z"
+        ],
+        [
+          4,
+          "change_journal",
+          "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
+          "2026-10-14T23:51:07.872Z"
+        ]
+      ],
+      "sqlite_sequence": [],
+      "store_metadata": [
+        [
+          1,
+          "c82f76e4-75a8-4a21-b481-f52ac90c02c6",
+          "2026-10-14T23:51:07.871Z"
+        ]
+      ]
+    },
+    "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
+    "content_sha256": "1f76c9dedc62502dcfcaeffea504c62edaefeb95780d9892400ef3533c23ac60",
+    "migrations": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "integrity": "ok",
+    "foreign_keys": []
+  },
+  "upgrade": {
+    "schema": {
+      "catalog": [
+        [
+          "index",
+          "idx_change_journal_project_seq",
+          "change_journal",
+          42,
+          "CREATE INDEX idx_change_journal_project_seq ON change_journal (project_id, change_seq)"
+        ],
+        [
+          "index",
+          "idx_items_read_active",
+          "items",
+          36,
+          "CREATE INDEX idx_items_read_active ON items\n    (captured_at DESC, requester, project_id, sequence)\n    WHERE status IN ('in_progress', 'blocked')"
+        ],
+        [
+          "index",
+          "idx_items_read_list",
+          "items",
+          33,
+          "CREATE INDEX idx_items_read_list ON items\n    (captured_at DESC, requester, project_id, sequence)"
+        ],
+        [
+          "index",
+          "idx_items_read_mine",
+          "items",
+          37,
+          "CREATE INDEX idx_items_read_mine ON items\n    (assignee, captured_at DESC, requester, project_id, sequence)\n    WHERE status IN ('proposed', 'ready', 'in_progress', 'blocked')"
+        ],
+        [
+          "index",
+          "idx_items_read_ready",
+          "items",
+          34,
+          "CREATE INDEX idx_items_read_ready ON items\n    (CASE priority WHEN 'P0' THEN 0 WHEN 'P1' THEN 1 WHEN 'P2' THEN 2\n     WHEN 'P3' THEN 3 WHEN 'P4' THEN 4 ELSE 5 END,\n     captured_at, requester, project_id, sequence) WHERE status = 'ready'"
+        ],
+        [
+          "index",
+          "sqlite_autoindex_change_journal_1",
+          "change_journal",
+          40,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_events_1",
+          "events",
+          27,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_events_2",
+          "events",
+          28,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_events_3",
+          "events",
+          29,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_item_acceptance_criteria_1",
+          "item_acceptance_criteria",
+          17,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_item_provenance_1",
+          "item_provenance",
+          19,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_items_1",
+          "items",
+          14,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_items_2",
+          "items",
+          15,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_mutation_receipts_1",
+          "mutation_receipts",
+          31,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_mutation_receipts_2",
+          "mutation_receipts",
+          32,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_operations_1",
+          "operations",
+          21,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_operations_2",
+          "operations",
+          23,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_operations_3",
+          "operations",
+          24,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_project_path_mappings_1",
+          "project_path_mappings",
+          8,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_project_remote_mappings_1",
+          "project_remote_mappings",
+          10,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_projects_1",
+          "projects",
+          6,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_requester_project_counters_1",
+          "requester_project_counters",
+          12,
+          null
+        ],
+        [
+          "index",
+          "sqlite_autoindex_store_metadata_1",
+          "store_metadata",
+          4,
+          null
+        ],
+        [
+          "table",
+          "change_journal",
+          "change_journal",
+          39,
+          "CREATE TABLE change_journal (\n    change_seq INTEGER PRIMARY KEY AUTOINCREMENT CHECK (change_seq > 0),\n    operation_id TEXT NOT NULL UNIQUE REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0)\n) STRICT"
+        ],
+        [
+          "table",
+          "events",
+          "events",
+          26,
+          "CREATE TABLE events (\n    event_id TEXT PRIMARY KEY CHECK (length(event_id) > 0),\n    operation_id TEXT NOT NULL REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0),\n    event_index INTEGER NOT NULL CHECK (event_index >= 0),\n    event_type TEXT NOT NULL CHECK (\n        event_type IN (\n            'captured', 'approved', 'rejected', 'started', 'blocked', 'resumed',\n            'finished', 'priority_changed', 'assignee_changed', 'note_added'\n        )\n    ),\n    before_value TEXT,\n    after_value TEXT,\n    actor_kind TEXT NOT NULL CHECK (actor_kind IN ('human', 'agent')),\n    actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),\n    actor_surface TEXT NOT NULL CHECK (actor_surface IN ('thread', 'cli', 'rpc')),\n    actor_host TEXT NOT NULL CHECK (actor_host IN ('delta', 'codex', 'local')),\n    execution_kind TEXT NOT NULL CHECK (execution_kind IN ('direct', 'agent')),\n    execution_agent_id TEXT,\n    execution_surface TEXT NOT NULL CHECK (execution_surface IN ('thread', 'cli', 'rpc')),\n    execution_host TEXT NOT NULL CHECK (execution_host IN ('delta', 'codex', 'local')),\n    reason TEXT,\n    note TEXT,\n    occurred_at TEXT NOT NULL CHECK (length(occurred_at) > 0),\n    event_schema_version INTEGER NOT NULL CHECK (event_schema_version > 0),\n    CHECK (\n        (execution_kind = 'direct' AND execution_agent_id IS NULL) OR\n        (execution_kind = 'agent' AND length(execution_agent_id) > 0)\n    ),\n    UNIQUE (operation_id, event_index),\n    UNIQUE (item_id, item_revision, event_index),\n    FOREIGN KEY (operation_id, item_revision)\n        REFERENCES operations(operation_id, item_revision)\n)"
+        ],
+        [
+          "table",
+          "item_acceptance_criteria",
+          "item_acceptance_criteria",
+          16,
+          "CREATE TABLE item_acceptance_criteria (\n    item_id TEXT NOT NULL REFERENCES items(item_id) ON DELETE CASCADE,\n    criterion_index INTEGER NOT NULL CHECK (criterion_index >= 0),\n    criterion TEXT NOT NULL,\n    PRIMARY KEY (item_id, criterion_index)\n)"
+        ],
+        [
+          "table",
+          "item_provenance",
+          "item_provenance",
+          18,
+          "CREATE TABLE item_provenance (\n    item_id TEXT PRIMARY KEY REFERENCES items(item_id) ON DELETE CASCADE,\n    source_host TEXT CHECK (\n        source_host IS NULL OR source_host IN ('delta', 'codex', 'local')\n    ),\n    thread_id TEXT,\n    message_id TEXT,\n    url TEXT,\n    repository_reference TEXT,\n    revision_reference TEXT,\n    context_excerpt TEXT\n)"
+        ],
+        [
+          "table",
+          "items",
+          "items",
+          13,
+          "CREATE TABLE items (\n    item_id TEXT PRIMARY KEY CHECK (length(item_id) > 0),\n    requester TEXT NOT NULL CHECK (\n        length(requester) > 0 AND requester = upper(requester)\n    ),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    sequence INTEGER NOT NULL CHECK (sequence > 0),\n    title TEXT NOT NULL CHECK (length(title) > 0),\n    description TEXT,\n    status TEXT NOT NULL CHECK (\n        status IN ('proposed', 'ready', 'in_progress', 'blocked', 'done', 'rejected')\n    ),\n    priority TEXT CHECK (priority IS NULL OR priority IN ('P0', 'P1', 'P2', 'P3', 'P4')),\n    assignee TEXT CHECK (\n        assignee IS NULL OR (length(assignee) > 0 AND assignee = lower(assignee))\n    ),\n    status_reason TEXT,\n    revision INTEGER NOT NULL CHECK (revision > 0),\n    captured_at TEXT NOT NULL CHECK (length(captured_at) > 0),\n    updated_at TEXT NOT NULL CHECK (length(updated_at) > 0),\n    UNIQUE (requester, project_id, sequence)\n)"
+        ],
+        [
+          "table",
+          "journal_metadata",
+          "journal_metadata",
+          38,
+          "CREATE TABLE journal_metadata (\n    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),\n    generation TEXT NOT NULL CHECK (\n        length(generation) = 32 AND generation NOT GLOB '*[^0-9a-f]*'\n    ),\n    retention_floor INTEGER NOT NULL CHECK (retention_floor >= 0),\n    high_water INTEGER NOT NULL CHECK (high_water >= retention_floor),\n    sync_enabled INTEGER NOT NULL CHECK (sync_enabled IN (0, 1)),\n    bootstrap_required INTEGER NOT NULL CHECK (bootstrap_required IN (0, 1))\n) STRICT"
+        ],
+        [
+          "table",
+          "mutation_receipts",
+          "mutation_receipts",
+          30,
+          "CREATE TABLE mutation_receipts (\n    mutation_key TEXT PRIMARY KEY CHECK (length(mutation_key) > 0),\n    mutation_type TEXT NOT NULL CHECK (\n        mutation_type IN (\n            'capture', 'triage', 'approve', 'reject', 'prioritize', 'assign',\n            'start', 'block', 'resume', 'finish'\n        )\n    ),\n    payload_hash TEXT NOT NULL CHECK (length(payload_hash) > 0),\n    operation_id TEXT NOT NULL UNIQUE REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    response_json TEXT NOT NULL CHECK (length(response_json) > 0),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+        ],
+        [
+          "table",
+          "operations",
+          "operations",
+          20,
+          "CREATE TABLE operations (\n    operation_id TEXT PRIMARY KEY CHECK (length(operation_id) > 0),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    operation_type TEXT NOT NULL CHECK (\n        operation_type IN (\n            'capture', 'triage', 'approve', 'reject', 'prioritize', 'assign',\n            'start', 'block', 'resume', 'finish'\n        )\n    ),\n    expected_revision INTEGER CHECK (expected_revision IS NULL OR expected_revision > 0),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0),\n    occurred_at TEXT NOT NULL CHECK (length(occurred_at) > 0),\n    UNIQUE (operation_id, item_revision),\n    UNIQUE (item_id, item_revision)\n)"
+        ],
+        [
+          "table",
+          "project_path_mappings",
+          "project_path_mappings",
+          7,
+          "CREATE TABLE project_path_mappings (\n    canonical_path TEXT PRIMARY KEY CHECK (length(canonical_path) > 0),\n    project_id TEXT NOT NULL REFERENCES projects(project_id)\n)"
+        ],
+        [
+          "table",
+          "project_remote_mappings",
+          "project_remote_mappings",
+          9,
+          "CREATE TABLE project_remote_mappings (\n    normalized_remote TEXT PRIMARY KEY CHECK (length(normalized_remote) > 0),\n    project_id TEXT NOT NULL REFERENCES projects(project_id)\n)"
+        ],
+        [
+          "table",
+          "projects",
+          "projects",
+          5,
+          "CREATE TABLE projects (\n    project_id TEXT PRIMARY KEY CHECK (\n        length(project_id) > 0 AND project_id = lower(project_id)\n    ),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+        ],
+        [
+          "table",
+          "requester_project_counters",
+          "requester_project_counters",
+          11,
+          "CREATE TABLE requester_project_counters (\n    requester TEXT NOT NULL CHECK (\n        length(requester) > 0 AND requester = upper(requester)\n    ),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    next_sequence INTEGER NOT NULL CHECK (next_sequence > 0),\n    PRIMARY KEY (requester, project_id)\n)"
+        ],
+        [
+          "table",
+          "schema_migrations",
+          "schema_migrations",
+          2,
+          "CREATE TABLE schema_migrations (\n        version INTEGER PRIMARY KEY CHECK (version > 0),\n        name TEXT NOT NULL CHECK (length(name) > 0),\n        checksum TEXT NOT NULL CHECK (length(checksum) > 0),\n        applied_at TEXT NOT NULL CHECK (length(applied_at) > 0)\n    )"
+        ],
+        [
+          "table",
+          "sqlite_sequence",
+          "sqlite_sequence",
+          41,
+          "CREATE TABLE sqlite_sequence(name,seq)"
+        ],
+        [
+          "table",
+          "store_metadata",
+          "store_metadata",
+          3,
+          "CREATE TABLE store_metadata (\n    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),\n    store_id TEXT NOT NULL UNIQUE CHECK (length(store_id) > 0),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+        ],
+        [
+          "trigger",
+          "change_journal_append",
+          "change_journal",
+          0,
+          "CREATE TRIGGER change_journal_append\nAFTER INSERT ON change_journal\nBEGIN\n    SELECT CASE WHEN NOT EXISTS (\n        SELECT 1 FROM journal_metadata WHERE singleton = 1\n         AND NEW.change_seq > high_water\n    ) THEN RAISE(ABORT, 'journal metadata missing or allocation not increasing') END;\n    SELECT CASE WHEN NOT EXISTS (\n        SELECT 1 FROM operations o JOIN items i ON i.item_id = o.item_id\n         WHERE o.operation_id = NEW.operation_id AND o.item_id = NEW.item_id\n          AND o.item_revision = NEW.item_revision AND i.project_id = NEW.project_id\n    ) THEN RAISE(ABORT, 'journal operation identity mismatch') END;\n    UPDATE journal_metadata SET high_water = NEW.change_seq WHERE singleton = 1;\nEND"
+        ],
+        [
+          "trigger",
+          "change_journal_reject_update",
+          "change_journal",
+          0,
+          "CREATE TRIGGER change_journal_reject_update\nBEFORE UPDATE ON change_journal\nBEGIN\n    SELECT RAISE(ABORT, 'journal rows cannot be amended');\nEND"
+        ],
+        [
+          "trigger",
+          "events_reject_delete",
+          "events",
+          0,
+          "CREATE TRIGGER events_reject_delete\nBEFORE DELETE ON events\nBEGIN\n    SELECT RAISE(ABORT, 'events are immutable');\nEND"
+        ],
+        [
+          "trigger",
+          "events_reject_update",
+          "events",
+          0,
+          "CREATE TRIGGER events_reject_update\nBEFORE UPDATE ON events\nBEGIN\n    SELECT RAISE(ABORT, 'events are immutable');\nEND"
+        ],
+        [
+          "trigger",
+          "journal_metadata_monotonic",
+          "journal_metadata",
+          0,
+          "CREATE TRIGGER journal_metadata_monotonic\nBEFORE UPDATE ON journal_metadata\nWHEN NEW.generation = OLD.generation\n AND (NEW.retention_floor < OLD.retention_floor OR NEW.high_water < OLD.high_water)\nBEGIN\n    SELECT RAISE(ABORT, 'journal coverage cannot decrease within a generation');\nEND"
+        ]
+      ],
+      "persistent_pragmas": {
+        "schema_version": 24,
+        "user_version": 0,
+        "application_id": 0,
+        "page_size": 4096,
+        "auto_vacuum": 0,
+        "encoding": "UTF-8",
+        "journal_mode": "wal"
+      }
+    },
+    "tables": {
+      "change_journal": [],
+      "events": [
+        [
+          "cli-event-000000000000000018de8a64f1839438-0000000000000000",
+          "cli-000000000000000018de8a64f1839438-0000000000000000",
+          "GATE:gate:001",
+          1,
+          0,
+          "captured",
+          null,
+          null,
+          "human",
+          "GATE",
+          "cli",
+          "local",
+          "direct",
+          null,
+          "cli",
+          "local",
+          null,
+          null,
+          "2026-10-14T23:51:07Z",
+          1
+        ]
+      ],
+      "item_acceptance_criteria": [],
+      "item_provenance": [
+        [
+          "GATE:gate:001",
+          "local",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "items": [
+        [
+          "GATE:gate:001",
+          "GATE",
+          "gate",
+          1,
+          "Historical rollback item",
+          null,
+          "proposed",
+          null,
+          null,
+          null,
+          1,
+          "2026-10-14T23:51:07Z",
+          "2026-10-14T23:51:07Z"
+        ]
+      ],
+      "journal_metadata": [
+        [
+          1,
+          "cd1f25187f94811e396f4cede4d7c93f",
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "mutation_receipts": [
+        [
+          "gate-historical",
+          "capture",
+          "d2656f2c5515b2915b2e4e03a687d68bedad5fe5e12c6849b7703d6b22ab5508",
+          "cli-000000000000000018de8a64f1839438-0000000000000000",
+          "GATE:gate:001",
+          "{\"item_id\":\"GATE:gate:001\"}",
+          "2026-10-14T23:51:07Z"
+        ]
+      ],
+      "operations": [
+        [
+          "cli-000000000000000018de8a64f1839438-0000000000000000",
+          "GATE:gate:001",
+          "capture",
+          null,
+          1,
+          "2026-10-14T23:51:07Z"
+        ]
+      ],
+      "project_path_mappings": [],
+      "project_remote_mappings": [],
+      "projects": [
+        [
+          "gate",
+          "2026-10-14T23:51:07Z"
+        ]
+      ],
+      "requester_project_counters": [
+        [
+          "GATE",
+          "gate",
+          2
+        ]
+      ],
+      "schema_migrations": [
+        [
+          1,
+          "initial",
+          "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
+          "2026-10-14T23:51:07.877Z"
+        ],
+        [
+          2,
+          "immutable_events",
+          "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
+          "2026-10-14T23:51:07.877Z"
+        ],
+        [
+          3,
+          "projection_read_indexes",
+          "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
+          "2026-10-14T23:51:07.877Z"
+        ],
+        [
+          4,
+          "change_journal",
+          "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
+          "2026-10-14T23:51:07.899Z"
+        ]
+      ],
+      "sqlite_sequence": [],
+      "store_metadata": [
+        [
+          1,
+          "6ce39c9c-0299-49c6-a6e5-2ab253986aac",
+          "2026-10-14T23:51:07.877Z"
+        ]
+      ]
+    },
+    "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
+    "content_sha256": "971d5036014dfff9cf81d5cb66fbb3c94151bd434a2544e4b0ae9a16622c9059",
+    "migrations": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "integrity": "ok",
+    "foreign_keys": []
+  },
+  "historical_rollback": {
+    "separate_root": true,
+    "migrations": [
+      1,
+      2,
+      3
+    ],
+    "full_legacy_tables_equal": true,
+    "later_write_absent": true,
+    "later_write_preserved_separately": true
+  },
+  "current_schema_restore": {
+    "generations": [
+      "cd1f25187f94811e396f4cede4d7c93f",
+      "3f2ae2dbbab46a47676255a374d6f23f",
+      "bc9d4fd777a54b5f7140cc8b63bd294c"
+    ],
+    "repeated_identical_backup": true,
+    "input_sha256_unchanged": "a12ba619f4aa6539c3758f68286703f45fbe3d59537f5232b445a7f0e8455b14",
+    "restored_tables_equal_except_generation": true,
+    "preserved_later": [
+      {
+        "path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-0.sqlite",
+        "sha256": "a87cdfdf08162cf3dcd93e0c92f9b0c7abf7a723ddafc5b1d7af0893b30ddf87",
+        "state": {
+          "schema_sha256": "71a6fa30cbe149badd3d5ce9c70547daa80912734fa13f17d62564198762e5c0",
+          "content_sha256": "d61ad1e9cef2c25f0169d6afe71eec3ff5208fac014fbf54c62c8f2581b6c14d",
+          "migrations": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "integrity": "ok",
+          "foreign_keys": []
+        },
+        "tables_equal_before": true
+      },
+      {
+        "path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-1.sqlite",
+        "sha256": "b045022c685c624270cf94b22b8838a7b59908070c1f26ec2bc5c9ae33814ffb",
+        "state": {
+          "schema_sha256": "71a6fa30cbe149badd3d5ce9c70547daa80912734fa13f17d62564198762e5c0",
+          "content_sha256": "1a8c1a5bf761d6f42c957805052d9ca5ca0cf49bdafca4192a731484a19eea5e",
+          "migrations": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "integrity": "ok",
+          "foreign_keys": []
+        },
+        "tables_equal_before": true
+      }
+    ]
+  },
+  "prune": {
+    "before": {
+      "schema": {
+        "catalog": [
+          [
+            "index",
+            "idx_change_journal_project_seq",
+            "change_journal",
+            42,
+            "CREATE INDEX idx_change_journal_project_seq ON change_journal (project_id, change_seq)"
+          ],
+          [
+            "index",
+            "idx_items_read_active",
+            "items",
+            36,
+            "CREATE INDEX idx_items_read_active ON items\n    (captured_at DESC, requester, project_id, sequence)\n    WHERE status IN ('in_progress', 'blocked')"
+          ],
+          [
+            "index",
+            "idx_items_read_list",
+            "items",
+            33,
+            "CREATE INDEX idx_items_read_list ON items\n    (captured_at DESC, requester, project_id, sequence)"
+          ],
+          [
+            "index",
+            "idx_items_read_mine",
+            "items",
+            37,
+            "CREATE INDEX idx_items_read_mine ON items\n    (assignee, captured_at DESC, requester, project_id, sequence)\n    WHERE status IN ('proposed', 'ready', 'in_progress', 'blocked')"
+          ],
+          [
+            "index",
+            "idx_items_read_ready",
+            "items",
+            34,
+            "CREATE INDEX idx_items_read_ready ON items\n    (CASE priority WHEN 'P0' THEN 0 WHEN 'P1' THEN 1 WHEN 'P2' THEN 2\n     WHEN 'P3' THEN 3 WHEN 'P4' THEN 4 ELSE 5 END,\n     captured_at, requester, project_id, sequence) WHERE status = 'ready'"
+          ],
+          [
+            "index",
+            "sqlite_autoindex_change_journal_1",
+            "change_journal",
+            40,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_events_1",
+            "events",
+            27,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_events_2",
+            "events",
+            28,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_events_3",
+            "events",
+            29,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_item_acceptance_criteria_1",
+            "item_acceptance_criteria",
+            17,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_item_provenance_1",
+            "item_provenance",
+            19,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_items_1",
+            "items",
+            14,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_items_2",
+            "items",
+            15,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_mutation_receipts_1",
+            "mutation_receipts",
+            31,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_mutation_receipts_2",
+            "mutation_receipts",
+            32,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_operations_1",
+            "operations",
+            21,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_operations_2",
+            "operations",
+            23,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_operations_3",
+            "operations",
+            24,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_project_path_mappings_1",
+            "project_path_mappings",
+            8,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_project_remote_mappings_1",
+            "project_remote_mappings",
+            10,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_projects_1",
+            "projects",
+            6,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_requester_project_counters_1",
+            "requester_project_counters",
+            12,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_store_metadata_1",
+            "store_metadata",
+            4,
+            null
+          ],
+          [
+            "table",
+            "change_journal",
+            "change_journal",
+            39,
+            "CREATE TABLE change_journal (\n    change_seq INTEGER PRIMARY KEY AUTOINCREMENT CHECK (change_seq > 0),\n    operation_id TEXT NOT NULL UNIQUE REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0)\n) STRICT"
+          ],
+          [
+            "table",
+            "events",
+            "events",
+            26,
+            "CREATE TABLE events (\n    event_id TEXT PRIMARY KEY CHECK (length(event_id) > 0),\n    operation_id TEXT NOT NULL REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0),\n    event_index INTEGER NOT NULL CHECK (event_index >= 0),\n    event_type TEXT NOT NULL CHECK (\n        event_type IN (\n            'captured', 'approved', 'rejected', 'started', 'blocked', 'resumed',\n            'finished', 'priority_changed', 'assignee_changed', 'note_added'\n        )\n    ),\n    before_value TEXT,\n    after_value TEXT,\n    actor_kind TEXT NOT NULL CHECK (actor_kind IN ('human', 'agent')),\n    actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),\n    actor_surface TEXT NOT NULL CHECK (actor_surface IN ('thread', 'cli', 'rpc')),\n    actor_host TEXT NOT NULL CHECK (actor_host IN ('delta', 'codex', 'local')),\n    execution_kind TEXT NOT NULL CHECK (execution_kind IN ('direct', 'agent')),\n    execution_agent_id TEXT,\n    execution_surface TEXT NOT NULL CHECK (execution_surface IN ('thread', 'cli', 'rpc')),\n    execution_host TEXT NOT NULL CHECK (execution_host IN ('delta', 'codex', 'local')),\n    reason TEXT,\n    note TEXT,\n    occurred_at TEXT NOT NULL CHECK (length(occurred_at) > 0),\n    event_schema_version INTEGER NOT NULL CHECK (event_schema_version > 0),\n    CHECK (\n        (execution_kind = 'direct' AND execution_agent_id IS NULL) OR\n        (execution_kind = 'agent' AND length(execution_agent_id) > 0)\n    ),\n    UNIQUE (operation_id, event_index),\n    UNIQUE (item_id, item_revision, event_index),\n    FOREIGN KEY (operation_id, item_revision)\n        REFERENCES operations(operation_id, item_revision)\n)"
+          ],
+          [
+            "table",
+            "item_acceptance_criteria",
+            "item_acceptance_criteria",
+            16,
+            "CREATE TABLE item_acceptance_criteria (\n    item_id TEXT NOT NULL REFERENCES items(item_id) ON DELETE CASCADE,\n    criterion_index INTEGER NOT NULL CHECK (criterion_index >= 0),\n    criterion TEXT NOT NULL,\n    PRIMARY KEY (item_id, criterion_index)\n)"
+          ],
+          [
+            "table",
+            "item_provenance",
+            "item_provenance",
+            18,
+            "CREATE TABLE item_provenance (\n    item_id TEXT PRIMARY KEY REFERENCES items(item_id) ON DELETE CASCADE,\n    source_host TEXT CHECK (\n        source_host IS NULL OR source_host IN ('delta', 'codex', 'local')\n    ),\n    thread_id TEXT,\n    message_id TEXT,\n    url TEXT,\n    repository_reference TEXT,\n    revision_reference TEXT,\n    context_excerpt TEXT\n)"
+          ],
+          [
+            "table",
+            "items",
+            "items",
+            13,
+            "CREATE TABLE items (\n    item_id TEXT PRIMARY KEY CHECK (length(item_id) > 0),\n    requester TEXT NOT NULL CHECK (\n        length(requester) > 0 AND requester = upper(requester)\n    ),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    sequence INTEGER NOT NULL CHECK (sequence > 0),\n    title TEXT NOT NULL CHECK (length(title) > 0),\n    description TEXT,\n    status TEXT NOT NULL CHECK (\n        status IN ('proposed', 'ready', 'in_progress', 'blocked', 'done', 'rejected')\n    ),\n    priority TEXT CHECK (priority IS NULL OR priority IN ('P0', 'P1', 'P2', 'P3', 'P4')),\n    assignee TEXT CHECK (\n        assignee IS NULL OR (length(assignee) > 0 AND assignee = lower(assignee))\n    ),\n    status_reason TEXT,\n    revision INTEGER NOT NULL CHECK (revision > 0),\n    captured_at TEXT NOT NULL CHECK (length(captured_at) > 0),\n    updated_at TEXT NOT NULL CHECK (length(updated_at) > 0),\n    UNIQUE (requester, project_id, sequence)\n)"
+          ],
+          [
+            "table",
+            "journal_metadata",
+            "journal_metadata",
+            38,
+            "CREATE TABLE journal_metadata (\n    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),\n    generation TEXT NOT NULL CHECK (\n        length(generation) = 32 AND generation NOT GLOB '*[^0-9a-f]*'\n    ),\n    retention_floor INTEGER NOT NULL CHECK (retention_floor >= 0),\n    high_water INTEGER NOT NULL CHECK (high_water >= retention_floor),\n    sync_enabled INTEGER NOT NULL CHECK (sync_enabled IN (0, 1)),\n    bootstrap_required INTEGER NOT NULL CHECK (bootstrap_required IN (0, 1))\n) STRICT"
+          ],
+          [
+            "table",
+            "mutation_receipts",
+            "mutation_receipts",
+            30,
+            "CREATE TABLE mutation_receipts (\n    mutation_key TEXT PRIMARY KEY CHECK (length(mutation_key) > 0),\n    mutation_type TEXT NOT NULL CHECK (\n        mutation_type IN (\n            'capture', 'triage', 'approve', 'reject', 'prioritize', 'assign',\n            'start', 'block', 'resume', 'finish'\n        )\n    ),\n    payload_hash TEXT NOT NULL CHECK (length(payload_hash) > 0),\n    operation_id TEXT NOT NULL UNIQUE REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    response_json TEXT NOT NULL CHECK (length(response_json) > 0),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+          ],
+          [
+            "table",
+            "operations",
+            "operations",
+            20,
+            "CREATE TABLE operations (\n    operation_id TEXT PRIMARY KEY CHECK (length(operation_id) > 0),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    operation_type TEXT NOT NULL CHECK (\n        operation_type IN (\n            'capture', 'triage', 'approve', 'reject', 'prioritize', 'assign',\n            'start', 'block', 'resume', 'finish'\n        )\n    ),\n    expected_revision INTEGER CHECK (expected_revision IS NULL OR expected_revision > 0),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0),\n    occurred_at TEXT NOT NULL CHECK (length(occurred_at) > 0),\n    UNIQUE (operation_id, item_revision),\n    UNIQUE (item_id, item_revision)\n)"
+          ],
+          [
+            "table",
+            "project_path_mappings",
+            "project_path_mappings",
+            7,
+            "CREATE TABLE project_path_mappings (\n    canonical_path TEXT PRIMARY KEY CHECK (length(canonical_path) > 0),\n    project_id TEXT NOT NULL REFERENCES projects(project_id)\n)"
+          ],
+          [
+            "table",
+            "project_remote_mappings",
+            "project_remote_mappings",
+            9,
+            "CREATE TABLE project_remote_mappings (\n    normalized_remote TEXT PRIMARY KEY CHECK (length(normalized_remote) > 0),\n    project_id TEXT NOT NULL REFERENCES projects(project_id)\n)"
+          ],
+          [
+            "table",
+            "projects",
+            "projects",
+            5,
+            "CREATE TABLE projects (\n    project_id TEXT PRIMARY KEY CHECK (\n        length(project_id) > 0 AND project_id = lower(project_id)\n    ),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+          ],
+          [
+            "table",
+            "requester_project_counters",
+            "requester_project_counters",
+            11,
+            "CREATE TABLE requester_project_counters (\n    requester TEXT NOT NULL CHECK (\n        length(requester) > 0 AND requester = upper(requester)\n    ),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    next_sequence INTEGER NOT NULL CHECK (next_sequence > 0),\n    PRIMARY KEY (requester, project_id)\n)"
+          ],
+          [
+            "table",
+            "schema_migrations",
+            "schema_migrations",
+            2,
+            "CREATE TABLE schema_migrations (\n        version INTEGER PRIMARY KEY CHECK (version > 0),\n        name TEXT NOT NULL CHECK (length(name) > 0),\n        checksum TEXT NOT NULL CHECK (length(checksum) > 0),\n        applied_at TEXT NOT NULL CHECK (length(applied_at) > 0)\n    )"
+          ],
+          [
+            "table",
+            "sqlite_sequence",
+            "sqlite_sequence",
+            41,
+            "CREATE TABLE sqlite_sequence(name,seq)"
+          ],
+          [
+            "table",
+            "store_metadata",
+            "store_metadata",
+            3,
+            "CREATE TABLE store_metadata (\n    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),\n    store_id TEXT NOT NULL UNIQUE CHECK (length(store_id) > 0),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+          ],
+          [
+            "trigger",
+            "change_journal_append",
+            "change_journal",
+            0,
+            "CREATE TRIGGER change_journal_append\nAFTER INSERT ON change_journal\nBEGIN\n    SELECT CASE WHEN NOT EXISTS (\n        SELECT 1 FROM journal_metadata WHERE singleton = 1\n         AND NEW.change_seq > high_water\n    ) THEN RAISE(ABORT, 'journal metadata missing or allocation not increasing') END;\n    SELECT CASE WHEN NOT EXISTS (\n        SELECT 1 FROM operations o JOIN items i ON i.item_id = o.item_id\n         WHERE o.operation_id = NEW.operation_id AND o.item_id = NEW.item_id\n          AND o.item_revision = NEW.item_revision AND i.project_id = NEW.project_id\n    ) THEN RAISE(ABORT, 'journal operation identity mismatch') END;\n    UPDATE journal_metadata SET high_water = NEW.change_seq WHERE singleton = 1;\nEND"
+          ],
+          [
+            "trigger",
+            "change_journal_reject_update",
+            "change_journal",
+            0,
+            "CREATE TRIGGER change_journal_reject_update\nBEFORE UPDATE ON change_journal\nBEGIN\n    SELECT RAISE(ABORT, 'journal rows cannot be amended');\nEND"
+          ],
+          [
+            "trigger",
+            "events_reject_delete",
+            "events",
+            0,
+            "CREATE TRIGGER events_reject_delete\nBEFORE DELETE ON events\nBEGIN\n    SELECT RAISE(ABORT, 'events are immutable');\nEND"
+          ],
+          [
+            "trigger",
+            "events_reject_update",
+            "events",
+            0,
+            "CREATE TRIGGER events_reject_update\nBEFORE UPDATE ON events\nBEGIN\n    SELECT RAISE(ABORT, 'events are immutable');\nEND"
+          ],
+          [
+            "trigger",
+            "journal_metadata_monotonic",
+            "journal_metadata",
+            0,
+            "CREATE TRIGGER journal_metadata_monotonic\nBEFORE UPDATE ON journal_metadata\nWHEN NEW.generation = OLD.generation\n AND (NEW.retention_floor < OLD.retention_floor OR NEW.high_water < OLD.high_water)\nBEGIN\n    SELECT RAISE(ABORT, 'journal coverage cannot decrease within a generation');\nEND"
+          ]
+        ],
+        "persistent_pragmas": {
+          "schema_version": 26,
+          "user_version": 0,
+          "application_id": 0,
+          "page_size": 4096,
+          "auto_vacuum": 0,
+          "encoding": "UTF-8",
+          "journal_mode": "wal"
+        }
+      },
+      "tables": {
+        "change_journal": [
+          [
+            1,
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
+            "GATE:gate:002",
+            "gate",
+            1
+          ],
+          [
+            2,
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
+            "GATE:gate:003",
+            "gate",
+            1
+          ],
+          [
+            3,
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
+            "GATE:gate:004",
+            "gate",
+            1
+          ]
+        ],
+        "events": [
+          [
+            "cli-event-000000000000000018de8a64f1839438-0000000000000000",
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
+            "GATE:gate:001",
+            1,
+            0,
+            "captured",
+            null,
+            null,
+            "human",
+            "GATE",
+            "cli",
+            "local",
+            "direct",
+            null,
+            "cli",
+            "local",
+            null,
+            null,
+            "2026-10-14T23:51:07Z",
+            1
+          ],
+          [
+            "cli-event-000000000000000018de8a64f368c340-0000000000000000",
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
+            "GATE:gate:002",
+            1,
+            0,
+            "captured",
+            null,
+            null,
+            "human",
+            "GATE",
+            "cli",
+            "local",
+            "direct",
+            null,
+            "cli",
+            "local",
+            null,
+            null,
+            "2026-10-14T23:51:07Z",
+            1
+          ],
+          [
+            "cli-event-000000000000000018de8a64f8a22a40-0000000000000000",
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
+            "GATE:gate:003",
+            1,
+            0,
+            "captured",
+            null,
+            null,
+            "human",
+            "GATE",
+            "cli",
+            "local",
+            "direct",
+            null,
+            "cli",
+            "local",
+            null,
+            null,
+            "2026-10-14T23:51:08Z",
+            1
+          ],
+          [
+            "cli-event-000000000000000018de8a64f98809e8-0000000000000000",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
+            "GATE:gate:004",
+            1,
+            0,
+            "captured",
+            null,
+            null,
+            "human",
+            "GATE",
+            "cli",
+            "local",
+            "direct",
+            null,
+            "cli",
+            "local",
+            null,
+            null,
+            "2026-10-14T23:51:08Z",
+            1
+          ]
+        ],
+        "item_acceptance_criteria": [],
+        "item_provenance": [
+          [
+            "GATE:gate:001",
+            "local",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            "GATE:gate:002",
+            "local",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            "GATE:gate:003",
+            "local",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            "GATE:gate:004",
+            "local",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        ],
+        "items": [
+          [
+            "GATE:gate:001",
+            "GATE",
+            "gate",
+            1,
+            "Historical rollback item",
+            null,
+            "proposed",
+            null,
+            null,
+            null,
+            1,
+            "2026-10-14T23:51:07Z",
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "GATE:gate:002",
+            "GATE",
+            "gate",
+            2,
+            "Current backup journal row",
+            null,
+            "proposed",
+            null,
+            null,
+            null,
+            1,
+            "2026-10-14T23:51:07Z",
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "GATE:gate:003",
+            "GATE",
+            "gate",
+            3,
+            "Retained 0",
+            null,
+            "proposed",
+            null,
+            null,
+            null,
+            1,
+            "2026-10-14T23:51:08Z",
+            "2026-10-14T23:51:08Z"
+          ],
+          [
+            "GATE:gate:004",
+            "GATE",
+            "gate",
+            4,
+            "Retained 1",
+            null,
+            "proposed",
+            null,
+            null,
+            null,
+            1,
+            "2026-10-14T23:51:08Z",
+            "2026-10-14T23:51:08Z"
+          ]
+        ],
+        "journal_metadata": [
+          [
+            1,
+            "bc9d4fd777a54b5f7140cc8b63bd294c",
+            0,
+            3,
+            0,
+            1
+          ]
+        ],
+        "mutation_receipts": [
+          [
+            "gate-before-backup",
+            "capture",
+            "24a3f777881e3805176f2ae8bdb59b1caf8be500058f423de54c5b41bb24b8af",
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
+            "GATE:gate:002",
+            "{\"item_id\":\"GATE:gate:002\"}",
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "gate-historical",
+            "capture",
+            "d2656f2c5515b2915b2e4e03a687d68bedad5fe5e12c6849b7703d6b22ab5508",
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
+            "GATE:gate:001",
+            "{\"item_id\":\"GATE:gate:001\"}",
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "gate-retain-0",
+            "capture",
+            "4bbda5e20747c5308fa3905a9eaef7732e695aefdc5f8251520a9cf7b6c030d6",
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
+            "GATE:gate:003",
+            "{\"item_id\":\"GATE:gate:003\"}",
+            "2026-10-14T23:51:08Z"
+          ],
+          [
+            "gate-retain-1",
+            "capture",
+            "80bc5d3f86658ce84b4186ae9ccfa421aaf9b086dee8753792c955c389c2e56e",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
+            "GATE:gate:004",
+            "{\"item_id\":\"GATE:gate:004\"}",
+            "2026-10-14T23:51:08Z"
+          ]
+        ],
+        "operations": [
+          [
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
+            "GATE:gate:001",
+            "capture",
+            null,
+            1,
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
+            "GATE:gate:002",
+            "capture",
+            null,
+            1,
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
+            "GATE:gate:003",
+            "capture",
+            null,
+            1,
+            "2026-10-14T23:51:08Z"
+          ],
+          [
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
+            "GATE:gate:004",
+            "capture",
+            null,
+            1,
+            "2026-10-14T23:51:08Z"
+          ]
+        ],
+        "project_path_mappings": [],
+        "project_remote_mappings": [],
+        "projects": [
+          [
+            "gate",
+            "2026-10-14T23:51:07Z"
+          ]
+        ],
+        "requester_project_counters": [
+          [
+            "GATE",
+            "gate",
+            5
+          ]
+        ],
+        "schema_migrations": [
+          [
+            1,
+            "initial",
+            "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
+            "2026-10-14T23:51:07.877Z"
+          ],
+          [
+            2,
+            "immutable_events",
+            "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
+            "2026-10-14T23:51:07.877Z"
+          ],
+          [
+            3,
+            "projection_read_indexes",
+            "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
+            "2026-10-14T23:51:07.877Z"
+          ],
+          [
+            4,
+            "change_journal",
+            "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
+            "2026-10-14T23:51:07.899Z"
+          ]
+        ],
+        "sqlite_sequence": [
+          [
+            "change_journal",
+            3
+          ]
+        ],
+        "store_metadata": [
+          [
+            1,
+            "6ce39c9c-0299-49c6-a6e5-2ab253986aac",
+            "2026-10-14T23:51:07.877Z"
+          ]
+        ]
+      },
+      "schema_sha256": "d09f0687b982f3520195af08707fb6c5bd3e1d2182f34beb20bb3fbf3541d22a",
+      "content_sha256": "884d31750d784e387d67a18964d5a457843e8e7f37e675f8d664ecd6102abf70",
+      "migrations": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "integrity": "ok",
+      "foreign_keys": []
+    },
+    "after": {
+      "schema": {
+        "catalog": [
+          [
+            "index",
+            "idx_change_journal_project_seq",
+            "change_journal",
+            42,
+            "CREATE INDEX idx_change_journal_project_seq ON change_journal (project_id, change_seq)"
+          ],
+          [
+            "index",
+            "idx_items_read_active",
+            "items",
+            36,
+            "CREATE INDEX idx_items_read_active ON items\n    (captured_at DESC, requester, project_id, sequence)\n    WHERE status IN ('in_progress', 'blocked')"
+          ],
+          [
+            "index",
+            "idx_items_read_list",
+            "items",
+            33,
+            "CREATE INDEX idx_items_read_list ON items\n    (captured_at DESC, requester, project_id, sequence)"
+          ],
+          [
+            "index",
+            "idx_items_read_mine",
+            "items",
+            37,
+            "CREATE INDEX idx_items_read_mine ON items\n    (assignee, captured_at DESC, requester, project_id, sequence)\n    WHERE status IN ('proposed', 'ready', 'in_progress', 'blocked')"
+          ],
+          [
+            "index",
+            "idx_items_read_ready",
+            "items",
+            34,
+            "CREATE INDEX idx_items_read_ready ON items\n    (CASE priority WHEN 'P0' THEN 0 WHEN 'P1' THEN 1 WHEN 'P2' THEN 2\n     WHEN 'P3' THEN 3 WHEN 'P4' THEN 4 ELSE 5 END,\n     captured_at, requester, project_id, sequence) WHERE status = 'ready'"
+          ],
+          [
+            "index",
+            "sqlite_autoindex_change_journal_1",
+            "change_journal",
+            40,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_events_1",
+            "events",
+            27,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_events_2",
+            "events",
+            28,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_events_3",
+            "events",
+            29,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_item_acceptance_criteria_1",
+            "item_acceptance_criteria",
+            17,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_item_provenance_1",
+            "item_provenance",
+            19,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_items_1",
+            "items",
+            14,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_items_2",
+            "items",
+            15,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_mutation_receipts_1",
+            "mutation_receipts",
+            31,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_mutation_receipts_2",
+            "mutation_receipts",
+            32,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_operations_1",
+            "operations",
+            21,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_operations_2",
+            "operations",
+            23,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_operations_3",
+            "operations",
+            24,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_project_path_mappings_1",
+            "project_path_mappings",
+            8,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_project_remote_mappings_1",
+            "project_remote_mappings",
+            10,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_projects_1",
+            "projects",
+            6,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_requester_project_counters_1",
+            "requester_project_counters",
+            12,
+            null
+          ],
+          [
+            "index",
+            "sqlite_autoindex_store_metadata_1",
+            "store_metadata",
+            4,
+            null
+          ],
+          [
+            "table",
+            "change_journal",
+            "change_journal",
+            39,
+            "CREATE TABLE change_journal (\n    change_seq INTEGER PRIMARY KEY AUTOINCREMENT CHECK (change_seq > 0),\n    operation_id TEXT NOT NULL UNIQUE REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0)\n) STRICT"
+          ],
+          [
+            "table",
+            "events",
+            "events",
+            26,
+            "CREATE TABLE events (\n    event_id TEXT PRIMARY KEY CHECK (length(event_id) > 0),\n    operation_id TEXT NOT NULL REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0),\n    event_index INTEGER NOT NULL CHECK (event_index >= 0),\n    event_type TEXT NOT NULL CHECK (\n        event_type IN (\n            'captured', 'approved', 'rejected', 'started', 'blocked', 'resumed',\n            'finished', 'priority_changed', 'assignee_changed', 'note_added'\n        )\n    ),\n    before_value TEXT,\n    after_value TEXT,\n    actor_kind TEXT NOT NULL CHECK (actor_kind IN ('human', 'agent')),\n    actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),\n    actor_surface TEXT NOT NULL CHECK (actor_surface IN ('thread', 'cli', 'rpc')),\n    actor_host TEXT NOT NULL CHECK (actor_host IN ('delta', 'codex', 'local')),\n    execution_kind TEXT NOT NULL CHECK (execution_kind IN ('direct', 'agent')),\n    execution_agent_id TEXT,\n    execution_surface TEXT NOT NULL CHECK (execution_surface IN ('thread', 'cli', 'rpc')),\n    execution_host TEXT NOT NULL CHECK (execution_host IN ('delta', 'codex', 'local')),\n    reason TEXT,\n    note TEXT,\n    occurred_at TEXT NOT NULL CHECK (length(occurred_at) > 0),\n    event_schema_version INTEGER NOT NULL CHECK (event_schema_version > 0),\n    CHECK (\n        (execution_kind = 'direct' AND execution_agent_id IS NULL) OR\n        (execution_kind = 'agent' AND length(execution_agent_id) > 0)\n    ),\n    UNIQUE (operation_id, event_index),\n    UNIQUE (item_id, item_revision, event_index),\n    FOREIGN KEY (operation_id, item_revision)\n        REFERENCES operations(operation_id, item_revision)\n)"
+          ],
+          [
+            "table",
+            "item_acceptance_criteria",
+            "item_acceptance_criteria",
+            16,
+            "CREATE TABLE item_acceptance_criteria (\n    item_id TEXT NOT NULL REFERENCES items(item_id) ON DELETE CASCADE,\n    criterion_index INTEGER NOT NULL CHECK (criterion_index >= 0),\n    criterion TEXT NOT NULL,\n    PRIMARY KEY (item_id, criterion_index)\n)"
+          ],
+          [
+            "table",
+            "item_provenance",
+            "item_provenance",
+            18,
+            "CREATE TABLE item_provenance (\n    item_id TEXT PRIMARY KEY REFERENCES items(item_id) ON DELETE CASCADE,\n    source_host TEXT CHECK (\n        source_host IS NULL OR source_host IN ('delta', 'codex', 'local')\n    ),\n    thread_id TEXT,\n    message_id TEXT,\n    url TEXT,\n    repository_reference TEXT,\n    revision_reference TEXT,\n    context_excerpt TEXT\n)"
+          ],
+          [
+            "table",
+            "items",
+            "items",
+            13,
+            "CREATE TABLE items (\n    item_id TEXT PRIMARY KEY CHECK (length(item_id) > 0),\n    requester TEXT NOT NULL CHECK (\n        length(requester) > 0 AND requester = upper(requester)\n    ),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    sequence INTEGER NOT NULL CHECK (sequence > 0),\n    title TEXT NOT NULL CHECK (length(title) > 0),\n    description TEXT,\n    status TEXT NOT NULL CHECK (\n        status IN ('proposed', 'ready', 'in_progress', 'blocked', 'done', 'rejected')\n    ),\n    priority TEXT CHECK (priority IS NULL OR priority IN ('P0', 'P1', 'P2', 'P3', 'P4')),\n    assignee TEXT CHECK (\n        assignee IS NULL OR (length(assignee) > 0 AND assignee = lower(assignee))\n    ),\n    status_reason TEXT,\n    revision INTEGER NOT NULL CHECK (revision > 0),\n    captured_at TEXT NOT NULL CHECK (length(captured_at) > 0),\n    updated_at TEXT NOT NULL CHECK (length(updated_at) > 0),\n    UNIQUE (requester, project_id, sequence)\n)"
+          ],
+          [
+            "table",
+            "journal_metadata",
+            "journal_metadata",
+            38,
+            "CREATE TABLE journal_metadata (\n    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),\n    generation TEXT NOT NULL CHECK (\n        length(generation) = 32 AND generation NOT GLOB '*[^0-9a-f]*'\n    ),\n    retention_floor INTEGER NOT NULL CHECK (retention_floor >= 0),\n    high_water INTEGER NOT NULL CHECK (high_water >= retention_floor),\n    sync_enabled INTEGER NOT NULL CHECK (sync_enabled IN (0, 1)),\n    bootstrap_required INTEGER NOT NULL CHECK (bootstrap_required IN (0, 1))\n) STRICT"
+          ],
+          [
+            "table",
+            "mutation_receipts",
+            "mutation_receipts",
+            30,
+            "CREATE TABLE mutation_receipts (\n    mutation_key TEXT PRIMARY KEY CHECK (length(mutation_key) > 0),\n    mutation_type TEXT NOT NULL CHECK (\n        mutation_type IN (\n            'capture', 'triage', 'approve', 'reject', 'prioritize', 'assign',\n            'start', 'block', 'resume', 'finish'\n        )\n    ),\n    payload_hash TEXT NOT NULL CHECK (length(payload_hash) > 0),\n    operation_id TEXT NOT NULL UNIQUE REFERENCES operations(operation_id),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    response_json TEXT NOT NULL CHECK (length(response_json) > 0),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+          ],
+          [
+            "table",
+            "operations",
+            "operations",
+            20,
+            "CREATE TABLE operations (\n    operation_id TEXT PRIMARY KEY CHECK (length(operation_id) > 0),\n    item_id TEXT NOT NULL REFERENCES items(item_id),\n    operation_type TEXT NOT NULL CHECK (\n        operation_type IN (\n            'capture', 'triage', 'approve', 'reject', 'prioritize', 'assign',\n            'start', 'block', 'resume', 'finish'\n        )\n    ),\n    expected_revision INTEGER CHECK (expected_revision IS NULL OR expected_revision > 0),\n    item_revision INTEGER NOT NULL CHECK (item_revision > 0),\n    occurred_at TEXT NOT NULL CHECK (length(occurred_at) > 0),\n    UNIQUE (operation_id, item_revision),\n    UNIQUE (item_id, item_revision)\n)"
+          ],
+          [
+            "table",
+            "project_path_mappings",
+            "project_path_mappings",
+            7,
+            "CREATE TABLE project_path_mappings (\n    canonical_path TEXT PRIMARY KEY CHECK (length(canonical_path) > 0),\n    project_id TEXT NOT NULL REFERENCES projects(project_id)\n)"
+          ],
+          [
+            "table",
+            "project_remote_mappings",
+            "project_remote_mappings",
+            9,
+            "CREATE TABLE project_remote_mappings (\n    normalized_remote TEXT PRIMARY KEY CHECK (length(normalized_remote) > 0),\n    project_id TEXT NOT NULL REFERENCES projects(project_id)\n)"
+          ],
+          [
+            "table",
+            "projects",
+            "projects",
+            5,
+            "CREATE TABLE projects (\n    project_id TEXT PRIMARY KEY CHECK (\n        length(project_id) > 0 AND project_id = lower(project_id)\n    ),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+          ],
+          [
+            "table",
+            "requester_project_counters",
+            "requester_project_counters",
+            11,
+            "CREATE TABLE requester_project_counters (\n    requester TEXT NOT NULL CHECK (\n        length(requester) > 0 AND requester = upper(requester)\n    ),\n    project_id TEXT NOT NULL REFERENCES projects(project_id),\n    next_sequence INTEGER NOT NULL CHECK (next_sequence > 0),\n    PRIMARY KEY (requester, project_id)\n)"
+          ],
+          [
+            "table",
+            "schema_migrations",
+            "schema_migrations",
+            2,
+            "CREATE TABLE schema_migrations (\n        version INTEGER PRIMARY KEY CHECK (version > 0),\n        name TEXT NOT NULL CHECK (length(name) > 0),\n        checksum TEXT NOT NULL CHECK (length(checksum) > 0),\n        applied_at TEXT NOT NULL CHECK (length(applied_at) > 0)\n    )"
+          ],
+          [
+            "table",
+            "sqlite_sequence",
+            "sqlite_sequence",
+            41,
+            "CREATE TABLE sqlite_sequence(name,seq)"
+          ],
+          [
+            "table",
+            "store_metadata",
+            "store_metadata",
+            3,
+            "CREATE TABLE store_metadata (\n    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),\n    store_id TEXT NOT NULL UNIQUE CHECK (length(store_id) > 0),\n    created_at TEXT NOT NULL CHECK (length(created_at) > 0)\n)"
+          ],
+          [
+            "trigger",
+            "change_journal_append",
+            "change_journal",
+            0,
+            "CREATE TRIGGER change_journal_append\nAFTER INSERT ON change_journal\nBEGIN\n    SELECT CASE WHEN NOT EXISTS (\n        SELECT 1 FROM journal_metadata WHERE singleton = 1\n         AND NEW.change_seq > high_water\n    ) THEN RAISE(ABORT, 'journal metadata missing or allocation not increasing') END;\n    SELECT CASE WHEN NOT EXISTS (\n        SELECT 1 FROM operations o JOIN items i ON i.item_id = o.item_id\n         WHERE o.operation_id = NEW.operation_id AND o.item_id = NEW.item_id\n          AND o.item_revision = NEW.item_revision AND i.project_id = NEW.project_id\n    ) THEN RAISE(ABORT, 'journal operation identity mismatch') END;\n    UPDATE journal_metadata SET high_water = NEW.change_seq WHERE singleton = 1;\nEND"
+          ],
+          [
+            "trigger",
+            "change_journal_reject_update",
+            "change_journal",
+            0,
+            "CREATE TRIGGER change_journal_reject_update\nBEFORE UPDATE ON change_journal\nBEGIN\n    SELECT RAISE(ABORT, 'journal rows cannot be amended');\nEND"
+          ],
+          [
+            "trigger",
+            "events_reject_delete",
+            "events",
+            0,
+            "CREATE TRIGGER events_reject_delete\nBEFORE DELETE ON events\nBEGIN\n    SELECT RAISE(ABORT, 'events are immutable');\nEND"
+          ],
+          [
+            "trigger",
+            "events_reject_update",
+            "events",
+            0,
+            "CREATE TRIGGER events_reject_update\nBEFORE UPDATE ON events\nBEGIN\n    SELECT RAISE(ABORT, 'events are immutable');\nEND"
+          ],
+          [
+            "trigger",
+            "journal_metadata_monotonic",
+            "journal_metadata",
+            0,
+            "CREATE TRIGGER journal_metadata_monotonic\nBEFORE UPDATE ON journal_metadata\nWHEN NEW.generation = OLD.generation\n AND (NEW.retention_floor < OLD.retention_floor OR NEW.high_water < OLD.high_water)\nBEGIN\n    SELECT RAISE(ABORT, 'journal coverage cannot decrease within a generation');\nEND"
+          ]
+        ],
+        "persistent_pragmas": {
+          "schema_version": 26,
+          "user_version": 0,
+          "application_id": 0,
+          "page_size": 4096,
+          "auto_vacuum": 0,
+          "encoding": "UTF-8",
+          "journal_mode": "wal"
+        }
+      },
+      "tables": {
+        "change_journal": [
+          [
+            3,
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
+            "GATE:gate:004",
+            "gate",
+            1
+          ]
+        ],
+        "events": [
+          [
+            "cli-event-000000000000000018de8a64f1839438-0000000000000000",
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
+            "GATE:gate:001",
+            1,
+            0,
+            "captured",
+            null,
+            null,
+            "human",
+            "GATE",
+            "cli",
+            "local",
+            "direct",
+            null,
+            "cli",
+            "local",
+            null,
+            null,
+            "2026-10-14T23:51:07Z",
+            1
+          ],
+          [
+            "cli-event-000000000000000018de8a64f368c340-0000000000000000",
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
+            "GATE:gate:002",
+            1,
+            0,
+            "captured",
+            null,
+            null,
+            "human",
+            "GATE",
+            "cli",
+            "local",
+            "direct",
+            null,
+            "cli",
+            "local",
+            null,
+            null,
+            "2026-10-14T23:51:07Z",
+            1
+          ],
+          [
+            "cli-event-000000000000000018de8a64f8a22a40-0000000000000000",
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
+            "GATE:gate:003",
+            1,
+            0,
+            "captured",
+            null,
+            null,
+            "human",
+            "GATE",
+            "cli",
+            "local",
+            "direct",
+            null,
+            "cli",
+            "local",
+            null,
+            null,
+            "2026-10-14T23:51:08Z",
+            1
+          ],
+          [
+            "cli-event-000000000000000018de8a64f98809e8-0000000000000000",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
+            "GATE:gate:004",
+            1,
+            0,
+            "captured",
+            null,
+            null,
+            "human",
+            "GATE",
+            "cli",
+            "local",
+            "direct",
+            null,
+            "cli",
+            "local",
+            null,
+            null,
+            "2026-10-14T23:51:08Z",
+            1
+          ]
+        ],
+        "item_acceptance_criteria": [],
+        "item_provenance": [
+          [
+            "GATE:gate:001",
+            "local",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            "GATE:gate:002",
+            "local",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            "GATE:gate:003",
+            "local",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            "GATE:gate:004",
+            "local",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        ],
+        "items": [
+          [
+            "GATE:gate:001",
+            "GATE",
+            "gate",
+            1,
+            "Historical rollback item",
+            null,
+            "proposed",
+            null,
+            null,
+            null,
+            1,
+            "2026-10-14T23:51:07Z",
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "GATE:gate:002",
+            "GATE",
+            "gate",
+            2,
+            "Current backup journal row",
+            null,
+            "proposed",
+            null,
+            null,
+            null,
+            1,
+            "2026-10-14T23:51:07Z",
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "GATE:gate:003",
+            "GATE",
+            "gate",
+            3,
+            "Retained 0",
+            null,
+            "proposed",
+            null,
+            null,
+            null,
+            1,
+            "2026-10-14T23:51:08Z",
+            "2026-10-14T23:51:08Z"
+          ],
+          [
+            "GATE:gate:004",
+            "GATE",
+            "gate",
+            4,
+            "Retained 1",
+            null,
+            "proposed",
+            null,
+            null,
+            null,
+            1,
+            "2026-10-14T23:51:08Z",
+            "2026-10-14T23:51:08Z"
+          ]
+        ],
+        "journal_metadata": [
+          [
+            1,
+            "bc9d4fd777a54b5f7140cc8b63bd294c",
+            2,
+            3,
+            0,
+            1
+          ]
+        ],
+        "mutation_receipts": [
+          [
+            "gate-before-backup",
+            "capture",
+            "24a3f777881e3805176f2ae8bdb59b1caf8be500058f423de54c5b41bb24b8af",
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
+            "GATE:gate:002",
+            "{\"item_id\":\"GATE:gate:002\"}",
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "gate-historical",
+            "capture",
+            "d2656f2c5515b2915b2e4e03a687d68bedad5fe5e12c6849b7703d6b22ab5508",
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
+            "GATE:gate:001",
+            "{\"item_id\":\"GATE:gate:001\"}",
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "gate-retain-0",
+            "capture",
+            "4bbda5e20747c5308fa3905a9eaef7732e695aefdc5f8251520a9cf7b6c030d6",
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
+            "GATE:gate:003",
+            "{\"item_id\":\"GATE:gate:003\"}",
+            "2026-10-14T23:51:08Z"
+          ],
+          [
+            "gate-retain-1",
+            "capture",
+            "80bc5d3f86658ce84b4186ae9ccfa421aaf9b086dee8753792c955c389c2e56e",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
+            "GATE:gate:004",
+            "{\"item_id\":\"GATE:gate:004\"}",
+            "2026-10-14T23:51:08Z"
+          ]
+        ],
+        "operations": [
+          [
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
+            "GATE:gate:001",
+            "capture",
+            null,
+            1,
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
+            "GATE:gate:002",
+            "capture",
+            null,
+            1,
+            "2026-10-14T23:51:07Z"
+          ],
+          [
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
+            "GATE:gate:003",
+            "capture",
+            null,
+            1,
+            "2026-10-14T23:51:08Z"
+          ],
+          [
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
+            "GATE:gate:004",
+            "capture",
+            null,
+            1,
+            "2026-10-14T23:51:08Z"
+          ]
+        ],
+        "project_path_mappings": [],
+        "project_remote_mappings": [],
+        "projects": [
+          [
+            "gate",
+            "2026-10-14T23:51:07Z"
+          ]
+        ],
+        "requester_project_counters": [
+          [
+            "GATE",
+            "gate",
+            5
+          ]
+        ],
+        "schema_migrations": [
+          [
+            1,
+            "initial",
+            "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
+            "2026-10-14T23:51:07.877Z"
+          ],
+          [
+            2,
+            "immutable_events",
+            "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
+            "2026-10-14T23:51:07.877Z"
+          ],
+          [
+            3,
+            "projection_read_indexes",
+            "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
+            "2026-10-14T23:51:07.877Z"
+          ],
+          [
+            4,
+            "change_journal",
+            "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
+            "2026-10-14T23:51:07.899Z"
+          ]
+        ],
+        "sqlite_sequence": [
+          [
+            "change_journal",
+            3
+          ]
+        ],
+        "store_metadata": [
+          [
+            1,
+            "6ce39c9c-0299-49c6-a6e5-2ab253986aac",
+            "2026-10-14T23:51:07.877Z"
+          ]
+        ]
+      },
+      "schema_sha256": "d09f0687b982f3520195af08707fb6c5bd3e1d2182f34beb20bb3fbf3541d22a",
+      "content_sha256": "4d52a6a9f9f92b48074cf02addb1f9de750977e89188669769e1c3bcf39d513c",
+      "migrations": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "integrity": "ok",
+      "foreign_keys": []
+    },
+    "audit_receipts_and_allocator_unchanged": true,
+    "retained_coverage_verified": true
+  },
+  "diagnostic": {
+    "argv": [
+      "sqlite3",
+      "-readonly",
+      "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite",
+      "SELECT generation, retention_floor AS F, high_water AS H FROM journal_metadata WHERE singleton = 1;"
+    ],
+    "exit_code": 0,
+    "stdout": "bc9d4fd777a54b5f7140cc8b63bd294c|0|3\n",
+    "stderr": "",
+    "filesystem": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   228Gi   198Gi   4.6Gi    98%    3.0M   48M    6%   /System/Volumes/Data\n",
+    "sqlite_cli": "3.54.0 2026-04-09 12:25:13 8fa8248e303219400c646a885e36dfc52eae33d83f4412e3f369b2be5373aapl (64-bit)\n",
+    "disposition": "passed",
+    "live_configuration_workaround": false
+  },
+  "commands": [
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
+        "init",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/fresh/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/fresh",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Initialized BIF\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/fresh/config.toml\nstore: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/fresh/.bif/bif.sqlite\nrequester: GATE\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
+        "init",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Initialized BIF\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml\nstore: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite\nrequester: GATE\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
+        "capture",
+        "Historical rollback item",
+        "--project",
+        "gate",
+        "--idempotency-key",
+        "gate-historical",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Captured GATE:gate:001\ntitle: Historical rollback item\nstatus: proposed\nreplayed: false\nsource: local\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
+        "doctor",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "version: 0.1.0\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml\nstore-id: 6ce39c9c-0299-49c6-a6e5-2ab253986aac\nstore-path: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite\nschema-version: 4\nproject: bif\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
+        "capture",
+        "Current backup journal row",
+        "--project",
+        "gate",
+        "--idempotency-key",
+        "gate-before-backup",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Captured GATE:gate:002\ntitle: Current backup journal row\nstatus: proposed\nreplayed: false\nsource: local\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
+        "maintenance",
+        "backup",
+        "--store",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite",
+        "--output",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema4-backup.sqlite",
+        "--offline"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Verified backup: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema4-backup.sqlite\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
+        "capture",
+        "Preserved later write",
+        "--project",
+        "gate",
+        "--idempotency-key",
+        "gate-later",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Captured GATE:gate:003\ntitle: Preserved later write\nstatus: proposed\nreplayed: false\nsource: local\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
+        "maintenance",
+        "restore",
+        "--store",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite",
+        "--from",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema4-backup.sqlite",
+        "--preserve-later",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-0.sqlite",
+        "--offline"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Verified restore: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite\nPreserved later store: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-0.sqlite\nSync inactive; bootstrap required. Restart all clients.\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
+        "maintenance",
+        "restore",
+        "--store",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite",
+        "--from",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema4-backup.sqlite",
+        "--preserve-later",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-1.sqlite",
+        "--offline"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Verified restore: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite\nPreserved later store: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-1.sqlite\nSync inactive; bootstrap required. Restart all clients.\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
+        "capture",
+        "Retained 0",
+        "--project",
+        "gate",
+        "--idempotency-key",
+        "gate-retain-0",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Captured GATE:gate:003\ntitle: Retained 0\nstatus: proposed\nreplayed: false\nsource: local\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
+        "capture",
+        "Retained 1",
+        "--project",
+        "gate",
+        "--idempotency-key",
+        "gate-retain-1",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Captured GATE:gate:004\ntitle: Retained 1\nstatus: proposed\nreplayed: false\nsource: local\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
+        "maintenance",
+        "prune",
+        "--store",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite",
+        "--expected-generation",
+        "bc9d4fd777a54b5f7140cc8b63bd294c",
+        "--through",
+        "2",
+        "--offline"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Pruned journal through 2: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
+        "doctor",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "version: 0.1.0\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/config.toml\nstore-id: 6ce39c9c-0299-49c6-a6e5-2ab253986aac\nstore-path: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/.bif/bif.sqlite\nschema-version: 3\nproject: bif\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
+        "get",
+        "GATE:gate:001",
+        "--json",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "{\"acceptance_criteria\":[],\"assignee\":null,\"captured_at\":\"2026-10-14T23:51:07Z\",\"description\":null,\"id\":\"GATE:gate:001\",\"priority\":null,\"project\":\"gate\",\"provenance\":{\"context_excerpt\":null,\"message_id\":null,\"repository_reference\":null,\"revision_reference\":null,\"source_host\":\"local\",\"thread_id\":null,\"url\":null},\"requester\":\"GATE\",\"revision\":1,\"sequence\":1,\"status\":\"proposed\",\"status_reason\":null,\"title\":\"Historical rollback item\",\"updated_at\":\"2026-10-14T23:51:07Z\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
+        "history",
+        "GATE:gate:001",
+        "--json",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "{\"events\":[{\"actor\":{\"host\":\"local\",\"id\":\"GATE\",\"kind\":\"human\",\"surface\":\"cli\"},\"after\":null,\"before\":null,\"event_id\":\"cli-event-000000000000000018de8a64f1839438-0000000000000000\",\"event_index\":0,\"event_type\":\"captured\",\"execution\":{\"host\":\"local\",\"kind\":\"direct\",\"surface\":\"cli\"},\"item_revision\":1,\"note\":null,\"occurred_at\":\"2026-10-14T23:51:07Z\",\"operation_id\":\"cli-000000000000000018de8a64f1839438-0000000000000000\",\"reason\":null,\"schema_version\":1}]}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
+        "capture",
+        "Historical rollback item",
+        "--project",
+        "gate",
+        "--idempotency-key",
+        "gate-historical",
+        "--config",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/config.toml",
+        "--root",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback",
+        "--requester",
+        "GATE"
+      ],
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+      "exit_code": 0,
+      "stdout": "Captured GATE:gate:001\ntitle: Historical rollback item\nstatus: proposed\nreplayed: true\nsource: local\n",
+      "stderr": ""
+    }
+  ]
+}

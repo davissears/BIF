@@ -26,8 +26,10 @@ The historical local measurement tree is dirty `c5605ce` plus the parent protoco
 error-ID fix and live-pagination discovery descriptions;
 artifact hashes identify its actual production inputs, not a clean final
 revision. The old binary is an archived historical schema-2 build, not a
-retained operator-approved production executable. Phase E and later remain
-deferred; no model-token savings have been measured.
+retained operator-approved production executable. The Phase E storage foundation
+keeps `sync_enabled=0` and `bootstrap_required=1`; actual sync endpoints,
+bootstrap and reconciliation remain Phase F. No model-token savings have been
+measured.
 V2 rejects noncanonical persisted requester/project coordinates before
 returning projection keys; v1 retains its accepted normalization and raw-filter
 behavior. Comparison evidence reports residual legacy sorting, sparse/text
@@ -196,6 +198,12 @@ exhausted, including an empty project result. Coalescing must not advance past
 unconsumed records. Limit journal rows examined/consumed as well as output
 items and bytes; these are different bounds.
 
+Wire consumers must use explicit coverage and continuation, not infer coverage
+from dense sequence numbering or the number of replacements. Project-filtered
+pages can be sparse even when the global journal is contiguous. The abstract
+synchronization contract also permits gaps in global positions; its gapped
+fixtures do not assert that current maintenance accepts such a store.
+
 Hydrated current state can be newer than `H`. `through` describes covered
 journal positions, not an as-of snapshot of returned objects. Consumers replace
 objects monotonically by revision and atomically persist replacements and the
@@ -230,6 +238,16 @@ An unexpectedly missing current row is corruption, not an inferred tombstone.
   maintenance path. Silent out-of-band replacement cannot be magically detected
   by a process that has no external history of the store.
 - Keep WAL, foreign keys, and the existing `synchronous=FULL` policy.
+
+The current supported allocation transaction and prefix-pruning policy provide
+a stronger storage invariant than the abstract wire contract: the retained
+global range `(F, H]` is contiguous, where `F` is the durable retention floor and
+`H` is the durable high water. Current maintenance validates that the retained
+row count is `H - F`, alongside operation links and allocator metadata; a hole
+in that range fails integrity validation. SQLite `AUTOINCREMENT` alone is not
+a universal density proof. Keep both rules: abstract wire consumers tolerate
+gaps, while current storage maintenance enforces its contiguous retained range.
+See the [maintenance validation and recovery runbook](bif-upgrade-runbook.md#current-schema-offline-backup-and-restore-v2-033).
 
 ### 2.8 Bound payloads without silently dropping content
 
@@ -820,6 +838,15 @@ event replay, patch, and historical-snapshot interpretations.
 hydrated version, no changes, other-project changes, queue exit, and lost
 client baseline. Tombstone fixtures are clearly marked future-domain cases.
 
+**Normative contract:** [Synchronization/recovery fixtures](fixtures/bif-v2-sync-contract.json)
+and their [strict schema](fixtures/bif-v2-sync-contract.schema.json) freeze
+sections 2.6–2.9, including exact wire shapes and store-global retention coverage.
+These are pure contract models, not a synchronization runtime release.
+Phase E runtime checks cover existing page/history/validator/warm-session
+generation invalidation and storage read interleavings only. Actual sync
+expiry, bootstrap, and reconciliation validation belongs to V2-036, V2-039,
+and later Phase F integration; V2-035 must not depend on V2-037.
+
 #### V2-029 — Add journal and generation schema
 
 **Depends on:** V2-028, V2-054.
@@ -852,9 +879,11 @@ the same transaction as cursor-dependent reads or mutation acceptance.
 connections able to accept stale identities after supported restore.
 
 **Verification:** Page/history continuation and conditional reads succeed
-across ordinary process restart but fail after generation rotation. A warm
-session requests restart; an old validator never yields `not_modified` for
-different restored content at the same item revision.
+across ordinary process restart. After generation rotation, page/history
+cursors invalidate and a warm session requests restart. A well-formed old
+validator returns `modified` as a cache miss even at the same item revision;
+a generation-less validator remains an actionable `invalid_input` error with
+`generation_missing` and `refetch_required: true`, never `not_modified`.
 
 #### V2-030 — Journal successful captures atomically
 
@@ -913,8 +942,9 @@ main file without its WAL state.
 generation through the supported restore workflow.
 
 **Verification:** Restore an earlier disposable backup after later mutations;
-old page/sync cursors fail and a new bootstrap succeeds. No down-migration or
-automatic deletion of the later store is performed.
+existing page/history cursors, validators, and warm sessions invalidate.
+Actual sync-cursor rejection and a new bootstrap are validated in Phase F.
+No down-migration or automatic deletion of the later store is performed.
 
 #### V2-034 — Implement explicit journal retention
 
@@ -929,8 +959,9 @@ in-flight clients can expire and must restart.
 reuse; callers can reliably detect unavailable coverage.
 
 **Verification:** Prune none/some/all retained rows, restart, append, and compare
-positions. Interleave pruning with page reads; each read either has complete
-retained coverage or reports expiration, never a successful partial gap.
+positions. Interleave pruning with storage reads to prove same-transaction
+floor/coverage/row visibility, never a successful partial gap. Actual sync
+expiry and bootstrap restart validation are deferred to Phase F.
 
 #### V2-035 — Gate the journal migration
 
@@ -976,8 +1007,11 @@ no-change path and avoid rescanning irrelevant project history.
 writes, and duplicate hot-item changes do not require duplicate output rows
 within the chunk.
 
-**Verification:** Sparse projects, sequence gaps, hot items, limits of one,
-empty results, and continual writes cannot stall or skip the consumed interval.
+**Verification:** Sparse projects, abstract wire-model sequence gaps, hot items,
+limits of one, empty results, and continual writes cannot stall or skip the
+consumed interval.
+Gapped global-position fixtures exercise wire/consumer semantics, not acceptance
+by current storage maintenance; its retained-range integrity check remains.
 
 #### V2-038 — Hydrate complete sync replacements
 

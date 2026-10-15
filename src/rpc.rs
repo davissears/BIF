@@ -114,6 +114,7 @@ pub enum ErrorCode {
     UnsupportedVersion,
     NotInitialized,
     StorageBusy,
+    RestartRequired,
     Internal,
 }
 
@@ -129,6 +130,7 @@ impl ErrorCode {
             Self::UnsupportedVersion => 8,
             Self::NotInitialized => 9,
             Self::StorageBusy => 10,
+            Self::RestartRequired => 11,
             Self::Internal => 1,
         }
     }
@@ -155,6 +157,17 @@ impl RpcError {
             ErrorCode::InvalidInput,
             "Request input is not valid BIF RPC v1",
             Map::new(),
+        )
+    }
+
+    pub fn restart_required() -> Self {
+        Self::new(
+            ErrorCode::RestartRequired,
+            "The store identity changed; restart required",
+            serde_json::json!({"reason":"store_identity_changed","restart_required":true})
+                .as_object()
+                .expect("object literal")
+                .clone(),
         )
     }
 }

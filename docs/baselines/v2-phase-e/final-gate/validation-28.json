@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "python3",
+    "docs/baselines/v2-phase-e/final-gate/test_gate.py"
+  ],
+  "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py",
+  "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+  "started_at_unix_ns": 1792022037344942000,
+  "finished_at_unix_ns": 1792022040321256000,
+  "elapsed_seconds": 2.976314,
+  "available_bytes_before": 8328359936,
+  "available_bytes_after": 8328212480,
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": "......................\n----------------------------------------------------------------------\nRan 22 tests in 2.917s\n\nOK\n",
+  "python_tests": 22
+}

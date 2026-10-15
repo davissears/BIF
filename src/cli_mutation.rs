@@ -228,7 +228,7 @@ pub(crate) fn execute(options: MutationOptions) -> Result<String, CliError> {
         human_authorization: Some(HumanAuthorization::Direct { trusted: true }),
     };
     let result = application::mutate_item_idempotent(
-        &mut MutationRepository::new(&mut connection),
+        &mut MutationRepository::new(&mut connection)?,
         &mut SystemClock,
         &mut SystemIdentities { event_count },
         &authorization,
@@ -238,7 +238,11 @@ pub(crate) fn execute(options: MutationOptions) -> Result<String, CliError> {
             expected_revision: options.expected_revision,
             mutation: options.mutation,
         },
-    )?;
+    )
+    .map_err(|error| match error {
+        application::MutationUseCaseError::RestartRequired => CliError::RestartRequired,
+        error => CliError::from(error),
+    })?;
     let item = result.item;
     Ok(format!(
         "Updated {}\nstatus: {}\npriority: {}\nassignee: {}\nrevision: {}\nreplayed: {}\n",

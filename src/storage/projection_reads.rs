@@ -127,15 +127,11 @@ impl ConditionalProjectionStore for ProjectionRepository<'_> {
                     "invalid revision",
                 ))
             })?;
-        let store = super::read_store_identity(&transaction).map_err(sqlite)?;
-        let schema = transaction
-            .prepare_cached("PRAGMA schema_version")
-            .map_err(sqlite)?
-            .query_row([], |row| row.get(0))
-            .map_err(sqlite)?;
+        let state = super::read_store_state(&transaction).map_err(sqlite)?;
         let validator = ProjectionValidator::new(
-            &store,
-            schema,
+            &state.store_id,
+            state.generation.as_str(),
+            state.schema_version,
             &request.item_id,
             request.projection,
             revision,
@@ -145,7 +141,14 @@ impl ConditionalProjectionStore for ProjectionRepository<'_> {
             .as_deref()
             .map(|known| validator.matches(known))
             .transpose()
-            .map_err(|_| ConditionalReadError::InvalidValidator)?
+            .map_err(|error| match error {
+                crate::application::InvalidValidator::Malformed => {
+                    ConditionalReadError::InvalidValidator
+                }
+                crate::application::InvalidValidator::GenerationMissing => {
+                    ConditionalReadError::GenerationMissing
+                }
+            })?
             .unwrap_or(false);
         let version = validator.into_string();
         let result = if hit {

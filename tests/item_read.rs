@@ -77,7 +77,7 @@ fn captured_and_triaged_item_round_trips_every_canonical_field() {
     static CHANGES: &[&str] = &["approve", "priority", "assignee"];
     let mut connection = storage::open(":memory:").unwrap();
     let captured = capture(
-        &mut CaptureRepository::new(&mut connection),
+        &mut CaptureRepository::new(&mut connection).unwrap(),
         &mut FixedClock("2025-03-01T01:02:03Z"),
         &mut CaptureIds,
         &authorization(Command::Capture),
@@ -108,7 +108,7 @@ fn captured_and_triaged_item_round_trips_every_canonical_field() {
     .item;
 
     let expected = mutate_item(
-        &mut MutationRepository::new(&mut connection),
+        &mut MutationRepository::new(&mut connection).unwrap(),
         &mut FixedClock("2025-03-02T02:03:04Z"),
         &mut MutationIds,
         &authorization(Command::Mutation {

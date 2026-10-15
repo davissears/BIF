@@ -86,7 +86,7 @@ fn repeat_startup_is_a_no_op_and_preserves_store_identity() {
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .unwrap();
-    assert_eq!(state, (3, store_id));
+    assert_eq!(state, (4, store_id));
     assert_eq!(durable_data(&connection), data);
     assert_eq!(
         rows(
@@ -138,7 +138,7 @@ fn newer_schema_version_is_rejected() {
     connection
         .execute(
             "INSERT INTO schema_migrations (version, name, checksum, applied_at)
-             VALUES (4, 'future', 'future-checksum', 'now')",
+             VALUES (5, 'future', 'future-checksum', 'now')",
             [],
         )
         .unwrap();
@@ -148,8 +148,8 @@ fn newer_schema_version_is_rejected() {
     assert!(matches!(
         error,
         MigrationError::NewerSchema {
-            found: 4,
-            supported: 3
+            found: 5,
+            supported: 4
         }
     ));
 }
@@ -284,7 +284,9 @@ fn schema_v2_upgrade_preserves_all_data_and_repeat_startup_is_unchanged() {
         rows(
             &connection,
             "SELECT type, name, tbl_name, sql FROM sqlite_schema
-             WHERE name NOT LIKE 'idx_items_read_%' ORDER BY name",
+             WHERE name NOT LIKE 'idx_items_read_%'
+              AND tbl_name NOT IN ('journal_metadata', 'change_journal', 'sqlite_sequence')
+             ORDER BY name",
         ),
         schema
     );
@@ -326,7 +328,7 @@ fn every_registered_checksum_is_pinned_and_v3_tampering_is_rejected() {
         .unwrap()
         .collect::<rusqlite::Result<_>>()
         .unwrap();
-    assert_eq!(history.len(), 3);
+    assert_eq!(history.len(), 4);
     assert_eq!(
         history[0],
         (
@@ -349,6 +351,14 @@ fn every_registered_checksum_is_pinned_and_v3_tampering_is_rejected() {
     assert_eq!(
         history[2].2,
         "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5"
+    );
+    assert_eq!(
+        history[3],
+        (
+            4,
+            "change_journal".into(),
+            "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2".into()
+        )
     );
     connection
         .execute(
@@ -411,4 +421,187 @@ fn conflicting_index_and_injected_bookkeeping_failure_roll_back_upgrade() {
             schema
         );
     }
+}
+
+#[test]
+fn journal_migration_prepares_independent_identity_without_audit_backfill() {
+    let (_directory, path) = temporary_database();
+    let connection = open(&path).unwrap();
+    let metadata = rows(&connection, "SELECT * FROM journal_metadata");
+    assert_eq!(metadata.len(), 1);
+    let state: (String, i64, i64, bool, bool) = connection
+        .query_row(
+            "SELECT generation, retention_floor, high_water, sync_enabled, bootstrap_required
+         FROM journal_metadata WHERE singleton = 1",
+            [],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            },
+        )
+        .unwrap();
+    assert_eq!(state.0.len(), 32);
+    assert!(
+        state
+            .0
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    );
+    assert_eq!((state.1, state.2, state.3, state.4), (0, 0, false, true));
+    let other = open(":memory:").unwrap();
+    let other_generation: String = other
+        .query_row("SELECT generation FROM journal_metadata", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_ne!(state.0, other_generation);
+    assert!(rows(&connection, "SELECT * FROM change_journal").is_empty());
+    drop(connection);
+    let connection = open(&path).unwrap();
+    assert_eq!(
+        rows(&connection, "SELECT * FROM journal_metadata"),
+        metadata
+    );
+}
+
+#[test]
+fn history_preflight_rejects_gaps_names_and_missing_bookkeeping_before_any_ddl() {
+    static TRACE: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+    for damage in [
+        "DELETE FROM schema_migrations WHERE version = 1",
+        "UPDATE schema_migrations SET name = 'wrong' WHERE version = 2",
+        "UPDATE schema_migrations SET checksum = 'wrong' WHERE version = 2",
+        "DROP TABLE schema_migrations",
+        "DELETE FROM schema_migrations",
+    ] {
+        let mut connection = Connection::open_in_memory().unwrap();
+        schema_v2(&connection);
+        connection.execute_batch(damage).unwrap();
+        let schema = rows(
+            &connection,
+            "SELECT type, name, sql FROM sqlite_schema ORDER BY name",
+        );
+        let data = durable_data(&connection);
+        TRACE.lock().unwrap().clear();
+        connection.trace_v2(
+            rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
+            Some(|event| {
+                if let rusqlite::trace::TraceEvent::Stmt(_, sql) = event {
+                    TRACE.lock().unwrap().push(sql.to_owned());
+                }
+            }),
+        );
+        assert!(
+            migrate(&mut connection).is_err(),
+            "accepted damaged history: {damage}"
+        );
+        connection.trace_v2(rusqlite::trace::TraceEventCodes::empty(), None);
+        let statements = TRACE.lock().unwrap();
+        assert!(
+            statements.iter().all(|sql| {
+                let sql = sql.trim().to_ascii_uppercase();
+                !["CREATE", "ALTER", "DROP", "INSERT", "UPDATE", "DELETE"]
+                    .iter()
+                    .any(|ddl| sql.starts_with(ddl))
+            }),
+            "preflight executed DDL/DML: {statements:?}"
+        );
+        assert_eq!(
+            rows(
+                &connection,
+                "SELECT type, name, sql FROM sqlite_schema ORDER BY name"
+            ),
+            schema
+        );
+        assert_eq!(durable_data(&connection), data);
+        assert!(!table_exists(&connection, "journal_metadata"));
+    }
+}
+
+#[test]
+fn journal_ddl_and_identity_roll_back_on_bookkeeping_failure_then_reopen() {
+    let (_directory, path) = temporary_database();
+    let mut connection = Connection::open(&path).unwrap();
+    schema_v2(&connection);
+    connection
+        .execute_batch(
+            "CREATE TRIGGER reject_v4 BEFORE INSERT ON schema_migrations
+         WHEN NEW.version = 4 BEGIN SELECT RAISE(ABORT, 'injected failure'); END;",
+        )
+        .unwrap();
+    let data = durable_data(&connection);
+    let schema = rows(
+        &connection,
+        "SELECT type, name, sql FROM sqlite_schema ORDER BY name",
+    );
+    assert!(migrate(&mut connection).is_err());
+    assert_eq!(durable_data(&connection), data);
+    assert_eq!(
+        rows(
+            &connection,
+            "SELECT type, name, sql FROM sqlite_schema ORDER BY name"
+        ),
+        schema
+    );
+    drop(connection);
+    assert!(open(&path).is_err());
+    let connection = Connection::open(&path).unwrap();
+    assert!(!table_exists(&connection, "journal_metadata"));
+    connection.execute_batch("DROP TRIGGER reject_v4").unwrap();
+    drop(connection);
+    let connection = open(&path).unwrap();
+    assert_eq!(durable_data(&connection), data);
+    assert!(rows(&connection, "SELECT * FROM change_journal").is_empty());
+}
+
+#[test]
+fn v1_upgrade_preserves_every_original_value_and_installs_event_protection() {
+    let (_directory, path) = temporary_database();
+    let connection = Connection::open(&path).unwrap();
+    schema_v2(&connection);
+    // Build the historical v1 fixture without using the current migration runner.
+    connection
+        .execute_batch(
+            "DROP TRIGGER events_reject_update; DROP TRIGGER events_reject_delete;
+         DELETE FROM schema_migrations WHERE version = 2;",
+        )
+        .unwrap();
+    let data = durable_data(&connection);
+    drop(connection);
+    let connection = open(&path).unwrap();
+    assert_eq!(durable_data(&connection), data);
+    assert!(
+        connection
+            .execute("UPDATE events SET note = 'changed'", [])
+            .is_err()
+    );
+    assert!(connection.execute("DELETE FROM events", []).is_err());
+    assert!(rows(&connection, "SELECT * FROM change_journal").is_empty());
+}
+
+#[test]
+fn journal_checksum_tampering_is_rejected_without_repair() {
+    let (_directory, path) = temporary_database();
+    let mut connection = open(&path).unwrap();
+    connection
+        .execute(
+            "UPDATE schema_migrations SET checksum = 'tampered' WHERE version = 4",
+            [],
+        )
+        .unwrap();
+    let metadata = rows(&connection, "SELECT * FROM journal_metadata");
+    assert!(matches!(migrate(&mut connection),
+        Err(MigrationError::ChecksumMismatch { version: 4, ref found, .. }) if found == "tampered"
+    ));
+    assert_eq!(
+        rows(&connection, "SELECT * FROM journal_metadata"),
+        metadata
+    );
+    drop(connection);
+    assert!(open(&path).is_err());
 }

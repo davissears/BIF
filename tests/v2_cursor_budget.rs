@@ -90,7 +90,8 @@ fn envelope(token: &str) -> Value {
 
 #[test]
 fn generated_overflow_borrows_large_key_and_context_fields_and_counts_to_the_end() {
-    let context = CursorContext::item_page("store", &request()).unwrap();
+    let context =
+        CursorContext::item_page("store", "00000000000000000000000000000000", &request()).unwrap();
     let baseline = key();
     let original = envelope(&context.encode_item_key(&baseline).unwrap());
     for field in ["requester", "project", "captured_at", "store_id"] {
@@ -120,7 +121,11 @@ fn generated_overflow_borrows_large_key_and_context_fields_and_counts_to_the_end
                 .unwrap();
             }
             "captured_at" => key.captured_at = Timestamp::new(&large),
-            "store_id" => context = CursorContext::item_page(&large, &request()).unwrap(),
+            "store_id" => {
+                context =
+                    CursorContext::item_page(&large, "00000000000000000000000000000000", &request())
+                        .unwrap()
+            }
             _ => unreachable!(),
         }
         if field == "store_id" {
@@ -142,7 +147,8 @@ fn generated_overflow_borrows_large_key_and_context_fields_and_counts_to_the_end
 
 #[test]
 fn real_codec_overflow_reports_exact_page_minimum_without_output_allocation() {
-    let context = CursorContext::item_page("store", &request()).unwrap();
+    let context =
+        CursorContext::item_page("store", "00000000000000000000000000000000", &request()).unwrap();
     let mut key = key();
     let mut cursor_oracle = envelope(&context.encode_item_key(&key).unwrap());
     let timestamp = "雪\n\"\\".repeat(MAX_CURSOR_BYTES);

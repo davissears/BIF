@@ -108,7 +108,7 @@ fn compound_mutation_updates_once_and_persists_ordered_complete_history() {
     let mut connection = storage::open(temp.path().join("bif.sqlite")).unwrap();
     let id = seed(&connection);
     let item = mutate_item(
-        &mut MutationRepository::new(&mut connection),
+        &mut MutationRepository::new(&mut connection).unwrap(),
         &mut FixedClock,
         &mut FixedIdentities {
             operation_id: "mutation-operation".to_owned(),
@@ -192,7 +192,7 @@ fn invalid_component_and_event_insert_failure_roll_back_item_and_history() {
     };
     assert!(
         mutate_item(
-            &mut MutationRepository::new(&mut connection),
+            &mut MutationRepository::new(&mut connection).unwrap(),
             &mut FixedClock,
             &mut FixedIdentities {
                 operation_id: "invalid-operation".to_owned(),
@@ -206,7 +206,7 @@ fn invalid_component_and_event_insert_failure_roll_back_item_and_history() {
         .is_err()
     );
     let error = mutate_item(
-        &mut MutationRepository::new(&mut connection),
+        &mut MutationRepository::new(&mut connection).unwrap(),
         &mut FixedClock,
         &mut FixedIdentities {
             operation_id: "failed-operation".to_owned(),
@@ -267,7 +267,7 @@ fn concurrent_expected_revision_allows_one_winner_and_stale_requests_write_nothi
                 };
                 barrier.wait();
                 mutate_item(
-                    &mut MutationRepository::new(&mut connection),
+                    &mut MutationRepository::new(&mut connection).unwrap(),
                     &mut FixedClock,
                     &mut identities,
                     &authorization(),
@@ -296,7 +296,7 @@ fn concurrent_expected_revision_allows_one_winner_and_stale_requests_write_nothi
     let mut connection = storage::open(database_path).unwrap();
     let snapshot = mutation_state(&connection);
     let stale = mutate_item(
-        &mut MutationRepository::new(&mut connection),
+        &mut MutationRepository::new(&mut connection).unwrap(),
         &mut FixedClock,
         &mut FixedIdentities {
             operation_id: "stale-operation".to_owned(),
@@ -325,7 +325,7 @@ fn committed_mutation_replays_before_stale_revision_and_changed_payload_conflict
     };
 
     let first = mutate_item_idempotent(
-        &mut MutationRepository::new(&mut connection),
+        &mut MutationRepository::new(&mut connection).unwrap(),
         &mut FixedClock,
         &mut FixedIdentities {
             operation_id: "lost-response-operation".to_owned(),
@@ -338,7 +338,7 @@ fn committed_mutation_replays_before_stale_revision_and_changed_payload_conflict
     assert!(!first.replayed);
 
     let replay = mutate_item_idempotent(
-        &mut MutationRepository::new(&mut connection),
+        &mut MutationRepository::new(&mut connection).unwrap(),
         &mut FixedClock,
         &mut FixedIdentities {
             operation_id: "unused-retry-operation".to_owned(),
@@ -356,7 +356,7 @@ fn committed_mutation_replays_before_stale_revision_and_changed_payload_conflict
     let mut changed = request;
     changed.mutation.triage.as_mut().unwrap().note = Some("changed note".to_owned());
     let conflict = mutate_item_idempotent(
-        &mut MutationRepository::new(&mut connection),
+        &mut MutationRepository::new(&mut connection).unwrap(),
         &mut FixedClock,
         &mut FixedIdentities {
             operation_id: "unused-conflict-operation".to_owned(),
@@ -399,7 +399,7 @@ fn writer_lock_maps_mutation_timeout_to_storage_busy() {
     writer.execute_batch("BEGIN IMMEDIATE").unwrap();
 
     let error = mutate_item(
-        &mut MutationRepository::new(&mut contender),
+        &mut MutationRepository::new(&mut contender).unwrap(),
         &mut FixedClock,
         &mut FixedIdentities {
             operation_id: "locked-operation".to_owned(),
@@ -425,6 +425,117 @@ fn writer_lock_maps_mutation_timeout_to_storage_busy() {
     );
     writer.execute_batch("ROLLBACK").unwrap();
     assert_eq!(mutation_state(&contender), snapshot);
+}
+
+#[test]
+fn stale_mutation_handle_rejects_replay_noop_and_effective_writes_but_fresh_handles_work() {
+    let temp = TempDirectory::new();
+    let database = temp.path().join("generation.sqlite");
+    let mut connection = storage::open(&database).unwrap();
+    let writer = storage::open(&database).unwrap();
+    let id = seed(&connection);
+    let mut repository = MutationRepository::new(&mut connection).unwrap();
+    let replay = MutationRequest {
+        idempotency_key: "first".into(),
+        item_id: id.clone(),
+        expected_revision: Revision::new(1).unwrap(),
+        mutation: compound(),
+    };
+    let mut identities = FixedIdentities {
+        operation_id: "first".into(),
+        event_ids: (0..4).map(|i| format!("first-{i}")).collect(),
+    };
+    mutate_item_idempotent(
+        &mut repository,
+        &mut FixedClock,
+        &mut identities,
+        &authorization(),
+        replay.clone(),
+    )
+    .unwrap();
+    let before = mutation_state(&writer);
+    writer
+        .execute(
+            "UPDATE journal_metadata SET generation = '00000000000000000000000000000000'",
+            [],
+        )
+        .unwrap();
+    let noop = MutationRequest {
+        idempotency_key: "noop".into(),
+        item_id: id.clone(),
+        expected_revision: Revision::new(2).unwrap(),
+        mutation: ItemMutation {
+            lifecycle: None,
+            triage: Some(Triage {
+                priority: TriageField::Set(Priority::P1),
+                ..Default::default()
+            }),
+        },
+    };
+    let effective = MutationRequest {
+        idempotency_key: "effective".into(),
+        mutation: ItemMutation {
+            lifecycle: None,
+            triage: Some(Triage {
+                note: Some("new note".into()),
+                ..Default::default()
+            }),
+        },
+        ..noop.clone()
+    };
+    for request in [replay.clone(), noop.clone(), effective.clone()] {
+        let error = mutate_item_idempotent(
+            &mut repository,
+            &mut FixedClock,
+            &mut identities,
+            &authorization(),
+            request,
+        )
+        .unwrap_err();
+        assert_eq!(error.code(), "restart_required");
+        assert_eq!(mutation_state(&writer), before);
+    }
+    drop(repository);
+    assert!(connection.is_autocommit());
+    let mut fresh = MutationRepository::new(&mut connection).unwrap();
+    assert!(
+        mutate_item_idempotent(
+            &mut fresh,
+            &mut FixedClock,
+            &mut identities,
+            &authorization(),
+            replay
+        )
+        .unwrap()
+        .replayed
+    );
+    assert!(
+        !mutate_item_idempotent(
+            &mut fresh,
+            &mut FixedClock,
+            &mut identities,
+            &authorization(),
+            noop
+        )
+        .unwrap()
+        .replayed
+    );
+    identities.operation_id = "effective".into();
+    identities.event_ids = vec!["new-note".into()];
+    assert_eq!(
+        mutate_item_idempotent(
+            &mut fresh,
+            &mut FixedClock,
+            &mut identities,
+            &authorization(),
+            effective
+        )
+        .unwrap()
+        .item
+        .revision()
+        .get(),
+        3
+    );
 }
 
 fn mutation_state(connection: &rusqlite::Connection) -> (String, i64, String, i64, i64, i64) {

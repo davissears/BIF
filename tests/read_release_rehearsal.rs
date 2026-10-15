@@ -33,7 +33,7 @@ impl IdentityGenerator for Inputs<'_> {
 /// Production capture creates durable audit history and an idempotency receipt.
 fn write(connection: &mut Connection, key: &str) {
     capture(
-        &mut CaptureRepository::new(connection),
+        &mut CaptureRepository::new(connection).unwrap(),
         &mut Inputs("clock"),
         &mut Inputs(key),
         &AuthorizationRequest {
@@ -67,6 +67,36 @@ fn write(connection: &mut Connection, key: &str) {
     .unwrap();
 }
 
+/// Historical schema-2 fixture, not an old-binary write rehearsal. Current
+/// repositories require generation metadata and must not write unmigrated stores.
+fn seed_schema_two(connection: &Connection) {
+    connection
+        .execute_batch(
+            "BEGIN IMMEDIATE;
+         INSERT INTO projects VALUES ('bif', '2026-01-01T00:00:00Z');
+         INSERT INTO requester_project_counters VALUES ('REHEARSAL', 'bif', 2);
+         INSERT INTO items VALUES (
+          'REHEARSAL:bif:001', 'REHEARSAL', 'bif', 1, 'Before upgrade', NULL,
+          'proposed', NULL, NULL, NULL, 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+         INSERT INTO item_acceptance_criteria VALUES ('REHEARSAL:bif:001', 0, 'Preserve receipt');
+         INSERT INTO item_provenance (item_id) VALUES ('REHEARSAL:bif:001');
+         INSERT INTO operations VALUES (
+          'rehearsal-operation-pre-upgrade-key', 'REHEARSAL:bif:001', 'capture', NULL, 1,
+          '2026-01-01T00:00:00Z');
+         INSERT INTO events VALUES (
+          'rehearsal-event-pre-upgrade-key', 'rehearsal-operation-pre-upgrade-key',
+          'REHEARSAL:bif:001', 1, 0, 'captured', NULL, NULL, 'human', 'rehearsal',
+          'cli', 'local', 'direct', NULL, 'cli', 'local', NULL, NULL, '2026-01-01T00:00:00Z', 1);
+         INSERT INTO mutation_receipts VALUES (
+          'pre-upgrade-key', 'capture',
+          '7a86ef4493025d87b0f19b0b7ce79400fb2de05b4ad8371cf646c86302297595',
+          'rehearsal-operation-pre-upgrade-key', 'REHEARSAL:bif:001',
+          '{\"item_id\":\"REHEARSAL:bif:001\"}', '2026-01-01T00:00:00Z');
+         COMMIT;",
+        )
+        .unwrap();
+}
+
 /// Restore always targets a new file in an independently owned root.
 fn online_backup(source: &Connection, destination: &Path) {
     assert!(!destination.exists());
@@ -94,7 +124,9 @@ fn durable_state(connection: &Connection) -> Vec<(String, Vec<Vec<Value>>)> {
     let tables: Vec<String> = connection
         .prepare(
             "SELECT name FROM sqlite_schema WHERE type = 'table'
-             AND name NOT LIKE 'sqlite_%' AND name != 'schema_migrations' ORDER BY name",
+             AND name NOT LIKE 'sqlite_%'
+             AND name NOT IN ('schema_migrations', 'journal_metadata', 'change_journal')
+             ORDER BY name",
         )
         .unwrap()
         .query_map([], |row| row.get(0))
@@ -141,7 +173,7 @@ fn online_backup_upgrade_and_separate_root_rollback_preserve_schema_two() {
 
     // No current migration followed by DELETE/downmigration: use untouched scripts
     // and the historical checksums that production migration 3 must accept.
-    let mut original = Connection::open(&original_path).unwrap();
+    let original = Connection::open(&original_path).unwrap();
     original
         .execute_batch(
             "PRAGMA foreign_keys = ON;
@@ -166,8 +198,7 @@ fn online_backup_upgrade_and_separate_root_rollback_preserve_schema_two() {
          (1, 'initial', '6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e', 'v1-time'),
          (2, 'immutable_events', '1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced', 'v2-time');",
     ).unwrap();
-    write(&mut original, "pre-upgrade-key");
-    write(&mut original, "pre-upgrade-key"); // A retry must not duplicate history.
+    seed_schema_two(&original);
     verify(&original, 2);
     assert_eq!(
         rows(&original, "SELECT count(*) FROM events"),
@@ -205,8 +236,12 @@ fn online_backup_upgrade_and_separate_root_rollback_preserve_schema_two() {
     online_backup(&pristine, &candidate_path);
 
     let mut candidate = storage::open(&candidate_path).unwrap();
-    verify(&candidate, 3);
+    verify(&candidate, 4);
     assert_eq!(storage::read_store_identity(&candidate).unwrap(), identity);
+    assert_eq!(durable_state(&candidate), before);
+    // The current writer can replay the historical receipt after migration;
+    // no schema-2 constructor bypass is used to fabricate old-binary evidence.
+    write(&mut candidate, "pre-upgrade-key");
     assert_eq!(durable_state(&candidate), before);
     assert_eq!(
         rows(
@@ -218,12 +253,15 @@ fn online_backup_upgrade_and_separate_root_rollback_preserve_schema_two() {
     assert_eq!(
         rows(
             &candidate,
-            "SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'idx_items_read_%' ORDER BY name"
+            "SELECT type, name, tbl_name, sql FROM sqlite_schema
+             WHERE name NOT LIKE 'idx_items_read_%'
+              AND tbl_name NOT IN ('journal_metadata', 'change_journal', 'sqlite_sequence')
+             ORDER BY name"
         ),
         schema
     );
     write(&mut candidate, "candidate-only-key");
-    verify(&candidate, 3);
+    verify(&candidate, 4);
     assert_ne!(durable_state(&candidate), before);
     drop(candidate);
 

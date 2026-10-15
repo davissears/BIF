@@ -1,0 +1,240 @@
+{
+  "format": "bif-phase-e-final-gate-validation-v1",
+  "status": "passed",
+  "scope": "Fresh remediation Step 3 evidence after independently approved contract correction and bound Rust regression. Required checks passed; audit-only observer error in validation-36 was remediated in validation-37. Independent aggregate review remains pending.",
+  "starting_clean_head": "478aa623a229a04bd4a714f2a907728fa1f2944d",
+  "initial_batch_main_base": "d4399a93e49ce8f87e39e3129377821858472807",
+  "candidate_revision": "f0cd787f64a6bd3d301f11e616bb587e112a14fa",
+  "production_tree_unchanged": true,
+  "archived_phase_d_and_task007_evidence_unchanged": true,
+  "immutable_tracked_files_verified": 345,
+  "immutable_inventory_sha256": "15facb6b17b1b46cc0887b46a6d0718c175b4c1313aa4398d9e0e9b9ebc56de1",
+  "cumulative_task010_issues": 5,
+  "coordinator_reported_issue_counts": {"002": 3, "008": 2, "010": 5, "others": 0},
+  "arbitrary_issue_threshold": false,
+  "protocol_sha256": "dff0bd5e5413a0a4dfcb2eda0b23494fd1d5189047ecf572f2546cb13ea0be5e",
+  "generated_artifacts_sha256": {
+    "proof.json": "70433c66156438d1eed31dab2120fc679e1207ea8cb759c68cc690845312a3a9",
+    "protocol.json": "dff0bd5e5413a0a4dfcb2eda0b23494fd1d5189047ecf572f2546cb13ea0be5e",
+    "measurements.json": "9053432b4053cb9a25a0df726b7b8c24bf4f276556edc62aed918473d3a21d21",
+    "upgrade-proof.json": "911f74b83de70469fe3f8857cda102c75346794fb876b7e76b2965394f197f0b"
+  },
+  "frozen_harness_sha256": {
+    "gate.py": "db450e1283c07a4b07693133f5930fab63c74f00d5c370bf95c8bfab567ca790",
+    "test_gate.py": "9e6e84158a65ce0f79da52d8e614901bf40ff94da67a706637feec74ae5b80b3"
+  },
+  "runtime_command": "python3 docs/baselines/v2-phase-e/final-gate/gate.py --output docs/baselines/v2-phase-e/final-gate --work-dir target/phase-e-final-gate-aggregate-correction-1",
+  "runtime_result": "passed; exact frozen generator rebuilt authentic old/candidate, reran all correctness cases, froze protocol and measured all 18 workloads directly into current paths",
+  "runtime_elapsed_seconds": 84.942727,
+  "protocol_frozen_at_unix_ns": 1792021905441229000,
+  "measurements_started_at_unix_ns": 1792021905442203000,
+  "measurements_finished_at_unix_ns": 1792021920041812000,
+  "workload_pairs_including_warmups": 630,
+  "workload_cli_executions": 1260,
+  "recorded_setup_commands": 12,
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "python": "3.9.6",
+  "rust_cargo": "1.94.0",
+  "bundled_sqlite": "3.51.1",
+  "diagnostic_sqlite": "3.54.0",
+  "readonly_diagnostic": {
+    "argv_source": "proof.json diagnostic.argv",
+    "exit_code": 0,
+    "stdout": "bc9d4fd777a54b5f7140cc8b63bd294c|0|3\n",
+    "stderr": "",
+    "live_configuration_workaround": false,
+    "historical_deltafs_open_14": "unresolved; not a blanket readonly failure"
+  },
+  "cost_disposition": {
+    "rule": ">=10% paired median plus CI95 wholly above parity requires explanation/disposition review; >=10% with overlapping CI is inconclusive and requires a complete repeat",
+    "no_trigger": 18,
+    "explanation_review_required": 0,
+    "inconclusive_repeat": 0,
+    "effective_note_compound_paired_overhead_percent_range": [4.328309198586666, 7.750448721379932],
+    "raw_samples_filtered_or_transplanted": false
+  },
+  "remediated_issues": [
+    {
+      "issue": "capacity concern after generation",
+      "reported_and_paused": true,
+      "resolution": "Coordinator authorized continuation without cleanup/config changes; resume inventory observed 7.3 GiB free. All monitored checks completed above 2 GiB; no ENOSPC.",
+      "available_bytes_after_clippy": 6903500800,
+      "stop_threshold_bytes": 2147483648
+    },
+    {
+      "issue": "audit observer requested nonexistent toolchain key",
+      "reported_and_paused": true,
+      "failed_log": "validation-36.json",
+      "resolution": "Coordinator approved changing only observer lookup to actual rustc/cargo/active_toolchain/toolchain_executables/toolchain_sha256 fields; validation-37 passed. Failed log preserved unchanged."
+    }
+  ],
+  "release_approved": false,
+  "sync_enabled": 0,
+  "bootstrap_required": 1,
+  "phase_f_deferred": true,
+  "red_before_status": "Historical partial record copied from the invalid-validation archive, not newly executed or a claim of a complete red phase. New fixture/semantic controls are recorded separately below.",
+  "red_before": [
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py",
+      "exit_code": 1,
+      "failure": "ModuleNotFoundError: No module named 'gate'"
+    },
+    {
+      "command": "cargo test --locked --test phase_e_final_gate --test read_release_manifest",
+      "exit_code": 101,
+      "failure": "final_gate_controls_and_recorded_provenance_are_valid failed because gate was missing"
+    },
+    {
+      "command": "cargo test --locked --test read_release_manifest phase_e_final_foundation_gate_registers_proof_and_manual_measurements -- --exact",
+      "exit_code": 101,
+      "failure": "absent phase_e.final_gate.task: Null != V2-035"
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py GateTests.test_bundled_version_accepts_rust_c_string_bindings",
+      "exit_code": 1,
+      "failure": "AttributeError: module 'gate' has no attribute 'sqlite_version'"
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py GateTests.test_observers_establish_sqlite_access_before_either_workload",
+      "exit_code": 1,
+      "failure": "AttributeError: module 'gate' has no attribute 'open_observer'"
+    }
+  ],
+  "checks": [
+    {
+      "command": "python3 -",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-22.json",
+      "log_sha256": "3a6e99e728b7173dea878406b401c83afebeaaa831b9032d05470b2d49ffbecd",
+      "scope": "Exact stdin and complete immutable/production/harness pre-run SHA256 inventory; clean HEAD and unused workdir verified."
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/gate.py --output docs/baselines/v2-phase-e/final-gate --work-dir target/phase-e-final-gate-aggregate-correction-1",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-23.json",
+      "log_sha256": "47f70545eaec8a3d7b2d6a41ae2a407b9d69467dad5885410f388610ccedcc59",
+      "scope": "Complete fresh direct-output runtime, including exact readonly recipe; no writable-open workaround."
+    },
+    {
+      "command": "python3 -",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-24.json",
+      "log_sha256": "9146bb140dcaf4165e58a1072461c7608c0a677f5a4181119fed9f9c04bcc3eb",
+      "scope": "Capacity resume observation and same-private-checkout fixture/hash availability."
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/gate.py --validate --output docs/baselines/v2-phase-e/final-gate",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-25.json",
+      "log_sha256": "93cca713d1d2ffcb4ca12b444ca78ca07f21954962bc235b5859d4f746fb95cf"
+    },
+    {
+      "command": "python3 -",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-26.json",
+      "log_sha256": "e35f0b79e3c8ddeec8be93b365e49039d7add7bde4fc004a1d238d5e357852bc",
+      "scope": "Exact validation-11 stdin re-executed against this new run: real full-gate semantic attacks and canonical fixture counter-only/missing-table controls; no envelope hash/timing/statistic changes.",
+      "fresh_full_validate_attacks_rejected_semantically": 2,
+      "canonical_counter_only_change_detected": true,
+      "canonical_missing_table_cases_rejected": 16
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/test_rehearse.py",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-27.json",
+      "log_sha256": "b581fb798c4772c9bc6d3569c0ce98864499686ad7efd349fb79780831fb1546",
+      "python_tests": 4
+    },
+    {
+      "command": "python3 docs/baselines/v2-phase-e/final-gate/test_gate.py",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-28.json",
+      "log_sha256": "a832ff9c7189389d7cbd051f6df23425839f124cb15c51b3f2425aa915e2df34",
+      "python_tests": 22
+    },
+    {
+      "command": "cargo test --locked --test v2_sync_contract_fixtures --test maintenance_restore --test journal_retention",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-29.json",
+      "log_sha256": "8692eed3b605aa8847ed4590c4992855bdff2ef0a09d8d82b426061b5c1ce6b6",
+      "rust_test_totals": {"passed": 32, "failed": 0, "ignored": 0}
+    },
+    {
+      "command": "cargo test --locked --test migrations --test generation_transactions --test journal_storage --test capture_journal --test capture_journal_process --test mutation_journal --test mutation_journal_process --test journal_retention --test maintenance_cli --test maintenance_restore --test maintenance_process",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-30.json",
+      "log_sha256": "fe22a580e1a40a4322d2ecfc1d2abcf20ada829b9e7637d3697b47a35bd6f651",
+      "rust_test_totals": {"passed": 60, "failed": 0, "ignored": 4}
+    },
+    {
+      "command": "cargo test --locked --test phase_e_upgrade_proof --test phase_e_schema_guards --test read_release_manifest --test phase_e_final_gate",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-31.json",
+      "log_sha256": "7e6c89d6926e1d6cdd3617e3315aa540b4c835c574f88f731fa0446ec64c4872",
+      "rust_test_totals": {"passed": 15, "failed": 0, "ignored": 0}
+    },
+    {
+      "command": "cargo test --locked",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-32.json",
+      "log_sha256": "a4669cd9499dba606a88c23e1d738c38fedf0c09b138c1bc4a424793a3af506b",
+      "rust_test_totals": {"passed": 412, "failed": 0, "ignored": 6}
+    },
+    {
+      "command": "cargo fmt --all --check",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-33.json",
+      "log_sha256": "5ef0c3be01e6a39bc98bdf0ef89db26ca26dbda6a6c53e7d6e769b27b3016851"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-34.json",
+      "log_sha256": "719a117fcd81c1a947e5e316aaa3cbfc95c5b92d0ea2a334b5f433c14df4db07",
+      "warnings": "Pre-existing production/test warnings retained verbatim; no bound source edits.",
+      "warning_categories": ["clone_on_copy", "double_ended_iterator_last", "field_reassign_with_default", "io_other_error", "len_zero", "manual_is_multiple_of", "needless_option_as_deref", "needless_range_loop", "type_complexity", "unnecessary_lazy_evaluations", "wrong_self_convention"]
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-35.json",
+      "log_sha256": "f83b1d193b4eb3a54170a18e62518cce0c6eae2945b2b5489d1c5c6fb94964d7"
+    },
+    {
+      "command": "python3 -",
+      "exit_code": 1,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-36.json",
+      "log_sha256": "b40ab1d50bacb7335b1fa27b58380cdc7834b3dff65331734f534551b546f11b",
+      "scope": "Preserved failed companion audit observer: immutable checks completed, then KeyError: toolchain. Not a harness/build/evidence failure; corrected lookup rerun below."
+    },
+    {
+      "command": "python3 -",
+      "exit_code": 0,
+      "log": "docs/baselines/v2-phase-e/final-gate/validation-37.json",
+      "log_sha256": "7caba0285838af2ba0a5817093ab0a66ed911ea40503e425050cb680a9185e0e",
+      "scope": "Corrected only observer toolchain-field lookup; all 345 immutable files, production/historical/bound inputs and unchanged generated hashes verified; actual command counts/capacity and existing toolchain fields observed."
+    }
+  ],
+  "final_companion": {
+    "log": "docs/baselines/v2-phase-e/final-gate/validation-38.json",
+    "purpose": "Generated after this manifest: verifies every referenced log hash/command/exit/count including failed36, report measurement table/storage, current-path validation, immutable archives/source, correction-only audit stdin and final tracked/new-file diff checks.",
+    "hash_policy": "Companion SHA256 is returned in the completion message, not inserted here: it observes this final manifest without a source-binding or self-hash cycle."
+  },
+  "superseded": {
+    "archive": "docs/baselines/v2-phase-e/final-gate/invalid-validation-attempt",
+    "current_validation_01_through_21": "Preserved byte-identically as historical observations, not current source-bound acceptance evidence.",
+    "previous_current_evidence_git": "d66a6ae",
+    "binding_disposition": "Approved contract regression changed a bound Rust test; prior source binding is superseded, not retrospective invalidation of prior raw measurements.",
+    "target_only_corrected_run_1": "Historical disposable prior attempt; no current sample or claim transplanted."
+  },
+  "limits": [
+    "Local macOS execution; Ubuntu workflow registered, not executed here.",
+    "Four top-level ignored crash-test children are invoked by passing parent tests; two unrelated ignored Phase C/index measurement tests were not run.",
+    "Process-crash/reopen/retry, not physical power-loss/torn-write proof; maintenance kills test primitive boundaries, not production CLI interior.",
+    "Readonly recipe passed on intended disposable APFS-backed target path; prior DeltaFS open-14 remains unresolved for DeltaFS.",
+    "One-host generated warm-cache workload, not isolated transaction latency or a throughput/concurrency benchmark.",
+    "Serial disposable launcher gate, not a live service inventory or hostile writer exclusion.",
+    "No live ledger/configuration/store, Git write, publication, maintenance of a live store, sync activation or Phase F implementation.",
+    "Final independent whole-task010 rereview remains required; this status is evidence validation, not live release approval."
+  ]
+}

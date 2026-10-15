@@ -785,7 +785,7 @@ fn cursor_token(json: &str) -> String {
 fn cursor_structure_and_kind_fail_before_config_or_any_storage_side_effects() {
     let item = json!({
         "cursor_version": 1, "kind": "list", "store_id": "unbound-store",
-        "generation": null, "query_fingerprint": "unbound-query",
+        "generation": "00000000000000000000000000000000", "query_fingerprint": "unbound-query",
         "order_version": 1, "projection_schema_version": 1,
         "boundary": {"item": {
             "requester": "DAVIS", "project": "alpha", "sequence": u64::MAX,
@@ -804,7 +804,8 @@ fn cursor_structure_and_kind_fail_before_config_or_any_storage_side_effects() {
             json!(2),
             "unsupported_version",
         ),
-        ("/generation", json!("reserved"), "unsupported_version"),
+        ("/generation", json!("reserved"), "malformed"),
+        ("/generation", Value::Null, "generation_missing"),
         ("/kind", json!({"list": null}), "malformed"),
         ("/store_id", json!(1), "malformed"),
         ("/generation", json!(1), "malformed"),
@@ -955,9 +956,15 @@ fn full_width_structurally_valid_cursors_need_context_for_store_and_query_bindin
     };
     let store_id =
         bif::storage::read_store_identity(&Connection::open(&fixture.database).unwrap()).unwrap();
+    let generation: String = Connection::open(&fixture.database)
+        .unwrap()
+        .query_row("SELECT generation FROM journal_metadata", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
     let tokens = [
         (
-            CursorContext::item_page("different-store", &request)
+            CursorContext::item_page("different-store", &generation, &request)
                 .unwrap()
                 .encode_item_key(&item_key)
                 .unwrap(),
@@ -965,7 +972,7 @@ fn full_width_structurally_valid_cursors_need_context_for_store_and_query_bindin
             "wrong_store",
         ),
         (
-            CursorContext::history("different-store", &history_request)
+            CursorContext::history("different-store", &generation, &history_request)
                 .encode_history_key(&HistoryReadKey {
                     item_revision: Revision::new(u64::MAX).unwrap(),
                     event_index: u64::MAX,
@@ -975,7 +982,7 @@ fn full_width_structurally_valid_cursors_need_context_for_store_and_query_bindin
             "wrong_store",
         ),
         (
-            CursorContext::item_page(&store_id, &request)
+            CursorContext::item_page(&store_id, &generation, &request)
                 .unwrap()
                 .encode_item_key(&item_key)
                 .unwrap(),
@@ -983,7 +990,7 @@ fn full_width_structurally_valid_cursors_need_context_for_store_and_query_bindin
             "wrong_query",
         ),
         (
-            CursorContext::history(&store_id, &history_request)
+            CursorContext::history(&store_id, &generation, &history_request)
                 .encode_history_key(&HistoryReadKey {
                     item_revision: Revision::new(u64::MAX).unwrap(),
                     event_index: u64::MAX,

@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "python3",
+    "docs/baselines/v2-phase-e/final-gate/gate.py",
+    "--validate",
+    "--output",
+    "docs/baselines/v2-phase-e/final-gate"
+  ],
+  "command": "python3 docs/baselines/v2-phase-e/final-gate/gate.py --validate --output docs/baselines/v2-phase-e/final-gate",
+  "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+  "started_at_unix_ns": 1792022030800789000,
+  "finished_at_unix_ns": 1792022031335150000,
+  "elapsed_seconds": 0.534361,
+  "available_bytes_before": 7806795776,
+  "available_bytes_after": 7806984192,
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": ""
+}

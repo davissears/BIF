@@ -48,6 +48,7 @@ name = "bif"
 version = "0.1.0"
 dependencies = [
  "cap-std",
+ "getrandom",
  "jsonschema",
  "rusqlite",
  "same-file",

@@ -694,7 +694,7 @@ fn measure_mutation(
     let mut identities = Identities(0);
     measure(samples, "mutation_note", || {
         let item = mutate_item(
-            &mut MutationRepository::new(c),
+            &mut MutationRepository::new(c).map_err(MutationUseCaseError::Storage)?,
             &mut clock,
             &mut identities,
             &authorization,

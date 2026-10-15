@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "python3",
+    "docs/baselines/v2-phase-e/test_rehearse.py"
+  ],
+  "command": "python3 docs/baselines/v2-phase-e/test_rehearse.py",
+  "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+  "started_at_unix_ns": 1792022037237602000,
+  "finished_at_unix_ns": 1792022037315696000,
+  "elapsed_seconds": 0.078094,
+  "available_bytes_before": 8328364032,
+  "available_bytes_after": 8328364032,
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": "....\n----------------------------------------------------------------------\nRan 4 tests in 0.006s\n\nOK\n",
+  "python_tests": 4
+}
