@@ -1,6 +1,6 @@
 {
   "format": "bif-phase-e-upgrade-proof-v1",
-  "executed_at_unix_seconds": 1792019469,
+  "executed_at_unix_seconds": 1792021867,
   "harness_sha256": "437e64560033d3a01e621cd3c96291cac4be53649153cbc9ac23584a066897d2",
   "control_tests_sha256": "ab257972146f2c243881e409cca0fe58b17b618cab79f5ba251cef2ca10a78c8",
   "historical": {
@@ -280,7 +280,7 @@
     "toolchain_sha256": "dd510b4a3ab011309bb12f6fc3450596da2080670bd4f922eaff7cad1ca65794",
     "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)\nbinary: rustc\ncommit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db\ncommit-date: 2026-03-02\nhost: aarch64-apple-darwin\nrelease: 1.94.0\nLLVM version: 21.1.8",
     "cargo": "cargo 1.94.0 (85eff7c80 2026-01-15)",
-    "active_toolchain": "1.94.0-aarch64-apple-darwin (overridden by '/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-source/rust-toolchain.toml')",
+    "active_toolchain": "1.94.0-aarch64-apple-darwin (overridden by '/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-source/rust-toolchain.toml')",
     "toolchain_executables": {
       "rustc": {
         "path": "/Users/davissears/.rustup/toolchains/1.94.0-aarch64-apple-darwin/bin/rustc",
@@ -300,12 +300,12 @@
         "--bin",
         "bif",
         "--target-dir",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-source",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-source",
       "exit_code": 0,
       "stdout": "",
-      "stderr": "   Compiling libc v0.2.189\n   Compiling bitflags v2.13.2\n   Compiling proc-macro2 v1.0.107\n   Compiling rustix v1.1.4\n   Compiling io-lifetimes v3.0.1\n   Compiling find-msvc-tools v0.1.12\n   Compiling quote v1.0.47\n   Compiling shlex v2.0.1\n   Compiling io-lifetimes v2.0.4\n   Compiling unicode-ident v1.0.24\n   Compiling cc v1.4.5\n   Compiling pkg-config v0.3.34\n   Compiling serde_core v1.0.229\n   Compiling io-extras v0.19.0\n   Compiling vcpkg v0.2.15\n   Compiling foldhash v0.2.0\n   Compiling cap-primitives v4.0.3\n   Compiling getrandom v0.3.4\n   Compiling zmij v1.0.23\n   Compiling hashbrown v0.16.1\n   Compiling cfg-if v1.0.4\n   Compiling ipnet v2.12.2\n   Compiling cap-std v4.0.3\n   Compiling ambient-authority v0.0.2\n   Compiling serde v1.0.229\n   Compiling errno v0.3.14\n   Compiling maybe-owned v0.3.4\n   Compiling syn v3.0.5\n   Compiling serde_json v1.0.151\n   Compiling hashlink v0.11.1\n   Compiling fastrand v2.5.0\n   Compiling fallible-streaming-iterator v0.1.9\n   Compiling itoa v1.0.18\n   Compiling smallvec v1.16.1\n   Compiling libsqlite3-sys v0.36.0\n   Compiling fallible-iterator v0.3.0\n   Compiling once_cell v1.21.4\n   Compiling memchr v2.8.3\n   Compiling same-file v1.0.6\n   Compiling fs-set-times v0.20.3\n   Compiling tempfile v3.27.0\n   Compiling serde_derive v1.0.229\n   Compiling rusqlite v0.38.0\n   Compiling bif v0.1.0 (/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-source)\n    Finished `release` profile [optimized] target(s) in 15.25s\n",
+      "stderr": "   Compiling libc v0.2.189\n   Compiling proc-macro2 v1.0.107\n   Compiling bitflags v2.13.2\n   Compiling rustix v1.1.4\n   Compiling quote v1.0.47\n   Compiling shlex v2.0.1\n   Compiling unicode-ident v1.0.24\n   Compiling io-lifetimes v2.0.4\n   Compiling io-lifetimes v3.0.1\n   Compiling find-msvc-tools v0.1.12\n   Compiling serde_core v1.0.229\n   Compiling cc v1.4.5\n   Compiling vcpkg v0.2.15\n   Compiling io-extras v0.19.0\n   Compiling pkg-config v0.3.34\n   Compiling cap-primitives v4.0.3\n   Compiling foldhash v0.2.0\n   Compiling zmij v1.0.23\n   Compiling getrandom v0.3.4\n   Compiling hashbrown v0.16.1\n   Compiling serde_json v1.0.151\n   Compiling maybe-owned v0.3.4\n   Compiling errno v0.3.14\n   Compiling cap-std v4.0.3\n   Compiling serde v1.0.229\n   Compiling ambient-authority v0.0.2\n   Compiling ipnet v2.12.2\n   Compiling cfg-if v1.0.4\n   Compiling syn v3.0.5\n   Compiling libsqlite3-sys v0.36.0\n   Compiling hashlink v0.11.1\n   Compiling once_cell v1.21.4\n   Compiling itoa v1.0.18\n   Compiling fallible-streaming-iterator v0.1.9\n   Compiling fallible-iterator v0.3.0\n   Compiling fastrand v2.5.0\n   Compiling smallvec v1.16.1\n   Compiling memchr v2.8.3\n   Compiling same-file v1.0.6\n   Compiling fs-set-times v0.20.3\n   Compiling tempfile v3.27.0\n   Compiling serde_derive v1.0.229\n   Compiling rusqlite v0.38.0\n   Compiling bif v0.1.0 (/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-source)\n    Finished `release` profile [optimized] target(s) in 15.38s\n",
       "locked": true,
       "separate_target": true
     },
@@ -319,10 +319,10 @@
         "archive",
         "--format=tar",
         "--output",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical.tar",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical.tar",
         "d4399a93e49ce8f87e39e3129377821858472807"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "",
       "stderr": ""
@@ -331,11 +331,11 @@
       "argv": [
         "tar",
         "-xf",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical.tar",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical.tar",
         "-C",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-source"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-source"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "",
       "stderr": ""
@@ -393,7 +393,7 @@
     "toolchain_sha256": "dd510b4a3ab011309bb12f6fc3450596da2080670bd4f922eaff7cad1ca65794",
     "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)\nbinary: rustc\ncommit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db\ncommit-date: 2026-03-02\nhost: aarch64-apple-darwin\nrelease: 1.94.0\nLLVM version: 21.1.8",
     "cargo": "cargo 1.94.0 (85eff7c80 2026-01-15)",
-    "active_toolchain": "1.94.0-aarch64-apple-darwin (overridden by '/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/rust-toolchain.toml')",
+    "active_toolchain": "1.94.0-aarch64-apple-darwin (overridden by '/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/rust-toolchain.toml')",
     "toolchain_executables": {
       "rustc": {
         "path": "/Users/davissears/.rustup/toolchains/1.94.0-aarch64-apple-darwin/bin/rustc",
@@ -413,17 +413,17 @@
         "--bin",
         "bif",
         "--target-dir",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "",
-      "stderr": "   Compiling libc v0.2.189\n   Compiling rustix v1.1.4\n   Compiling proc-macro2 v1.0.107\n   Compiling bitflags v2.13.2\n   Compiling quote v1.0.47\n   Compiling find-msvc-tools v0.1.12\n   Compiling shlex v2.0.1\n   Compiling unicode-ident v1.0.24\n   Compiling io-lifetimes v3.0.1\n   Compiling io-lifetimes v2.0.4\n   Compiling vcpkg v0.2.15\n   Compiling cc v1.4.5\n   Compiling serde_core v1.0.229\n   Compiling io-extras v0.19.0\n   Compiling pkg-config v0.3.34\n   Compiling foldhash v0.2.0\n   Compiling zmij v1.0.23\n   Compiling cap-primitives v4.0.3\n   Compiling getrandom v0.3.4\n   Compiling hashbrown v0.16.1\n   Compiling serde_json v1.0.151\n   Compiling maybe-owned v0.3.4\n   Compiling cap-std v4.0.3\n   Compiling errno v0.3.14\n   Compiling syn v3.0.5\n   Compiling cfg-if v1.0.4\n   Compiling ipnet v2.12.2\n   Compiling ambient-authority v0.0.2\n   Compiling serde v1.0.229\n   Compiling memchr v2.8.3\n   Compiling fastrand v2.5.0\n   Compiling itoa v1.0.18\n   Compiling hashlink v0.11.1\n   Compiling smallvec v1.16.1\n   Compiling fallible-streaming-iterator v0.1.9\n   Compiling fallible-iterator v0.3.0\n   Compiling libsqlite3-sys v0.36.0\n   Compiling once_cell v1.21.4\n   Compiling same-file v1.0.6\n   Compiling fs-set-times v0.20.3\n   Compiling tempfile v3.27.0\n   Compiling serde_derive v1.0.229\n   Compiling rusqlite v0.38.0\n   Compiling bif v0.1.0 (/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF)\n    Finished `release` profile [optimized] target(s) in 15.39s\n",
+      "stderr": "   Compiling libc v0.2.189\n   Compiling bitflags v2.13.2\n   Compiling proc-macro2 v1.0.107\n   Compiling rustix v1.1.4\n   Compiling io-lifetimes v3.0.1\n   Compiling io-lifetimes v2.0.4\n   Compiling shlex v2.0.1\n   Compiling find-msvc-tools v0.1.12\n   Compiling quote v1.0.47\n   Compiling unicode-ident v1.0.24\n   Compiling vcpkg v0.2.15\n   Compiling cc v1.4.5\n   Compiling io-extras v0.19.0\n   Compiling pkg-config v0.3.34\n   Compiling serde_core v1.0.229\n   Compiling zmij v1.0.23\n   Compiling getrandom v0.3.4\n   Compiling cap-primitives v4.0.3\n   Compiling foldhash v0.2.0\n   Compiling hashbrown v0.16.1\n   Compiling maybe-owned v0.3.4\n   Compiling serde v1.0.229\n   Compiling cap-std v4.0.3\n   Compiling cfg-if v1.0.4\n   Compiling errno v0.3.14\n   Compiling serde_json v1.0.151\n   Compiling ipnet v2.12.2\n   Compiling ambient-authority v0.0.2\n   Compiling syn v3.0.5\n   Compiling fastrand v2.5.0\n   Compiling fallible-iterator v0.3.0\n   Compiling fallible-streaming-iterator v0.1.9\n   Compiling smallvec v1.16.1\n   Compiling hashlink v0.11.1\n   Compiling once_cell v1.21.4\n   Compiling itoa v1.0.18\n   Compiling memchr v2.8.3\n   Compiling same-file v1.0.6\n   Compiling libsqlite3-sys v0.36.0\n   Compiling fs-set-times v0.20.3\n   Compiling tempfile v3.27.0\n   Compiling serde_derive v1.0.229\n   Compiling rusqlite v0.38.0\n   Compiling bif v0.1.0 (/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF)\n    Finished `release` profile [optimized] target(s) in 15.68s\n",
       "locked": true,
       "separate_target": true
     },
-    "revision": "f0cd787f64a6bd3d301f11e616bb587e112a14fa",
-    "git_status_porcelain": " M .github/workflows/ci.yml\n M docs/bif-upgrade-runbook.md\n M docs/bif-v2-release-evidence.json\n M tests/read_release_manifest.rs\n?? .github/workflows/phase-e-evidence.yml\n?? docs/baselines/v2-phase-e/final-gate/\n?? tests/phase_e_final_gate.rs\n",
+    "revision": "478aa623a229a04bd4a714f2a907728fa1f2944d",
+    "git_status_porcelain": " D docs/baselines/v2-phase-e/final-gate/measurements.json\n D docs/baselines/v2-phase-e/final-gate/proof.json\n D docs/baselines/v2-phase-e/final-gate/protocol.json\n D docs/baselines/v2-phase-e/final-gate/upgrade-proof.json\n?? docs/baselines/v2-phase-e/final-gate/validation-22.json\n",
     "binary_end_sha256": "d5ca64de6c1c01f90b0b0384cae7a24243bc5cde992e3295452274b8df24b66f",
     "source_end_sha256": "fb35ef314f5ccd65c3836cc2fd6846ef6835fcf2f237aa32c91e4b0230c0c408"
   },
@@ -431,7 +431,7 @@
     "platform": "macOS-27.0.1-arm64-arm-64bit",
     "uname": [
       "Darwin",
-      "Mac",
+      "Daviss-Mac-mini.local",
       "27.0.0",
       "Darwin Kernel Version 27.0.0: Tue Aug 11 21:02:57 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8132",
       "arm64",
@@ -450,7 +450,7 @@
     {
       "sequence": 0,
       "event": "old_writer_stopped",
-      "pid": 8013,
+      "pid": 38061,
       "stop_signal": 17,
       "boundary": "exec completed; SQLite writer lock held; no claimed SQL readiness"
     },
@@ -466,12 +466,12 @@
     {
       "sequence": 3,
       "event": "old_writer_continued",
-      "pid": 8013
+      "pid": 38061
     },
     {
       "sequence": 4,
       "event": "old_writer_reaped",
-      "pid": 8013,
+      "pid": 38061,
       "exit_code": 0
     },
     {
@@ -537,23 +537,23 @@
   "commands": [
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
         "init",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store",
         "--requester",
         "PROOF",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "Initialized BIF\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml\nstore: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/.bif/bif.sqlite\nrequester: PROOF\n",
+      "stdout": "Initialized BIF\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml\nstore: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/.bif/bif.sqlite\nrequester: PROOF\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
         "capture",
         "Authentic historical writer drain",
         "--project",
@@ -565,7 +565,7 @@
         "--idempotency-key",
         "phase-e-historical-capture",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml"
       ],
       "exit_code": 0,
       "stdout": "Captured PROOF:phase-e:001\ntitle: Authentic historical writer drain\nstatus: proposed\nreplayed: false\nsource: local\n",
@@ -574,47 +574,47 @@
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "doctor",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "version: 0.1.0\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml\nstore-id: 36996478-cd75-497b-b598-06aae201e9ac\nstore-path: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/.bif/bif.sqlite\nschema-version: 4\nproject: bif\n",
+      "stdout": "version: 0.1.0\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml\nstore-id: 245a7614-de90-4f89-aefd-d77b5328f553\nstore-path: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/.bif/bif.sqlite\nschema-version: 4\nproject: bif\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "get",
         "PROOF:phase-e:001",
         "--json",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "{\"acceptance_criteria\":[\"complete persisted content survives upgrade\"],\"assignee\":null,\"captured_at\":\"2026-10-14T23:11:08Z\",\"description\":\"Disposable schema-3 one-shot CLI process\",\"id\":\"PROOF:phase-e:001\",\"priority\":null,\"project\":\"phase-e\",\"provenance\":{\"context_excerpt\":null,\"message_id\":null,\"repository_reference\":null,\"revision_reference\":null,\"source_host\":\"local\",\"thread_id\":null,\"url\":null},\"requester\":\"PROOF\",\"revision\":1,\"sequence\":1,\"status\":\"proposed\",\"status_reason\":null,\"title\":\"Authentic historical writer drain\",\"updated_at\":\"2026-10-14T23:11:08Z\"}\n",
+      "stdout": "{\"acceptance_criteria\":[\"complete persisted content survives upgrade\"],\"assignee\":null,\"captured_at\":\"2026-10-14T23:51:07Z\",\"description\":\"Disposable schema-3 one-shot CLI process\",\"id\":\"PROOF:phase-e:001\",\"priority\":null,\"project\":\"phase-e\",\"provenance\":{\"context_excerpt\":null,\"message_id\":null,\"repository_reference\":null,\"revision_reference\":null,\"source_host\":\"local\",\"thread_id\":null,\"url\":null},\"requester\":\"PROOF\",\"revision\":1,\"sequence\":1,\"status\":\"proposed\",\"status_reason\":null,\"title\":\"Authentic historical writer drain\",\"updated_at\":\"2026-10-14T23:51:07Z\"}\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "history",
         "PROOF:phase-e:001",
         "--json",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "{\"events\":[{\"actor\":{\"host\":\"local\",\"id\":\"PROOF\",\"kind\":\"human\",\"surface\":\"cli\"},\"after\":null,\"before\":null,\"event_id\":\"cli-event-000000000000000018de883664cffd40-0000000000000000\",\"event_index\":0,\"event_type\":\"captured\",\"execution\":{\"host\":\"local\",\"kind\":\"direct\",\"surface\":\"cli\"},\"item_revision\":1,\"note\":null,\"occurred_at\":\"2026-10-14T23:11:08Z\",\"operation_id\":\"cli-000000000000000018de883664cffd40-0000000000000000\",\"reason\":null,\"schema_version\":1}]}\n",
+      "stdout": "{\"events\":[{\"actor\":{\"host\":\"local\",\"id\":\"PROOF\",\"kind\":\"human\",\"surface\":\"cli\"},\"after\":null,\"before\":null,\"event_id\":\"cli-event-000000000000000018de8a64dde0f3d0-0000000000000000\",\"event_index\":0,\"event_type\":\"captured\",\"execution\":{\"host\":\"local\",\"kind\":\"direct\",\"surface\":\"cli\"},\"item_revision\":1,\"note\":null,\"occurred_at\":\"2026-10-14T23:51:07Z\",\"operation_id\":\"cli-000000000000000018de8a64dde0f3d0-0000000000000000\",\"reason\":null,\"schema_version\":1}]}\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "capture",
         "Authentic historical writer drain",
         "--project",
@@ -626,16 +626,16 @@
         "--idempotency-key",
         "phase-e-historical-capture",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "Captured PROOF:phase-e:001\ntitle: Authentic historical writer drain\nstatus: proposed\nreplayed: true\nsource: local\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "capture",
         "Candidate journal capture",
         "--project",
@@ -643,16 +643,16 @@
         "--idempotency-key",
         "phase-e-candidate-capture",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "Captured PROOF:phase-e:002\ntitle: Candidate journal capture\nstatus: proposed\nreplayed: false\nsource: local\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "approve",
         "PROOF:phase-e:001",
         "--expected-revision",
@@ -660,9 +660,9 @@
         "--idempotency-key",
         "phase-e-candidate-approve",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "Updated PROOF:phase-e:001\nstatus: ready\npriority: unprioritized\nassignee: unassigned\nrevision: 2\nreplayed: false\n",
       "stderr": ""
@@ -930,8 +930,8 @@
     "tables": {
       "events": [
         [
-          "cli-event-000000000000000018de883664cffd40-0000000000000000",
-          "cli-000000000000000018de883664cffd40-0000000000000000",
+          "cli-event-000000000000000018de8a64dde0f3d0-0000000000000000",
+          "cli-000000000000000018de8a64dde0f3d0-0000000000000000",
           "PROOF:phase-e:001",
           1,
           0,
@@ -948,7 +948,7 @@
           "local",
           null,
           null,
-          "2026-10-14T23:11:08Z",
+          "2026-10-14T23:51:07Z",
           1
         ]
       ],
@@ -984,8 +984,8 @@
           null,
           null,
           1,
-          "2026-10-14T23:11:08Z",
-          "2026-10-14T23:11:08Z"
+          "2026-10-14T23:51:07Z",
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "mutation_receipts": [
@@ -993,20 +993,20 @@
           "phase-e-historical-capture",
           "capture",
           "672e12a523779ba5289ab41c11dba201886dcfc94feda9c4e156be1ce3aa3790",
-          "cli-000000000000000018de883664cffd40-0000000000000000",
+          "cli-000000000000000018de8a64dde0f3d0-0000000000000000",
           "PROOF:phase-e:001",
           "{\"item_id\":\"PROOF:phase-e:001\"}",
-          "2026-10-14T23:11:08Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "operations": [
         [
-          "cli-000000000000000018de883664cffd40-0000000000000000",
+          "cli-000000000000000018de8a64dde0f3d0-0000000000000000",
           "PROOF:phase-e:001",
           "capture",
           null,
           1,
-          "2026-10-14T23:11:08Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "project_path_mappings": [],
@@ -1014,7 +1014,7 @@
       "projects": [
         [
           "phase-e",
-          "2026-10-14T23:11:08Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "requester_project_counters": [
@@ -1029,31 +1029,31 @@
           1,
           "initial",
           "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
-          "2026-10-14T23:11:08.918Z"
+          "2026-10-14T23:51:07.539Z"
         ],
         [
           2,
           "immutable_events",
           "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
-          "2026-10-14T23:11:08.918Z"
+          "2026-10-14T23:51:07.539Z"
         ],
         [
           3,
           "projection_read_indexes",
           "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
-          "2026-10-14T23:11:08.918Z"
+          "2026-10-14T23:51:07.540Z"
         ]
       ],
       "store_metadata": [
         [
           1,
-          "36996478-cd75-497b-b598-06aae201e9ac",
-          "2026-10-14T23:11:08.917Z"
+          "245a7614-de90-4f89-aefd-d77b5328f553",
+          "2026-10-14T23:51:07.539Z"
         ]
       ]
     },
     "schema_sha256": "d050b827feafb497f43a5221a808c373b2ff48f866208a06fe647a469ae56bae",
-    "content_sha256": "4b6aa753ef1e3de67d1fa90702375c7b6414493155607867f6b10f0bb94a3b87",
+    "content_sha256": "b2b3c4a394f0caf537b7d10c85d820b991b2886b56ad07e50a86ccda325595ef",
     "migrations": [
       1,
       2,
@@ -1381,8 +1381,8 @@
       "change_journal": [],
       "events": [
         [
-          "cli-event-000000000000000018de883664cffd40-0000000000000000",
-          "cli-000000000000000018de883664cffd40-0000000000000000",
+          "cli-event-000000000000000018de8a64dde0f3d0-0000000000000000",
+          "cli-000000000000000018de8a64dde0f3d0-0000000000000000",
           "PROOF:phase-e:001",
           1,
           0,
@@ -1399,7 +1399,7 @@
           "local",
           null,
           null,
-          "2026-10-14T23:11:08Z",
+          "2026-10-14T23:51:07Z",
           1
         ]
       ],
@@ -1435,14 +1435,14 @@
           null,
           null,
           1,
-          "2026-10-14T23:11:08Z",
-          "2026-10-14T23:11:08Z"
+          "2026-10-14T23:51:07Z",
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "journal_metadata": [
         [
           1,
-          "11d08ea6e492b085cc0e37915ca0d6fc",
+          "48200dff1d78c2e9db8b1c2c8a10cba6",
           0,
           0,
           0,
@@ -1454,20 +1454,20 @@
           "phase-e-historical-capture",
           "capture",
           "672e12a523779ba5289ab41c11dba201886dcfc94feda9c4e156be1ce3aa3790",
-          "cli-000000000000000018de883664cffd40-0000000000000000",
+          "cli-000000000000000018de8a64dde0f3d0-0000000000000000",
           "PROOF:phase-e:001",
           "{\"item_id\":\"PROOF:phase-e:001\"}",
-          "2026-10-14T23:11:08Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "operations": [
         [
-          "cli-000000000000000018de883664cffd40-0000000000000000",
+          "cli-000000000000000018de8a64dde0f3d0-0000000000000000",
           "PROOF:phase-e:001",
           "capture",
           null,
           1,
-          "2026-10-14T23:11:08Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "project_path_mappings": [],
@@ -1475,7 +1475,7 @@
       "projects": [
         [
           "phase-e",
-          "2026-10-14T23:11:08Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "requester_project_counters": [
@@ -1490,38 +1490,38 @@
           1,
           "initial",
           "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
-          "2026-10-14T23:11:08.918Z"
+          "2026-10-14T23:51:07.539Z"
         ],
         [
           2,
           "immutable_events",
           "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
-          "2026-10-14T23:11:08.918Z"
+          "2026-10-14T23:51:07.539Z"
         ],
         [
           3,
           "projection_read_indexes",
           "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
-          "2026-10-14T23:11:08.918Z"
+          "2026-10-14T23:51:07.540Z"
         ],
         [
           4,
           "change_journal",
           "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
-          "2026-10-14T23:11:09.032Z"
+          "2026-10-14T23:51:07.733Z"
         ]
       ],
       "sqlite_sequence": [],
       "store_metadata": [
         [
           1,
-          "36996478-cd75-497b-b598-06aae201e9ac",
-          "2026-10-14T23:11:08.917Z"
+          "245a7614-de90-4f89-aefd-d77b5328f553",
+          "2026-10-14T23:51:07.539Z"
         ]
       ]
     },
     "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
-    "content_sha256": "e77ff2a6c8b373f62248699397208198880b0f2fc805ea29e50db4deb0bbba0c",
+    "content_sha256": "e9f55ef056d52791afc29d07693321ae31fe5691adc680e96c899fd8d6fb5cf8",
     "migrations": [
       1,
       2,
@@ -1850,14 +1850,14 @@
       "change_journal": [
         [
           1,
-          "cli-000000000000000018de88366e017588-0000000000000000",
+          "cli-000000000000000018de8a64ebfe43a0-0000000000000000",
           "PROOF:phase-e:002",
           "phase-e",
           1
         ],
         [
           2,
-          "cli-mutation-000000000000000018de88366e4b24d0-0000000000000000",
+          "cli-mutation-000000000000000018de8a64ec490840-0000000000000000",
           "PROOF:phase-e:001",
           "phase-e",
           2
@@ -1865,8 +1865,8 @@
       ],
       "events": [
         [
-          "cli-event-000000000000000018de883664cffd40-0000000000000000",
-          "cli-000000000000000018de883664cffd40-0000000000000000",
+          "cli-event-000000000000000018de8a64dde0f3d0-0000000000000000",
+          "cli-000000000000000018de8a64dde0f3d0-0000000000000000",
           "PROOF:phase-e:001",
           1,
           0,
@@ -1883,12 +1883,12 @@
           "local",
           null,
           null,
-          "2026-10-14T23:11:08Z",
+          "2026-10-14T23:51:07Z",
           1
         ],
         [
-          "cli-event-000000000000000018de88366e017588-0000000000000000",
-          "cli-000000000000000018de88366e017588-0000000000000000",
+          "cli-event-000000000000000018de8a64ebfe43a0-0000000000000000",
+          "cli-000000000000000018de8a64ebfe43a0-0000000000000000",
           "PROOF:phase-e:002",
           1,
           0,
@@ -1905,12 +1905,12 @@
           "local",
           null,
           null,
-          "2026-10-14T23:11:09Z",
+          "2026-10-14T23:51:07Z",
           1
         ],
         [
-          "cli-mutation-event-000000000000000018de88366e4b24d0-0000000000000000-0",
-          "cli-mutation-000000000000000018de88366e4b24d0-0000000000000000",
+          "cli-mutation-event-000000000000000018de8a64ec490840-0000000000000000-0",
+          "cli-mutation-000000000000000018de8a64ec490840-0000000000000000",
           "PROOF:phase-e:001",
           2,
           0,
@@ -1927,7 +1927,7 @@
           "local",
           null,
           null,
-          "2026-10-14T23:11:09Z",
+          "2026-10-14T23:51:07Z",
           1
         ]
       ],
@@ -1973,8 +1973,8 @@
           null,
           null,
           2,
-          "2026-10-14T23:11:08Z",
-          "2026-10-14T23:11:09Z"
+          "2026-10-14T23:51:07Z",
+          "2026-10-14T23:51:07Z"
         ],
         [
           "PROOF:phase-e:002",
@@ -1988,14 +1988,14 @@
           null,
           null,
           1,
-          "2026-10-14T23:11:09Z",
-          "2026-10-14T23:11:09Z"
+          "2026-10-14T23:51:07Z",
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "journal_metadata": [
         [
           1,
-          "11d08ea6e492b085cc0e37915ca0d6fc",
+          "48200dff1d78c2e9db8b1c2c8a10cba6",
           0,
           2,
           0,
@@ -2007,54 +2007,54 @@
           "phase-e-candidate-approve",
           "approve",
           "af77cbe55be6fb5353efefbf091716933ecd7db1827ed4c6cd7b5f278b2c1508",
-          "cli-mutation-000000000000000018de88366e4b24d0-0000000000000000",
+          "cli-mutation-000000000000000018de8a64ec490840-0000000000000000",
           "PROOF:phase-e:001",
           "{\"item_id\":\"PROOF:phase-e:001\",\"revision\":2}",
-          "2026-10-14T23:11:09Z"
+          "2026-10-14T23:51:07Z"
         ],
         [
           "phase-e-candidate-capture",
           "capture",
           "0624922ec61e092134aee33d3ca40d76ec3a19698ebaf7c0c24f7a796017d232",
-          "cli-000000000000000018de88366e017588-0000000000000000",
+          "cli-000000000000000018de8a64ebfe43a0-0000000000000000",
           "PROOF:phase-e:002",
           "{\"item_id\":\"PROOF:phase-e:002\"}",
-          "2026-10-14T23:11:09Z"
+          "2026-10-14T23:51:07Z"
         ],
         [
           "phase-e-historical-capture",
           "capture",
           "672e12a523779ba5289ab41c11dba201886dcfc94feda9c4e156be1ce3aa3790",
-          "cli-000000000000000018de883664cffd40-0000000000000000",
+          "cli-000000000000000018de8a64dde0f3d0-0000000000000000",
           "PROOF:phase-e:001",
           "{\"item_id\":\"PROOF:phase-e:001\"}",
-          "2026-10-14T23:11:08Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "operations": [
         [
-          "cli-000000000000000018de883664cffd40-0000000000000000",
+          "cli-000000000000000018de8a64dde0f3d0-0000000000000000",
           "PROOF:phase-e:001",
           "capture",
           null,
           1,
-          "2026-10-14T23:11:08Z"
+          "2026-10-14T23:51:07Z"
         ],
         [
-          "cli-000000000000000018de88366e017588-0000000000000000",
+          "cli-000000000000000018de8a64ebfe43a0-0000000000000000",
           "PROOF:phase-e:002",
           "capture",
           null,
           1,
-          "2026-10-14T23:11:09Z"
+          "2026-10-14T23:51:07Z"
         ],
         [
-          "cli-mutation-000000000000000018de88366e4b24d0-0000000000000000",
+          "cli-mutation-000000000000000018de8a64ec490840-0000000000000000",
           "PROOF:phase-e:001",
           "triage",
           1,
           2,
-          "2026-10-14T23:11:09Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "project_path_mappings": [],
@@ -2062,7 +2062,7 @@
       "projects": [
         [
           "phase-e",
-          "2026-10-14T23:11:08Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "requester_project_counters": [
@@ -2077,25 +2077,25 @@
           1,
           "initial",
           "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
-          "2026-10-14T23:11:08.918Z"
+          "2026-10-14T23:51:07.539Z"
         ],
         [
           2,
           "immutable_events",
           "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
-          "2026-10-14T23:11:08.918Z"
+          "2026-10-14T23:51:07.539Z"
         ],
         [
           3,
           "projection_read_indexes",
           "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
-          "2026-10-14T23:11:08.918Z"
+          "2026-10-14T23:51:07.540Z"
         ],
         [
           4,
           "change_journal",
           "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
-          "2026-10-14T23:11:09.032Z"
+          "2026-10-14T23:51:07.733Z"
         ]
       ],
       "sqlite_sequence": [
@@ -2107,13 +2107,13 @@
       "store_metadata": [
         [
           1,
-          "36996478-cd75-497b-b598-06aae201e9ac",
-          "2026-10-14T23:11:08.917Z"
+          "245a7614-de90-4f89-aefd-d77b5328f553",
+          "2026-10-14T23:51:07.539Z"
         ]
       ]
     },
     "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
-    "content_sha256": "ebd9b136c6348ac4db680701ef1cc013519a2cf828d1d86eddec0c5a1447e12b",
+    "content_sha256": "fa83bb637fb468f0418febcb057b96cff91864a45f4ccb1260331eda7cfb5f99",
     "migrations": [
       1,
       2,
@@ -2125,7 +2125,7 @@
   },
   "journal": {
     "singleton": 1,
-    "generation": "11d08ea6e492b085cc0e37915ca0d6fc",
+    "generation": "48200dff1d78c2e9db8b1c2c8a10cba6",
     "retention_floor": 0,
     "high_water": 2,
     "sync_enabled": 0,
@@ -2137,7 +2137,7 @@
       "complete persisted content survives upgrade"
     ],
     "assignee": null,
-    "captured_at": "2026-10-14T23:11:08Z",
+    "captured_at": "2026-10-14T23:51:07Z",
     "description": "Disposable schema-3 one-shot CLI process",
     "id": "PROOF:phase-e:001",
     "priority": null,
@@ -2157,7 +2157,7 @@
     "status": "proposed",
     "status_reason": null,
     "title": "Authentic historical writer drain",
-    "updated_at": "2026-10-14T23:11:08Z"
+    "updated_at": "2026-10-14T23:51:07Z"
   },
   "candidate_history": {
     "events": [
@@ -2170,7 +2170,7 @@
         },
         "after": null,
         "before": null,
-        "event_id": "cli-event-000000000000000018de883664cffd40-0000000000000000",
+        "event_id": "cli-event-000000000000000018de8a64dde0f3d0-0000000000000000",
         "event_index": 0,
         "event_type": "captured",
         "execution": {
@@ -2180,8 +2180,8 @@
         },
         "item_revision": 1,
         "note": null,
-        "occurred_at": "2026-10-14T23:11:08Z",
-        "operation_id": "cli-000000000000000018de883664cffd40-0000000000000000",
+        "occurred_at": "2026-10-14T23:51:07Z",
+        "operation_id": "cli-000000000000000018de8a64dde0f3d0-0000000000000000",
         "reason": null,
         "schema_version": 1
       }
@@ -2190,18 +2190,18 @@
   "rejections": [
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
         "doctor",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml"
       ],
-      "pid": 8052,
+      "pid": 38100,
       "exit_code": 1,
       "stdout": "",
       "stderr": "error: database schema version 4 is newer than supported version 3\n",
       "before": {
         "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
-        "content_sha256": "ebd9b136c6348ac4db680701ef1cc013519a2cf828d1d86eddec0c5a1447e12b",
+        "content_sha256": "fa83bb637fb468f0418febcb057b96cff91864a45f4ccb1260331eda7cfb5f99",
         "migrations": [
           1,
           2,
@@ -2213,7 +2213,7 @@
       },
       "after": {
         "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
-        "content_sha256": "ebd9b136c6348ac4db680701ef1cc013519a2cf828d1d86eddec0c5a1447e12b",
+        "content_sha256": "fa83bb637fb468f0418febcb057b96cff91864a45f4ccb1260331eda7cfb5f99",
         "migrations": [
           1,
           2,
@@ -2226,20 +2226,20 @@
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
         "get",
         "PROOF:phase-e:001",
         "--json",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml"
       ],
-      "pid": 8053,
+      "pid": 38101,
       "exit_code": 1,
       "stdout": "",
       "stderr": "error: database schema version 4 is newer than supported version 3\n",
       "before": {
         "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
-        "content_sha256": "ebd9b136c6348ac4db680701ef1cc013519a2cf828d1d86eddec0c5a1447e12b",
+        "content_sha256": "fa83bb637fb468f0418febcb057b96cff91864a45f4ccb1260331eda7cfb5f99",
         "migrations": [
           1,
           2,
@@ -2251,7 +2251,7 @@
       },
       "after": {
         "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
-        "content_sha256": "ebd9b136c6348ac4db680701ef1cc013519a2cf828d1d86eddec0c5a1447e12b",
+        "content_sha256": "fa83bb637fb468f0418febcb057b96cff91864a45f4ccb1260331eda7cfb5f99",
         "migrations": [
           1,
           2,
@@ -2264,7 +2264,7 @@
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
         "capture",
         "Must reject",
         "--project",
@@ -2272,15 +2272,15 @@
         "--idempotency-key",
         "phase-e-rejected-old-write",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/disposable-store/config.toml"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/disposable-store/config.toml"
       ],
-      "pid": 8054,
+      "pid": 38102,
       "exit_code": 1,
       "stdout": "",
       "stderr": "error: database schema version 4 is newer than supported version 3\n",
       "before": {
         "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
-        "content_sha256": "ebd9b136c6348ac4db680701ef1cc013519a2cf828d1d86eddec0c5a1447e12b",
+        "content_sha256": "fa83bb637fb468f0418febcb057b96cff91864a45f4ccb1260331eda7cfb5f99",
         "migrations": [
           1,
           2,
@@ -2292,7 +2292,7 @@
       },
       "after": {
         "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
-        "content_sha256": "ebd9b136c6348ac4db680701ef1cc013519a2cf828d1d86eddec0c5a1447e12b",
+        "content_sha256": "fa83bb637fb468f0418febcb057b96cff91864a45f4ccb1260331eda7cfb5f99",
         "migrations": [
           1,
           2,

@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "python3",
+    "-"
+  ],
+  "command": "python3 -",
+  "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+  "started_at_unix_ns": 1792022030742407000,
+  "finished_at_unix_ns": 1792022030773023000,
+  "elapsed_seconds": 0.030616,
+  "available_bytes_before": 7806791680,
+  "available_bytes_after": 7806791680,
+  "exit_code": 0,
+  "stdout": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   228Gi   196Gi   7.3Gi    97%    3.0M   76M    4%   /System/Volumes/Data\nAvailable bytes: 7806791680\nExisting canonical fixture: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/generated-100.sqlite\nExisting canonical fixture: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/generated-10000.sqlite\nExisting canonical fixture: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/generated-100000.sqlite\nupgrade-proof.json 911f74b83de70469fe3f8857cda102c75346794fb876b7e76b2965394f197f0b\nproof.json 70433c66156438d1eed31dab2120fc679e1207ea8cb759c68cc690845312a3a9\nprotocol.json dff0bd5e5413a0a4dfcb2eda0b23494fd1d5189047ecf572f2546cb13ea0be5e\nmeasurements.json 9053432b4053cb9a25a0df726b7b8c24bf4f276556edc62aed918473d3a21d21\ngate.py db450e1283c07a4b07693133f5930fab63c74f00d5c370bf95c8bfab567ca790\ntest_gate.py 9e6e84158a65ce0f79da52d8e614901bf40ff94da67a706637feec74ae5b80b3\nvalidation-22.json 3a6e99e728b7173dea878406b401c83afebeaaa831b9032d05470b2d49ffbecd\nvalidation-23.json 47f70545eaec8a3d7b2d6a41ae2a407b9d69467dad5885410f388610ccedcc59\nCoordinator authorized continuing without cleanup/config change; task010 issue count 4; pause below 2 GiB or on actual write/build failure. Private fixtures retained; no regenerated timing.\n",
+  "stderr": "",
+  "stdin": "import hashlib,json,pathlib,shutil,subprocess\nh=pathlib.Path('docs/baselines/v2-phase-e/final-gate')\nsubprocess.run(['df','-h','.'],check=True)\nprint('Available bytes:',shutil.disk_usage('.').free)\np=json.loads((h/'protocol.json').read_text())\nfor f in p['fixtures']:\n path=pathlib.Path(f['generator_command']['argv'][-1]);assert path.is_file();print('Existing canonical fixture:',path)\nfor name in ['upgrade-proof.json','proof.json','protocol.json','measurements.json','gate.py','test_gate.py','validation-22.json','validation-23.json']:\n print(name,hashlib.sha256((h/name).read_bytes()).hexdigest())\nassert json.loads(json.loads((h/'validation-22.json').read_text())['stdout'])['immutable_files_sha256']\nprint('Coordinator authorized continuing without cleanup/config change; task010 issue count 4; pause below 2 GiB or on actual write/build failure. Private fixtures retained; no regenerated timing.')\n",
+  "stdin_sha256": "669bd2a13ad595f38272fc53604632df0d08ce7ddfd0f1047c87970e7755b279"
+}

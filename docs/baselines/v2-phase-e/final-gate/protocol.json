@@ -114,11 +114,11 @@
     "tests/v2_read_semantics.rs": "c93855557164a15c5da242e93e49f72196840ac359fd28a5d5a914c1c6bdacc1",
     "tests/v2_response_allocations.rs": "ee859180e294878309778320f73eaf6336aa5c4594ffd878049fea841d342e64",
     "tests/v2_response_serialization.rs": "8b2b174f6ab0a072dd7afbe2ea8cc5b1351bd7212ad3600b590d6618b34e02aa",
-    "tests/v2_sync_contract_fixtures.rs": "93f9a5b88f8045b91c796b21e3e7f7ec7e07c6cd475f09e80b683a1ef3ec01d1",
+    "tests/v2_sync_contract_fixtures.rs": "332d8ff75c7458bb0690542e1107c66dbd0ba638b3b98a79d5255a266ad4d47c",
     "tests/v2_workflow_evaluation.rs": "c5abdf4218fc6ef19c549d5080f4c3f3164249336bfc7cf3ab75d60816401bcf"
   },
-  "upgrade_proof_sha256": "1c343d381a9a4c2f2b3084ffdb5e9724a19d575c7fe1efe95118f447c8856b9d",
-  "correctness_payload_sha256": "69ef0c6a92f0f6ce0fd487ded7e0acde448a1796bdec1fd201af362c8b07da4e",
+  "upgrade_proof_sha256": "911f74b83de70469fe3f8857cda102c75346794fb876b7e76b2965394f197f0b",
+  "correctness_payload_sha256": "1f9c111a1bd42f888d924da3c780f1e5fc46af6c25f2347d41d647c58dacc68c",
   "baseline_build": {
     "binary_sha256": "863139b0a60ac97088b1b7c939cf234d035c3b63bafdbca7f6a1f62f2919fcc3",
     "source_sha256": "f79518baea8bac60e6e5732be0db0e54301b2f0028c3f515d82e36e027624d8b",
@@ -396,7 +396,7 @@
     "toolchain_sha256": "dd510b4a3ab011309bb12f6fc3450596da2080670bd4f922eaff7cad1ca65794",
     "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)\nbinary: rustc\ncommit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db\ncommit-date: 2026-03-02\nhost: aarch64-apple-darwin\nrelease: 1.94.0\nLLVM version: 21.1.8",
     "cargo": "cargo 1.94.0 (85eff7c80 2026-01-15)",
-    "active_toolchain": "1.94.0-aarch64-apple-darwin (overridden by '/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-source/rust-toolchain.toml')",
+    "active_toolchain": "1.94.0-aarch64-apple-darwin (overridden by '/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-source/rust-toolchain.toml')",
     "toolchain_executables": {
       "rustc": {
         "path": "/Users/davissears/.rustup/toolchains/1.94.0-aarch64-apple-darwin/bin/rustc",
@@ -416,12 +416,12 @@
         "--bin",
         "bif",
         "--target-dir",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-source",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-source",
       "exit_code": 0,
       "stdout": "",
-      "stderr": "   Compiling libc v0.2.189\n   Compiling bitflags v2.13.2\n   Compiling proc-macro2 v1.0.107\n   Compiling rustix v1.1.4\n   Compiling io-lifetimes v3.0.1\n   Compiling find-msvc-tools v0.1.12\n   Compiling quote v1.0.47\n   Compiling shlex v2.0.1\n   Compiling io-lifetimes v2.0.4\n   Compiling unicode-ident v1.0.24\n   Compiling cc v1.4.5\n   Compiling pkg-config v0.3.34\n   Compiling serde_core v1.0.229\n   Compiling io-extras v0.19.0\n   Compiling vcpkg v0.2.15\n   Compiling foldhash v0.2.0\n   Compiling cap-primitives v4.0.3\n   Compiling getrandom v0.3.4\n   Compiling zmij v1.0.23\n   Compiling hashbrown v0.16.1\n   Compiling cfg-if v1.0.4\n   Compiling ipnet v2.12.2\n   Compiling cap-std v4.0.3\n   Compiling ambient-authority v0.0.2\n   Compiling serde v1.0.229\n   Compiling errno v0.3.14\n   Compiling maybe-owned v0.3.4\n   Compiling syn v3.0.5\n   Compiling serde_json v1.0.151\n   Compiling hashlink v0.11.1\n   Compiling fastrand v2.5.0\n   Compiling fallible-streaming-iterator v0.1.9\n   Compiling itoa v1.0.18\n   Compiling smallvec v1.16.1\n   Compiling libsqlite3-sys v0.36.0\n   Compiling fallible-iterator v0.3.0\n   Compiling once_cell v1.21.4\n   Compiling memchr v2.8.3\n   Compiling same-file v1.0.6\n   Compiling fs-set-times v0.20.3\n   Compiling tempfile v3.27.0\n   Compiling serde_derive v1.0.229\n   Compiling rusqlite v0.38.0\n   Compiling bif v0.1.0 (/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-source)\n    Finished `release` profile [optimized] target(s) in 15.25s\n",
+      "stderr": "   Compiling libc v0.2.189\n   Compiling proc-macro2 v1.0.107\n   Compiling bitflags v2.13.2\n   Compiling rustix v1.1.4\n   Compiling quote v1.0.47\n   Compiling shlex v2.0.1\n   Compiling unicode-ident v1.0.24\n   Compiling io-lifetimes v2.0.4\n   Compiling io-lifetimes v3.0.1\n   Compiling find-msvc-tools v0.1.12\n   Compiling serde_core v1.0.229\n   Compiling cc v1.4.5\n   Compiling vcpkg v0.2.15\n   Compiling io-extras v0.19.0\n   Compiling pkg-config v0.3.34\n   Compiling cap-primitives v4.0.3\n   Compiling foldhash v0.2.0\n   Compiling zmij v1.0.23\n   Compiling getrandom v0.3.4\n   Compiling hashbrown v0.16.1\n   Compiling serde_json v1.0.151\n   Compiling maybe-owned v0.3.4\n   Compiling errno v0.3.14\n   Compiling cap-std v4.0.3\n   Compiling serde v1.0.229\n   Compiling ambient-authority v0.0.2\n   Compiling ipnet v2.12.2\n   Compiling cfg-if v1.0.4\n   Compiling syn v3.0.5\n   Compiling libsqlite3-sys v0.36.0\n   Compiling hashlink v0.11.1\n   Compiling once_cell v1.21.4\n   Compiling itoa v1.0.18\n   Compiling fallible-streaming-iterator v0.1.9\n   Compiling fallible-iterator v0.3.0\n   Compiling fastrand v2.5.0\n   Compiling smallvec v1.16.1\n   Compiling memchr v2.8.3\n   Compiling same-file v1.0.6\n   Compiling fs-set-times v0.20.3\n   Compiling tempfile v3.27.0\n   Compiling serde_derive v1.0.229\n   Compiling rusqlite v0.38.0\n   Compiling bif v0.1.0 (/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-source)\n    Finished `release` profile [optimized] target(s) in 15.38s\n",
       "locked": true,
       "separate_target": true
     },
@@ -435,10 +435,10 @@
         "archive",
         "--format=tar",
         "--output",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical.tar",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical.tar",
         "d4399a93e49ce8f87e39e3129377821858472807"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "",
       "stderr": ""
@@ -447,11 +447,11 @@
       "argv": [
         "tar",
         "-xf",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical.tar",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical.tar",
         "-C",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-source"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-source"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "",
       "stderr": ""
@@ -509,7 +509,7 @@
     "toolchain_sha256": "dd510b4a3ab011309bb12f6fc3450596da2080670bd4f922eaff7cad1ca65794",
     "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)\nbinary: rustc\ncommit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db\ncommit-date: 2026-03-02\nhost: aarch64-apple-darwin\nrelease: 1.94.0\nLLVM version: 21.1.8",
     "cargo": "cargo 1.94.0 (85eff7c80 2026-01-15)",
-    "active_toolchain": "1.94.0-aarch64-apple-darwin (overridden by '/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/rust-toolchain.toml')",
+    "active_toolchain": "1.94.0-aarch64-apple-darwin (overridden by '/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/rust-toolchain.toml')",
     "toolchain_executables": {
       "rustc": {
         "path": "/Users/davissears/.rustup/toolchains/1.94.0-aarch64-apple-darwin/bin/rustc",
@@ -529,17 +529,17 @@
         "--bin",
         "bif",
         "--target-dir",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "",
-      "stderr": "   Compiling libc v0.2.189\n   Compiling rustix v1.1.4\n   Compiling proc-macro2 v1.0.107\n   Compiling bitflags v2.13.2\n   Compiling quote v1.0.47\n   Compiling find-msvc-tools v0.1.12\n   Compiling shlex v2.0.1\n   Compiling unicode-ident v1.0.24\n   Compiling io-lifetimes v3.0.1\n   Compiling io-lifetimes v2.0.4\n   Compiling vcpkg v0.2.15\n   Compiling cc v1.4.5\n   Compiling serde_core v1.0.229\n   Compiling io-extras v0.19.0\n   Compiling pkg-config v0.3.34\n   Compiling foldhash v0.2.0\n   Compiling zmij v1.0.23\n   Compiling cap-primitives v4.0.3\n   Compiling getrandom v0.3.4\n   Compiling hashbrown v0.16.1\n   Compiling serde_json v1.0.151\n   Compiling maybe-owned v0.3.4\n   Compiling cap-std v4.0.3\n   Compiling errno v0.3.14\n   Compiling syn v3.0.5\n   Compiling cfg-if v1.0.4\n   Compiling ipnet v2.12.2\n   Compiling ambient-authority v0.0.2\n   Compiling serde v1.0.229\n   Compiling memchr v2.8.3\n   Compiling fastrand v2.5.0\n   Compiling itoa v1.0.18\n   Compiling hashlink v0.11.1\n   Compiling smallvec v1.16.1\n   Compiling fallible-streaming-iterator v0.1.9\n   Compiling fallible-iterator v0.3.0\n   Compiling libsqlite3-sys v0.36.0\n   Compiling once_cell v1.21.4\n   Compiling same-file v1.0.6\n   Compiling fs-set-times v0.20.3\n   Compiling tempfile v3.27.0\n   Compiling serde_derive v1.0.229\n   Compiling rusqlite v0.38.0\n   Compiling bif v0.1.0 (/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF)\n    Finished `release` profile [optimized] target(s) in 15.39s\n",
+      "stderr": "   Compiling libc v0.2.189\n   Compiling bitflags v2.13.2\n   Compiling proc-macro2 v1.0.107\n   Compiling rustix v1.1.4\n   Compiling io-lifetimes v3.0.1\n   Compiling io-lifetimes v2.0.4\n   Compiling shlex v2.0.1\n   Compiling find-msvc-tools v0.1.12\n   Compiling quote v1.0.47\n   Compiling unicode-ident v1.0.24\n   Compiling vcpkg v0.2.15\n   Compiling cc v1.4.5\n   Compiling io-extras v0.19.0\n   Compiling pkg-config v0.3.34\n   Compiling serde_core v1.0.229\n   Compiling zmij v1.0.23\n   Compiling getrandom v0.3.4\n   Compiling cap-primitives v4.0.3\n   Compiling foldhash v0.2.0\n   Compiling hashbrown v0.16.1\n   Compiling maybe-owned v0.3.4\n   Compiling serde v1.0.229\n   Compiling cap-std v4.0.3\n   Compiling cfg-if v1.0.4\n   Compiling errno v0.3.14\n   Compiling serde_json v1.0.151\n   Compiling ipnet v2.12.2\n   Compiling ambient-authority v0.0.2\n   Compiling syn v3.0.5\n   Compiling fastrand v2.5.0\n   Compiling fallible-iterator v0.3.0\n   Compiling fallible-streaming-iterator v0.1.9\n   Compiling smallvec v1.16.1\n   Compiling hashlink v0.11.1\n   Compiling once_cell v1.21.4\n   Compiling itoa v1.0.18\n   Compiling memchr v2.8.3\n   Compiling same-file v1.0.6\n   Compiling libsqlite3-sys v0.36.0\n   Compiling fs-set-times v0.20.3\n   Compiling tempfile v3.27.0\n   Compiling serde_derive v1.0.229\n   Compiling rusqlite v0.38.0\n   Compiling bif v0.1.0 (/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF)\n    Finished `release` profile [optimized] target(s) in 15.68s\n",
       "locked": true,
       "separate_target": true
     },
-    "revision": "f0cd787f64a6bd3d301f11e616bb587e112a14fa",
-    "git_status_porcelain": " M .github/workflows/ci.yml\n M docs/bif-upgrade-runbook.md\n M docs/bif-v2-release-evidence.json\n M tests/read_release_manifest.rs\n?? .github/workflows/phase-e-evidence.yml\n?? docs/baselines/v2-phase-e/final-gate/\n?? tests/phase_e_final_gate.rs\n",
+    "revision": "478aa623a229a04bd4a714f2a907728fa1f2944d",
+    "git_status_porcelain": " D docs/baselines/v2-phase-e/final-gate/measurements.json\n D docs/baselines/v2-phase-e/final-gate/proof.json\n D docs/baselines/v2-phase-e/final-gate/protocol.json\n D docs/baselines/v2-phase-e/final-gate/upgrade-proof.json\n?? docs/baselines/v2-phase-e/final-gate/validation-22.json\n",
     "binary_end_sha256": "d5ca64de6c1c01f90b0b0384cae7a24243bc5cde992e3295452274b8df24b66f",
     "source_end_sha256": "fb35ef314f5ccd65c3836cc2fd6846ef6835fcf2f237aa32c91e4b0230c0c408"
   },
@@ -553,12 +553,12 @@
         "--bin",
         "bif-benchmark-store",
         "--target-dir",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target"
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-source",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-source",
       "exit_code": 0,
       "stdout": "",
-      "stderr": "   Compiling bif v0.1.0 (/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-source)\n    Finished `release` profile [optimized] target(s) in 0.72s\n"
+      "stderr": "   Compiling bif v0.1.0 (/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-source)\n    Finished `release` profile [optimized] target(s) in 0.73s\n"
     },
     "sha256": "fa59b068553c5846e60e982e14c9fc8c9748179e56ae6114d6e290265a2408a6"
   },
@@ -581,42 +581,42 @@
       "legacy_tables_equal": true,
       "generator_command": {
         "argv": [
-          "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif-benchmark-store",
+          "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif-benchmark-store",
           "100",
           "--seed",
           "2003",
           "--output",
-          "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/generated-100.sqlite"
+          "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/generated-100.sqlite"
         ],
-        "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+        "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
         "exit_code": 0,
-        "stdout": "{\"format\":\"bif-v2-benchmark-store-v1\",\"logical_digest_algorithm\":\"fnv1a64-framed-canonical-tables-v2\",\"seed\":2003,\"items\":100,\"database\":\"/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/generated-100.sqlite\",\"logical_digest\":\"b819125481255ec7\",\"elapsed_milliseconds\":29,\"row_counts\":{\"events\":516,\"item_acceptance_criteria\":339,\"item_provenance\":100,\"items\":100,\"operations\":516,\"projects\":5,\"requester_project_counters\":13,\"store_metadata\":1},\"distributions\":{\"assignees\":{\"alice\":18,\"benchmark-agent\":21,\"bob\":32,\"null\":29},\"priorities\":{\"P0\":9,\"P1\":12,\"P2\":13,\"P3\":21,\"P4\":29,\"null\":16},\"projects\":{\"agent-tools\":11,\"core\":63,\"desktop\":13,\"docs\":12,\"rare-project\":1},\"sparse_markers\":{\"absent\":99,\"present\":1},\"statuses\":{\"blocked\":9,\"done\":23,\"in_progress\":15,\"proposed\":14,\"ready\":29,\"rejected\":10}},\"samples_verified\":[\"CODEX:core:001\",\"BENCH:agent-tools:003\",\"DELTA:core:019\"],\"integrity_check\":\"ok\"}\n",
+        "stdout": "{\"format\":\"bif-v2-benchmark-store-v1\",\"logical_digest_algorithm\":\"fnv1a64-framed-canonical-tables-v2\",\"seed\":2003,\"items\":100,\"database\":\"/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/generated-100.sqlite\",\"logical_digest\":\"b819125481255ec7\",\"elapsed_milliseconds\":32,\"row_counts\":{\"events\":516,\"item_acceptance_criteria\":339,\"item_provenance\":100,\"items\":100,\"operations\":516,\"projects\":5,\"requester_project_counters\":13,\"store_metadata\":1},\"distributions\":{\"assignees\":{\"alice\":18,\"benchmark-agent\":21,\"bob\":32,\"null\":29},\"priorities\":{\"P0\":9,\"P1\":12,\"P2\":13,\"P3\":21,\"P4\":29,\"null\":16},\"projects\":{\"agent-tools\":11,\"core\":63,\"desktop\":13,\"docs\":12,\"rare-project\":1},\"sparse_markers\":{\"absent\":99,\"present\":1},\"statuses\":{\"blocked\":9,\"done\":23,\"in_progress\":15,\"proposed\":14,\"ready\":29,\"rejected\":10}},\"samples_verified\":[\"CODEX:core:001\",\"BENCH:agent-tools:003\",\"DELTA:core:019\"],\"integrity_check\":\"ok\"}\n",
         "stderr": ""
       },
       "roots": {
-        "baseline": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/working-100-baseline",
-        "candidate": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-100-candidate"
+        "baseline": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/working-100-baseline",
+        "candidate": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-100-candidate"
       },
       "execution": {
         "baseline": {
-          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
           "binary_sha256": "863139b0a60ac97088b1b7c939cf234d035c3b63bafdbca7f6a1f62f2919fcc3",
-          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/working-100-baseline",
-          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/working-100-baseline/config.toml",
-          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-100-baseline\"\nrequester = \"GATE\"\n",
-          "config_sha256": "95c5b43774ac93417de47ed9233d007811a33dc5cdc35502952571930caae28e",
+          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/working-100-baseline",
+          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/working-100-baseline/config.toml",
+          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-100-baseline\"\nrequester = \"GATE\"\n",
+          "config_sha256": "d9ec3a9a401a7887fad51bf5e4bfe356cc79affdefe7c06abf429efe4243cffe",
           "requester": "GATE",
-          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF"
+          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF"
         },
         "candidate": {
-          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
           "binary_sha256": "d5ca64de6c1c01f90b0b0384cae7a24243bc5cde992e3295452274b8df24b66f",
-          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-100-candidate",
-          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-100-candidate/config.toml",
-          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-100-baseline\"\nrequester = \"GATE\"\n",
-          "config_sha256": "95c5b43774ac93417de47ed9233d007811a33dc5cdc35502952571930caae28e",
+          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-100-candidate",
+          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-100-candidate/config.toml",
+          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-100-baseline\"\nrequester = \"GATE\"\n",
+          "config_sha256": "d9ec3a9a401a7887fad51bf5e4bfe356cc79affdefe7c06abf429efe4243cffe",
           "requester": "GATE",
-          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF"
+          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF"
         }
       }
     },
@@ -638,42 +638,42 @@
       "legacy_tables_equal": true,
       "generator_command": {
         "argv": [
-          "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif-benchmark-store",
+          "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif-benchmark-store",
           "10000",
           "--seed",
           "2003",
           "--output",
-          "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/generated-10000.sqlite"
+          "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/generated-10000.sqlite"
         ],
-        "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+        "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
         "exit_code": 0,
-        "stdout": "{\"format\":\"bif-v2-benchmark-store-v1\",\"logical_digest_algorithm\":\"fnv1a64-framed-canonical-tables-v2\",\"seed\":2003,\"items\":10000,\"database\":\"/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/generated-10000.sqlite\",\"logical_digest\":\"957657e192519763\",\"elapsed_milliseconds\":1875,\"row_counts\":{\"events\":50334,\"item_acceptance_criteria\":31027,\"item_provenance\":10000,\"items\":10000,\"operations\":50334,\"projects\":5,\"requester_project_counters\":15,\"store_metadata\":1},\"distributions\":{\"assignees\":{\"alice\":2484,\"benchmark-agent\":2514,\"bob\":2461,\"null\":2541},\"priorities\":{\"P0\":971,\"P1\":1009,\"P2\":1986,\"P3\":2007,\"P4\":2085,\"null\":1942},\"projects\":{\"agent-tools\":1727,\"core\":6812,\"desktop\":959,\"docs\":407,\"rare-project\":95},\"sparse_markers\":{\"absent\":9989,\"present\":11},\"statuses\":{\"blocked\":988,\"done\":2411,\"in_progress\":1976,\"proposed\":1765,\"ready\":2026,\"rejected\":834}},\"samples_verified\":[\"CODEX:core:001\",\"CODEX:rare-project:019\",\"CODEX:core:2254\"],\"integrity_check\":\"ok\"}\n",
+        "stdout": "{\"format\":\"bif-v2-benchmark-store-v1\",\"logical_digest_algorithm\":\"fnv1a64-framed-canonical-tables-v2\",\"seed\":2003,\"items\":10000,\"database\":\"/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/generated-10000.sqlite\",\"logical_digest\":\"957657e192519763\",\"elapsed_milliseconds\":1980,\"row_counts\":{\"events\":50334,\"item_acceptance_criteria\":31027,\"item_provenance\":10000,\"items\":10000,\"operations\":50334,\"projects\":5,\"requester_project_counters\":15,\"store_metadata\":1},\"distributions\":{\"assignees\":{\"alice\":2484,\"benchmark-agent\":2514,\"bob\":2461,\"null\":2541},\"priorities\":{\"P0\":971,\"P1\":1009,\"P2\":1986,\"P3\":2007,\"P4\":2085,\"null\":1942},\"projects\":{\"agent-tools\":1727,\"core\":6812,\"desktop\":959,\"docs\":407,\"rare-project\":95},\"sparse_markers\":{\"absent\":9989,\"present\":11},\"statuses\":{\"blocked\":988,\"done\":2411,\"in_progress\":1976,\"proposed\":1765,\"ready\":2026,\"rejected\":834}},\"samples_verified\":[\"CODEX:core:001\",\"CODEX:rare-project:019\",\"CODEX:core:2254\"],\"integrity_check\":\"ok\"}\n",
         "stderr": ""
       },
       "roots": {
-        "baseline": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/working-10000-baseline",
-        "candidate": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-10000-candidate"
+        "baseline": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/working-10000-baseline",
+        "candidate": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-10000-candidate"
       },
       "execution": {
         "baseline": {
-          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
           "binary_sha256": "863139b0a60ac97088b1b7c939cf234d035c3b63bafdbca7f6a1f62f2919fcc3",
-          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/working-10000-baseline",
-          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/working-10000-baseline/config.toml",
-          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-10000-baseline\"\nrequester = \"GATE\"\n",
-          "config_sha256": "333646ce1fedcbc073705462b1dac62623da4c2cdc482025ed478aa7b63adfd8",
+          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/working-10000-baseline",
+          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/working-10000-baseline/config.toml",
+          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-10000-baseline\"\nrequester = \"GATE\"\n",
+          "config_sha256": "7b24230564a9a258e5257ab7b4fd5710e42d39c251b1d01276232e6e171a345f",
           "requester": "GATE",
-          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF"
+          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF"
         },
         "candidate": {
-          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
           "binary_sha256": "d5ca64de6c1c01f90b0b0384cae7a24243bc5cde992e3295452274b8df24b66f",
-          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-10000-candidate",
-          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-10000-candidate/config.toml",
-          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-10000-baseline\"\nrequester = \"GATE\"\n",
-          "config_sha256": "333646ce1fedcbc073705462b1dac62623da4c2cdc482025ed478aa7b63adfd8",
+          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-10000-candidate",
+          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-10000-candidate/config.toml",
+          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-10000-baseline\"\nrequester = \"GATE\"\n",
+          "config_sha256": "7b24230564a9a258e5257ab7b4fd5710e42d39c251b1d01276232e6e171a345f",
           "requester": "GATE",
-          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF"
+          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF"
         }
       }
     },
@@ -695,42 +695,42 @@
       "legacy_tables_equal": true,
       "generator_command": {
         "argv": [
-          "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif-benchmark-store",
+          "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif-benchmark-store",
           "100000",
           "--seed",
           "2003",
           "--output",
-          "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/generated-100000.sqlite"
+          "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/generated-100000.sqlite"
         ],
-        "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+        "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
         "exit_code": 0,
-        "stdout": "{\"format\":\"bif-v2-benchmark-store-v1\",\"logical_digest_algorithm\":\"fnv1a64-framed-canonical-tables-v2\",\"seed\":2003,\"items\":100000,\"database\":\"/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/generated-100000.sqlite\",\"logical_digest\":\"87a07c0632977092\",\"elapsed_milliseconds\":19976,\"row_counts\":{\"events\":503986,\"item_acceptance_criteria\":306795,\"item_provenance\":100000,\"items\":100000,\"operations\":503986,\"projects\":5,\"requester_project_counters\":15,\"store_metadata\":1},\"distributions\":{\"assignees\":{\"alice\":24999,\"benchmark-agent\":25021,\"bob\":24892,\"null\":25088},\"priorities\":{\"P0\":9939,\"P1\":10074,\"P2\":20043,\"P3\":20004,\"P4\":20133,\"null\":19807},\"projects\":{\"agent-tools\":17732,\"core\":68263,\"desktop\":9057,\"docs\":3939,\"rare-project\":1009},\"sparse_markers\":{\"absent\":99899,\"present\":101},\"statuses\":{\"blocked\":9967,\"done\":24183,\"in_progress\":19884,\"proposed\":17696,\"ready\":20171,\"rejected\":8099}},\"samples_verified\":[\"CODEX:core:001\",\"DELTA:core:11373\",\"DELTA:core:22928\"],\"integrity_check\":\"ok\"}\n",
+        "stdout": "{\"format\":\"bif-v2-benchmark-store-v1\",\"logical_digest_algorithm\":\"fnv1a64-framed-canonical-tables-v2\",\"seed\":2003,\"items\":100000,\"database\":\"/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/generated-100000.sqlite\",\"logical_digest\":\"87a07c0632977092\",\"elapsed_milliseconds\":19967,\"row_counts\":{\"events\":503986,\"item_acceptance_criteria\":306795,\"item_provenance\":100000,\"items\":100000,\"operations\":503986,\"projects\":5,\"requester_project_counters\":15,\"store_metadata\":1},\"distributions\":{\"assignees\":{\"alice\":24999,\"benchmark-agent\":25021,\"bob\":24892,\"null\":25088},\"priorities\":{\"P0\":9939,\"P1\":10074,\"P2\":20043,\"P3\":20004,\"P4\":20133,\"null\":19807},\"projects\":{\"agent-tools\":17732,\"core\":68263,\"desktop\":9057,\"docs\":3939,\"rare-project\":1009},\"sparse_markers\":{\"absent\":99899,\"present\":101},\"statuses\":{\"blocked\":9967,\"done\":24183,\"in_progress\":19884,\"proposed\":17696,\"ready\":20171,\"rejected\":8099}},\"samples_verified\":[\"CODEX:core:001\",\"DELTA:core:11373\",\"DELTA:core:22928\"],\"integrity_check\":\"ok\"}\n",
         "stderr": ""
       },
       "roots": {
-        "baseline": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/working-100000-baseline",
-        "candidate": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-100000-candidate"
+        "baseline": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/working-100000-baseline",
+        "candidate": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-100000-candidate"
       },
       "execution": {
         "baseline": {
-          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
           "binary_sha256": "863139b0a60ac97088b1b7c939cf234d035c3b63bafdbca7f6a1f62f2919fcc3",
-          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/working-100000-baseline",
-          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/working-100000-baseline/config.toml",
-          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-100000-baseline\"\nrequester = \"GATE\"\n",
-          "config_sha256": "35a25dbe3b8ccf0dde0b324ab2cd4269a32533cad9bf56f569e65d31070f99d3",
+          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/working-100000-baseline",
+          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/working-100000-baseline/config.toml",
+          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-100000-baseline\"\nrequester = \"GATE\"\n",
+          "config_sha256": "f3f4213274b595f1f8082cdb9a06325d76826db35d1b40e61f0f051be01c1acf",
           "requester": "GATE",
-          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF"
+          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF"
         },
         "candidate": {
-          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+          "executable": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
           "binary_sha256": "d5ca64de6c1c01f90b0b0384cae7a24243bc5cde992e3295452274b8df24b66f",
-          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-100000-candidate",
-          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-100000-candidate/config.toml",
-          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/benchmark-100000-baseline\"\nrequester = \"GATE\"\n",
-          "config_sha256": "35a25dbe3b8ccf0dde0b324ab2cd4269a32533cad9bf56f569e65d31070f99d3",
+          "root": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-100000-candidate",
+          "config_path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-100000-candidate/config.toml",
+          "config_contents": "root = \"/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/benchmark-100000-baseline\"\nrequester = \"GATE\"\n",
+          "config_sha256": "f3f4213274b595f1f8082cdb9a06325d76826db35d1b40e61f0f051be01c1acf",
           "requester": "GATE",
-          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF"
+          "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF"
         }
       }
     }
@@ -872,7 +872,7 @@
     "platform": "macOS-27.0.1-arm64-arm-64bit",
     "uname": [
       "Darwin",
-      "Mac",
+      "Daviss-Mac-mini.local",
       "27.0.0",
       "Darwin Kernel Version 27.0.0: Tue Aug 11 21:02:57 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8132",
       "arm64",
@@ -884,18 +884,18 @@
     "production_sqlite": {
       "baseline": {
         "version": "3.51.1",
-        "bindings_path": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/build/libsqlite3-sys-3f2a89cd02a5df4f/out/bindgen.rs",
+        "bindings_path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/build/libsqlite3-sys-3f2a89cd02a5df4f/out/bindgen.rs",
         "bindings_sha256": "cf53846904130e42d81072cd63302c6d9261f45a9842c3a4093235c072398528",
         "dependency": "libsqlite3-sys 0.36.0 bundled; rusqlite 0.38.0"
       },
       "candidate": {
         "version": "3.51.1",
-        "bindings_path": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/build/libsqlite3-sys-3f2a89cd02a5df4f/out/bindgen.rs",
+        "bindings_path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/build/libsqlite3-sys-3f2a89cd02a5df4f/out/bindgen.rs",
         "bindings_sha256": "cf53846904130e42d81072cd63302c6d9261f45a9842c3a4093235c072398528",
         "dependency": "libsqlite3-sys 0.36.0 bundled; rusqlite 0.38.0"
       }
     },
-    "filesystem": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   228Gi   194Gi   8.3Gi    96%    3.0M   87M    3%   /System/Volumes/Data\n",
+    "filesystem": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   228Gi   199Gi   3.5Gi    99%    3.0M   37M    8%   /System/Volumes/Data\n",
     "profile": "release"
   },
   "limits": [
@@ -905,5 +905,5 @@
     "Synthetic generated workloads and one host are not a live platform/configuration approval."
   ],
   "frozen_before_timing": true,
-  "frozen_at_unix_ns": 1792019506513418000
+  "frozen_at_unix_ns": 1792021905441229000
 }

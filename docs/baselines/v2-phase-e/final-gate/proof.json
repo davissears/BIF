@@ -1,7 +1,7 @@
 {
   "format": "bif-phase-e-final-gate-proof-v1",
   "candidate_revision": "f0cd787f64a6bd3d301f11e616bb587e112a14fa",
-  "protocol_sha256": "d9f39fe14da2ee7e5161580bb3055421aeacc695aa4873f48a4e33d89358abb1",
+  "protocol_sha256": "dff0bd5e5413a0a4dfcb2eda0b23494fd1d5189047ecf572f2546cb13ea0be5e",
   "release_approved": false,
   "sync_enabled": 0,
   "bootstrap_required": 1,
@@ -329,7 +329,7 @@
       "journal_metadata": [
         [
           1,
-          "dd9e716f2a77dd188c05756a5a04d4d0",
+          "3bb1de89b61c75bcd06b645f87acb974",
           0,
           0,
           0,
@@ -347,38 +347,38 @@
           1,
           "initial",
           "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
-          "2026-10-14T23:11:09.161Z"
+          "2026-10-14T23:51:07.871Z"
         ],
         [
           2,
           "immutable_events",
           "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
-          "2026-10-14T23:11:09.161Z"
+          "2026-10-14T23:51:07.872Z"
         ],
         [
           3,
           "projection_read_indexes",
           "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
-          "2026-10-14T23:11:09.161Z"
+          "2026-10-14T23:51:07.872Z"
         ],
         [
           4,
           "change_journal",
           "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
-          "2026-10-14T23:11:09.161Z"
+          "2026-10-14T23:51:07.872Z"
         ]
       ],
       "sqlite_sequence": [],
       "store_metadata": [
         [
           1,
-          "087b1cf6-2091-4ba8-a399-8f5b9e3e0c8d",
-          "2026-10-14T23:11:09.161Z"
+          "c82f76e4-75a8-4a21-b481-f52ac90c02c6",
+          "2026-10-14T23:51:07.871Z"
         ]
       ]
     },
     "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
-    "content_sha256": "313bb7506de961b374113a32d49471e16f6b306596aa7831003063d63d48842c",
+    "content_sha256": "1f76c9dedc62502dcfcaeffea504c62edaefeb95780d9892400ef3533c23ac60",
     "migrations": [
       1,
       2,
@@ -707,8 +707,8 @@
       "change_journal": [],
       "events": [
         [
-          "cli-event-000000000000000018de8836733de9c8-0000000000000000",
-          "cli-000000000000000018de8836733de9c8-0000000000000000",
+          "cli-event-000000000000000018de8a64f1839438-0000000000000000",
+          "cli-000000000000000018de8a64f1839438-0000000000000000",
           "GATE:gate:001",
           1,
           0,
@@ -725,7 +725,7 @@
           "local",
           null,
           null,
-          "2026-10-14T23:11:09Z",
+          "2026-10-14T23:51:07Z",
           1
         ]
       ],
@@ -755,14 +755,14 @@
           null,
           null,
           1,
-          "2026-10-14T23:11:09Z",
-          "2026-10-14T23:11:09Z"
+          "2026-10-14T23:51:07Z",
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "journal_metadata": [
         [
           1,
-          "ba807e02cf8911758b58576d0c167eba",
+          "cd1f25187f94811e396f4cede4d7c93f",
           0,
           0,
           0,
@@ -774,20 +774,20 @@
           "gate-historical",
           "capture",
           "d2656f2c5515b2915b2e4e03a687d68bedad5fe5e12c6849b7703d6b22ab5508",
-          "cli-000000000000000018de8836733de9c8-0000000000000000",
+          "cli-000000000000000018de8a64f1839438-0000000000000000",
           "GATE:gate:001",
           "{\"item_id\":\"GATE:gate:001\"}",
-          "2026-10-14T23:11:09Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "operations": [
         [
-          "cli-000000000000000018de8836733de9c8-0000000000000000",
+          "cli-000000000000000018de8a64f1839438-0000000000000000",
           "GATE:gate:001",
           "capture",
           null,
           1,
-          "2026-10-14T23:11:09Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "project_path_mappings": [],
@@ -795,7 +795,7 @@
       "projects": [
         [
           "gate",
-          "2026-10-14T23:11:09Z"
+          "2026-10-14T23:51:07Z"
         ]
       ],
       "requester_project_counters": [
@@ -810,38 +810,38 @@
           1,
           "initial",
           "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
-          "2026-10-14T23:11:09.167Z"
+          "2026-10-14T23:51:07.877Z"
         ],
         [
           2,
           "immutable_events",
           "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
-          "2026-10-14T23:11:09.167Z"
+          "2026-10-14T23:51:07.877Z"
         ],
         [
           3,
           "projection_read_indexes",
           "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
-          "2026-10-14T23:11:09.167Z"
+          "2026-10-14T23:51:07.877Z"
         ],
         [
           4,
           "change_journal",
           "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
-          "2026-10-14T23:11:09.189Z"
+          "2026-10-14T23:51:07.899Z"
         ]
       ],
       "sqlite_sequence": [],
       "store_metadata": [
         [
           1,
-          "84e3efe4-05cc-4f1b-9725-c72cebc0c61a",
-          "2026-10-14T23:11:09.167Z"
+          "6ce39c9c-0299-49c6-a6e5-2ab253986aac",
+          "2026-10-14T23:51:07.877Z"
         ]
       ]
     },
     "schema_sha256": "6ae890bb8ac65bc27473abbac79581e6d1e4e7e3d68bf9a2fdd87e39503f38b6",
-    "content_sha256": "b3d17eb468be38aa01d5ecf71122af979f57961c0907a214343997db94f2379d",
+    "content_sha256": "971d5036014dfff9cf81d5cb66fbb3c94151bd434a2544e4b0ae9a16622c9059",
     "migrations": [
       1,
       2,
@@ -864,20 +864,20 @@
   },
   "current_schema_restore": {
     "generations": [
-      "ba807e02cf8911758b58576d0c167eba",
-      "a62e99bed0b564a425d3fc9108135c71",
-      "2e0185c89f20ddbf2532c2a43f7bafef"
+      "cd1f25187f94811e396f4cede4d7c93f",
+      "3f2ae2dbbab46a47676255a374d6f23f",
+      "bc9d4fd777a54b5f7140cc8b63bd294c"
     ],
     "repeated_identical_backup": true,
-    "input_sha256_unchanged": "99f0486fb79949db192dbd1860735ee3b8e262c98a585ad5283ab7f87a3cb2af",
+    "input_sha256_unchanged": "a12ba619f4aa6539c3758f68286703f45fbe3d59537f5232b445a7f0e8455b14",
     "restored_tables_equal_except_generation": true,
     "preserved_later": [
       {
-        "path": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/preserved-later-0.sqlite",
-        "sha256": "dee6b51e6a4506509557c8341decfcc6dfbc3ca9bf317f78cacf81d029ce4ff2",
+        "path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-0.sqlite",
+        "sha256": "a87cdfdf08162cf3dcd93e0c92f9b0c7abf7a723ddafc5b1d7af0893b30ddf87",
         "state": {
           "schema_sha256": "71a6fa30cbe149badd3d5ce9c70547daa80912734fa13f17d62564198762e5c0",
-          "content_sha256": "7a4f927ef174ddbd58580222f87df43a4c344e65f89a6b4cb9e0f34947a46868",
+          "content_sha256": "d61ad1e9cef2c25f0169d6afe71eec3ff5208fac014fbf54c62c8f2581b6c14d",
           "migrations": [
             1,
             2,
@@ -890,11 +890,11 @@
         "tables_equal_before": true
       },
       {
-        "path": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/preserved-later-1.sqlite",
-        "sha256": "e3512ceffaed7f864c1b5a15c78dff9898bfa971348606f2931747fa3316b932",
+        "path": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-1.sqlite",
+        "sha256": "b045022c685c624270cf94b22b8838a7b59908070c1f26ec2bc5c9ae33814ffb",
         "state": {
           "schema_sha256": "71a6fa30cbe149badd3d5ce9c70547daa80912734fa13f17d62564198762e5c0",
-          "content_sha256": "f16a1eec8a4e1c3d14df6383c63507bdcfb5a89785271af6c91888749fd5832b",
+          "content_sha256": "1a8c1a5bf761d6f42c957805052d9ca5ca0cf49bdafca4192a731484a19eea5e",
           "migrations": [
             1,
             2,
@@ -1228,21 +1228,21 @@
         "change_journal": [
           [
             1,
-            "cli-000000000000000018de8836752e5ba0-0000000000000000",
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
             "GATE:gate:002",
             "gate",
             1
           ],
           [
             2,
-            "cli-000000000000000018de88367a5432d0-0000000000000000",
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
             "GATE:gate:003",
             "gate",
             1
           ],
           [
             3,
-            "cli-000000000000000018de88367b659ee8-0000000000000000",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
             "GATE:gate:004",
             "gate",
             1
@@ -1250,8 +1250,8 @@
         ],
         "events": [
           [
-            "cli-event-000000000000000018de8836733de9c8-0000000000000000",
-            "cli-000000000000000018de8836733de9c8-0000000000000000",
+            "cli-event-000000000000000018de8a64f1839438-0000000000000000",
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
             "GATE:gate:001",
             1,
             0,
@@ -1268,12 +1268,12 @@
             "local",
             null,
             null,
-            "2026-10-14T23:11:09Z",
+            "2026-10-14T23:51:07Z",
             1
           ],
           [
-            "cli-event-000000000000000018de8836752e5ba0-0000000000000000",
-            "cli-000000000000000018de8836752e5ba0-0000000000000000",
+            "cli-event-000000000000000018de8a64f368c340-0000000000000000",
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
             "GATE:gate:002",
             1,
             0,
@@ -1290,12 +1290,12 @@
             "local",
             null,
             null,
-            "2026-10-14T23:11:09Z",
+            "2026-10-14T23:51:07Z",
             1
           ],
           [
-            "cli-event-000000000000000018de88367a5432d0-0000000000000000",
-            "cli-000000000000000018de88367a5432d0-0000000000000000",
+            "cli-event-000000000000000018de8a64f8a22a40-0000000000000000",
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
             "GATE:gate:003",
             1,
             0,
@@ -1312,12 +1312,12 @@
             "local",
             null,
             null,
-            "2026-10-14T23:11:09Z",
+            "2026-10-14T23:51:08Z",
             1
           ],
           [
-            "cli-event-000000000000000018de88367b659ee8-0000000000000000",
-            "cli-000000000000000018de88367b659ee8-0000000000000000",
+            "cli-event-000000000000000018de8a64f98809e8-0000000000000000",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
             "GATE:gate:004",
             1,
             0,
@@ -1334,7 +1334,7 @@
             "local",
             null,
             null,
-            "2026-10-14T23:11:09Z",
+            "2026-10-14T23:51:08Z",
             1
           ]
         ],
@@ -1394,8 +1394,8 @@
             null,
             null,
             1,
-            "2026-10-14T23:11:09Z",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z",
+            "2026-10-14T23:51:07Z"
           ],
           [
             "GATE:gate:002",
@@ -1409,8 +1409,8 @@
             null,
             null,
             1,
-            "2026-10-14T23:11:09Z",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z",
+            "2026-10-14T23:51:07Z"
           ],
           [
             "GATE:gate:003",
@@ -1424,8 +1424,8 @@
             null,
             null,
             1,
-            "2026-10-14T23:11:09Z",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z",
+            "2026-10-14T23:51:08Z"
           ],
           [
             "GATE:gate:004",
@@ -1439,14 +1439,14 @@
             null,
             null,
             1,
-            "2026-10-14T23:11:09Z",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z",
+            "2026-10-14T23:51:08Z"
           ]
         ],
         "journal_metadata": [
           [
             1,
-            "2e0185c89f20ddbf2532c2a43f7bafef",
+            "bc9d4fd777a54b5f7140cc8b63bd294c",
             0,
             3,
             0,
@@ -1458,71 +1458,71 @@
             "gate-before-backup",
             "capture",
             "24a3f777881e3805176f2ae8bdb59b1caf8be500058f423de54c5b41bb24b8af",
-            "cli-000000000000000018de8836752e5ba0-0000000000000000",
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
             "GATE:gate:002",
             "{\"item_id\":\"GATE:gate:002\"}",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z"
           ],
           [
             "gate-historical",
             "capture",
             "d2656f2c5515b2915b2e4e03a687d68bedad5fe5e12c6849b7703d6b22ab5508",
-            "cli-000000000000000018de8836733de9c8-0000000000000000",
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
             "GATE:gate:001",
             "{\"item_id\":\"GATE:gate:001\"}",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z"
           ],
           [
             "gate-retain-0",
             "capture",
             "4bbda5e20747c5308fa3905a9eaef7732e695aefdc5f8251520a9cf7b6c030d6",
-            "cli-000000000000000018de88367a5432d0-0000000000000000",
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
             "GATE:gate:003",
             "{\"item_id\":\"GATE:gate:003\"}",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z"
           ],
           [
             "gate-retain-1",
             "capture",
             "80bc5d3f86658ce84b4186ae9ccfa421aaf9b086dee8753792c955c389c2e56e",
-            "cli-000000000000000018de88367b659ee8-0000000000000000",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
             "GATE:gate:004",
             "{\"item_id\":\"GATE:gate:004\"}",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z"
           ]
         ],
         "operations": [
           [
-            "cli-000000000000000018de8836733de9c8-0000000000000000",
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
             "GATE:gate:001",
             "capture",
             null,
             1,
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z"
           ],
           [
-            "cli-000000000000000018de8836752e5ba0-0000000000000000",
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
             "GATE:gate:002",
             "capture",
             null,
             1,
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z"
           ],
           [
-            "cli-000000000000000018de88367a5432d0-0000000000000000",
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
             "GATE:gate:003",
             "capture",
             null,
             1,
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z"
           ],
           [
-            "cli-000000000000000018de88367b659ee8-0000000000000000",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
             "GATE:gate:004",
             "capture",
             null,
             1,
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z"
           ]
         ],
         "project_path_mappings": [],
@@ -1530,7 +1530,7 @@
         "projects": [
           [
             "gate",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z"
           ]
         ],
         "requester_project_counters": [
@@ -1545,25 +1545,25 @@
             1,
             "initial",
             "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
-            "2026-10-14T23:11:09.167Z"
+            "2026-10-14T23:51:07.877Z"
           ],
           [
             2,
             "immutable_events",
             "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
-            "2026-10-14T23:11:09.167Z"
+            "2026-10-14T23:51:07.877Z"
           ],
           [
             3,
             "projection_read_indexes",
             "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
-            "2026-10-14T23:11:09.167Z"
+            "2026-10-14T23:51:07.877Z"
           ],
           [
             4,
             "change_journal",
             "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
-            "2026-10-14T23:11:09.189Z"
+            "2026-10-14T23:51:07.899Z"
           ]
         ],
         "sqlite_sequence": [
@@ -1575,13 +1575,13 @@
         "store_metadata": [
           [
             1,
-            "84e3efe4-05cc-4f1b-9725-c72cebc0c61a",
-            "2026-10-14T23:11:09.167Z"
+            "6ce39c9c-0299-49c6-a6e5-2ab253986aac",
+            "2026-10-14T23:51:07.877Z"
           ]
         ]
       },
       "schema_sha256": "d09f0687b982f3520195af08707fb6c5bd3e1d2182f34beb20bb3fbf3541d22a",
-      "content_sha256": "65155fad31c90a9dbb5fd65815fb35fe3c8aac6aa9ffb993c5ae5a24def6d8fd",
+      "content_sha256": "884d31750d784e387d67a18964d5a457843e8e7f37e675f8d664ecd6102abf70",
       "migrations": [
         1,
         2,
@@ -1910,7 +1910,7 @@
         "change_journal": [
           [
             3,
-            "cli-000000000000000018de88367b659ee8-0000000000000000",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
             "GATE:gate:004",
             "gate",
             1
@@ -1918,8 +1918,8 @@
         ],
         "events": [
           [
-            "cli-event-000000000000000018de8836733de9c8-0000000000000000",
-            "cli-000000000000000018de8836733de9c8-0000000000000000",
+            "cli-event-000000000000000018de8a64f1839438-0000000000000000",
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
             "GATE:gate:001",
             1,
             0,
@@ -1936,12 +1936,12 @@
             "local",
             null,
             null,
-            "2026-10-14T23:11:09Z",
+            "2026-10-14T23:51:07Z",
             1
           ],
           [
-            "cli-event-000000000000000018de8836752e5ba0-0000000000000000",
-            "cli-000000000000000018de8836752e5ba0-0000000000000000",
+            "cli-event-000000000000000018de8a64f368c340-0000000000000000",
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
             "GATE:gate:002",
             1,
             0,
@@ -1958,12 +1958,12 @@
             "local",
             null,
             null,
-            "2026-10-14T23:11:09Z",
+            "2026-10-14T23:51:07Z",
             1
           ],
           [
-            "cli-event-000000000000000018de88367a5432d0-0000000000000000",
-            "cli-000000000000000018de88367a5432d0-0000000000000000",
+            "cli-event-000000000000000018de8a64f8a22a40-0000000000000000",
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
             "GATE:gate:003",
             1,
             0,
@@ -1980,12 +1980,12 @@
             "local",
             null,
             null,
-            "2026-10-14T23:11:09Z",
+            "2026-10-14T23:51:08Z",
             1
           ],
           [
-            "cli-event-000000000000000018de88367b659ee8-0000000000000000",
-            "cli-000000000000000018de88367b659ee8-0000000000000000",
+            "cli-event-000000000000000018de8a64f98809e8-0000000000000000",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
             "GATE:gate:004",
             1,
             0,
@@ -2002,7 +2002,7 @@
             "local",
             null,
             null,
-            "2026-10-14T23:11:09Z",
+            "2026-10-14T23:51:08Z",
             1
           ]
         ],
@@ -2062,8 +2062,8 @@
             null,
             null,
             1,
-            "2026-10-14T23:11:09Z",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z",
+            "2026-10-14T23:51:07Z"
           ],
           [
             "GATE:gate:002",
@@ -2077,8 +2077,8 @@
             null,
             null,
             1,
-            "2026-10-14T23:11:09Z",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z",
+            "2026-10-14T23:51:07Z"
           ],
           [
             "GATE:gate:003",
@@ -2092,8 +2092,8 @@
             null,
             null,
             1,
-            "2026-10-14T23:11:09Z",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z",
+            "2026-10-14T23:51:08Z"
           ],
           [
             "GATE:gate:004",
@@ -2107,14 +2107,14 @@
             null,
             null,
             1,
-            "2026-10-14T23:11:09Z",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z",
+            "2026-10-14T23:51:08Z"
           ]
         ],
         "journal_metadata": [
           [
             1,
-            "2e0185c89f20ddbf2532c2a43f7bafef",
+            "bc9d4fd777a54b5f7140cc8b63bd294c",
             2,
             3,
             0,
@@ -2126,71 +2126,71 @@
             "gate-before-backup",
             "capture",
             "24a3f777881e3805176f2ae8bdb59b1caf8be500058f423de54c5b41bb24b8af",
-            "cli-000000000000000018de8836752e5ba0-0000000000000000",
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
             "GATE:gate:002",
             "{\"item_id\":\"GATE:gate:002\"}",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z"
           ],
           [
             "gate-historical",
             "capture",
             "d2656f2c5515b2915b2e4e03a687d68bedad5fe5e12c6849b7703d6b22ab5508",
-            "cli-000000000000000018de8836733de9c8-0000000000000000",
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
             "GATE:gate:001",
             "{\"item_id\":\"GATE:gate:001\"}",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z"
           ],
           [
             "gate-retain-0",
             "capture",
             "4bbda5e20747c5308fa3905a9eaef7732e695aefdc5f8251520a9cf7b6c030d6",
-            "cli-000000000000000018de88367a5432d0-0000000000000000",
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
             "GATE:gate:003",
             "{\"item_id\":\"GATE:gate:003\"}",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z"
           ],
           [
             "gate-retain-1",
             "capture",
             "80bc5d3f86658ce84b4186ae9ccfa421aaf9b086dee8753792c955c389c2e56e",
-            "cli-000000000000000018de88367b659ee8-0000000000000000",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
             "GATE:gate:004",
             "{\"item_id\":\"GATE:gate:004\"}",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z"
           ]
         ],
         "operations": [
           [
-            "cli-000000000000000018de8836733de9c8-0000000000000000",
+            "cli-000000000000000018de8a64f1839438-0000000000000000",
             "GATE:gate:001",
             "capture",
             null,
             1,
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z"
           ],
           [
-            "cli-000000000000000018de8836752e5ba0-0000000000000000",
+            "cli-000000000000000018de8a64f368c340-0000000000000000",
             "GATE:gate:002",
             "capture",
             null,
             1,
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z"
           ],
           [
-            "cli-000000000000000018de88367a5432d0-0000000000000000",
+            "cli-000000000000000018de8a64f8a22a40-0000000000000000",
             "GATE:gate:003",
             "capture",
             null,
             1,
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z"
           ],
           [
-            "cli-000000000000000018de88367b659ee8-0000000000000000",
+            "cli-000000000000000018de8a64f98809e8-0000000000000000",
             "GATE:gate:004",
             "capture",
             null,
             1,
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:08Z"
           ]
         ],
         "project_path_mappings": [],
@@ -2198,7 +2198,7 @@
         "projects": [
           [
             "gate",
-            "2026-10-14T23:11:09Z"
+            "2026-10-14T23:51:07Z"
           ]
         ],
         "requester_project_counters": [
@@ -2213,25 +2213,25 @@
             1,
             "initial",
             "6cce50f20fc62f82af5432d4e2be81c29a0f44a73ca5245353f98c6c6030f85e",
-            "2026-10-14T23:11:09.167Z"
+            "2026-10-14T23:51:07.877Z"
           ],
           [
             2,
             "immutable_events",
             "1ccf8188fa3ab0c9adbd889c1d80762c9a0d5b3a03189609b204ee05a9c05ced",
-            "2026-10-14T23:11:09.167Z"
+            "2026-10-14T23:51:07.877Z"
           ],
           [
             3,
             "projection_read_indexes",
             "18e0648e7f4beed109743b2de3a0dfb6bd733ca1fbce593b8a8da0eb9032d3d5",
-            "2026-10-14T23:11:09.167Z"
+            "2026-10-14T23:51:07.877Z"
           ],
           [
             4,
             "change_journal",
             "4c8b26c35e9fbdadbd71ca8176f31e5df0c464860d31689435e23bfc334b73b2",
-            "2026-10-14T23:11:09.189Z"
+            "2026-10-14T23:51:07.899Z"
           ]
         ],
         "sqlite_sequence": [
@@ -2243,13 +2243,13 @@
         "store_metadata": [
           [
             1,
-            "84e3efe4-05cc-4f1b-9725-c72cebc0c61a",
-            "2026-10-14T23:11:09.167Z"
+            "6ce39c9c-0299-49c6-a6e5-2ab253986aac",
+            "2026-10-14T23:51:07.877Z"
           ]
         ]
       },
       "schema_sha256": "d09f0687b982f3520195af08707fb6c5bd3e1d2182f34beb20bb3fbf3541d22a",
-      "content_sha256": "7ddac52235fe84bef8b27a121b5d4282c77b52f3d29ca4c5e80310046b21b971",
+      "content_sha256": "4d52a6a9f9f92b48074cf02addb1f9de750977e89188669769e1c3bcf39d513c",
       "migrations": [
         1,
         2,
@@ -2266,13 +2266,13 @@
     "argv": [
       "sqlite3",
       "-readonly",
-      "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/.bif/bif.sqlite",
+      "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite",
       "SELECT generation, retention_floor AS F, high_water AS H FROM journal_metadata WHERE singleton = 1;"
     ],
     "exit_code": 0,
-    "stdout": "2e0185c89f20ddbf2532c2a43f7bafef|0|3\n",
+    "stdout": "bc9d4fd777a54b5f7140cc8b63bd294c|0|3\n",
     "stderr": "",
-    "filesystem": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   228Gi   193Gi   9.4Gi    96%    3.0M   99M    3%   /System/Volumes/Data\n",
+    "filesystem": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   228Gi   198Gi   4.6Gi    98%    3.0M   48M    6%   /System/Volumes/Data\n",
     "sqlite_cli": "3.54.0 2026-04-09 12:25:13 8fa8248e303219400c646a885e36dfc52eae33d83f4412e3f369b2be5373aapl (64-bit)\n",
     "disposition": "passed",
     "live_configuration_workaround": false
@@ -2280,39 +2280,39 @@
   "commands": [
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "init",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/fresh/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/fresh/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/fresh",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/fresh",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "Initialized BIF\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/fresh/config.toml\nstore: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/fresh/.bif/bif.sqlite\nrequester: GATE\n",
+      "stdout": "Initialized BIF\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/fresh/config.toml\nstore: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/fresh/.bif/bif.sqlite\nrequester: GATE\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
         "init",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "Initialized BIF\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/config.toml\nstore: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/.bif/bif.sqlite\nrequester: GATE\n",
+      "stdout": "Initialized BIF\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml\nstore: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite\nrequester: GATE\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
         "capture",
         "Historical rollback item",
         "--project",
@@ -2320,36 +2320,36 @@
         "--idempotency-key",
         "gate-historical",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "Captured GATE:gate:001\ntitle: Historical rollback item\nstatus: proposed\nreplayed: false\nsource: local\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "doctor",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "version: 0.1.0\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/config.toml\nstore-id: 84e3efe4-05cc-4f1b-9725-c72cebc0c61a\nstore-path: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/.bif/bif.sqlite\nschema-version: 4\nproject: bif\n",
+      "stdout": "version: 0.1.0\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml\nstore-id: 6ce39c9c-0299-49c6-a6e5-2ab253986aac\nstore-path: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite\nschema-version: 4\nproject: bif\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "capture",
         "Current backup journal row",
         "--project",
@@ -2357,36 +2357,36 @@
         "--idempotency-key",
         "gate-before-backup",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "Captured GATE:gate:002\ntitle: Current backup journal row\nstatus: proposed\nreplayed: false\nsource: local\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "maintenance",
         "backup",
         "--store",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/.bif/bif.sqlite",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite",
         "--output",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema4-backup.sqlite",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema4-backup.sqlite",
         "--offline"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "Verified backup: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema4-backup.sqlite\n",
+      "stdout": "Verified backup: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema4-backup.sqlite\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "capture",
         "Preserved later write",
         "--project",
@@ -2394,56 +2394,56 @@
         "--idempotency-key",
         "gate-later",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "Captured GATE:gate:003\ntitle: Preserved later write\nstatus: proposed\nreplayed: false\nsource: local\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "maintenance",
         "restore",
         "--store",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/.bif/bif.sqlite",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite",
         "--from",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema4-backup.sqlite",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema4-backup.sqlite",
         "--preserve-later",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/preserved-later-0.sqlite",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-0.sqlite",
         "--offline"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "Verified restore: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/.bif/bif.sqlite\nPreserved later store: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/preserved-later-0.sqlite\nSync inactive; bootstrap required. Restart all clients.\n",
+      "stdout": "Verified restore: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite\nPreserved later store: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-0.sqlite\nSync inactive; bootstrap required. Restart all clients.\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "maintenance",
         "restore",
         "--store",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/.bif/bif.sqlite",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite",
         "--from",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema4-backup.sqlite",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema4-backup.sqlite",
         "--preserve-later",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/preserved-later-1.sqlite",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-1.sqlite",
         "--offline"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "Verified restore: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/.bif/bif.sqlite\nPreserved later store: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/preserved-later-1.sqlite\nSync inactive; bootstrap required. Restart all clients.\n",
+      "stdout": "Verified restore: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite\nPreserved later store: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/preserved-later-1.sqlite\nSync inactive; bootstrap required. Restart all clients.\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "capture",
         "Retained 0",
         "--project",
@@ -2451,20 +2451,20 @@
         "--idempotency-key",
         "gate-retain-0",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "Captured GATE:gate:003\ntitle: Retained 0\nstatus: proposed\nreplayed: false\nsource: local\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "capture",
         "Retained 1",
         "--project",
@@ -2472,90 +2472,90 @@
         "--idempotency-key",
         "gate-retain-1",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "Captured GATE:gate:004\ntitle: Retained 1\nstatus: proposed\nreplayed: false\nsource: local\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/candidate-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/candidate-target/release/bif",
         "maintenance",
         "prune",
         "--store",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/.bif/bif.sqlite",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite",
         "--expected-generation",
-        "2e0185c89f20ddbf2532c2a43f7bafef",
+        "bc9d4fd777a54b5f7140cc8b63bd294c",
         "--through",
         "2",
         "--offline"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "Pruned journal through 2: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/restore-source/.bif/bif.sqlite\n",
+      "stdout": "Pruned journal through 2: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/restore-source/.bif/bif.sqlite\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
         "doctor",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema3-rollback/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema3-rollback",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "version: 0.1.0\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema3-rollback/config.toml\nstore-id: 84e3efe4-05cc-4f1b-9725-c72cebc0c61a\nstore-path: /Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema3-rollback/.bif/bif.sqlite\nschema-version: 3\nproject: bif\n",
+      "stdout": "version: 0.1.0\nconfig: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/config.toml\nstore-id: 6ce39c9c-0299-49c6-a6e5-2ab253986aac\nstore-path: /Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/.bif/bif.sqlite\nschema-version: 3\nproject: bif\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
         "get",
         "GATE:gate:001",
         "--json",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema3-rollback/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema3-rollback",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "{\"acceptance_criteria\":[],\"assignee\":null,\"captured_at\":\"2026-10-14T23:11:09Z\",\"description\":null,\"id\":\"GATE:gate:001\",\"priority\":null,\"project\":\"gate\",\"provenance\":{\"context_excerpt\":null,\"message_id\":null,\"repository_reference\":null,\"revision_reference\":null,\"source_host\":\"local\",\"thread_id\":null,\"url\":null},\"requester\":\"GATE\",\"revision\":1,\"sequence\":1,\"status\":\"proposed\",\"status_reason\":null,\"title\":\"Historical rollback item\",\"updated_at\":\"2026-10-14T23:11:09Z\"}\n",
+      "stdout": "{\"acceptance_criteria\":[],\"assignee\":null,\"captured_at\":\"2026-10-14T23:51:07Z\",\"description\":null,\"id\":\"GATE:gate:001\",\"priority\":null,\"project\":\"gate\",\"provenance\":{\"context_excerpt\":null,\"message_id\":null,\"repository_reference\":null,\"revision_reference\":null,\"source_host\":\"local\",\"thread_id\":null,\"url\":null},\"requester\":\"GATE\",\"revision\":1,\"sequence\":1,\"status\":\"proposed\",\"status_reason\":null,\"title\":\"Historical rollback item\",\"updated_at\":\"2026-10-14T23:51:07Z\"}\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
         "history",
         "GATE:gate:001",
         "--json",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema3-rollback/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema3-rollback",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
-      "stdout": "{\"events\":[{\"actor\":{\"host\":\"local\",\"id\":\"GATE\",\"kind\":\"human\",\"surface\":\"cli\"},\"after\":null,\"before\":null,\"event_id\":\"cli-event-000000000000000018de8836733de9c8-0000000000000000\",\"event_index\":0,\"event_type\":\"captured\",\"execution\":{\"host\":\"local\",\"kind\":\"direct\",\"surface\":\"cli\"},\"item_revision\":1,\"note\":null,\"occurred_at\":\"2026-10-14T23:11:09Z\",\"operation_id\":\"cli-000000000000000018de8836733de9c8-0000000000000000\",\"reason\":null,\"schema_version\":1}]}\n",
+      "stdout": "{\"events\":[{\"actor\":{\"host\":\"local\",\"id\":\"GATE\",\"kind\":\"human\",\"surface\":\"cli\"},\"after\":null,\"before\":null,\"event_id\":\"cli-event-000000000000000018de8a64f1839438-0000000000000000\",\"event_index\":0,\"event_type\":\"captured\",\"execution\":{\"host\":\"local\",\"kind\":\"direct\",\"surface\":\"cli\"},\"item_revision\":1,\"note\":null,\"occurred_at\":\"2026-10-14T23:51:07Z\",\"operation_id\":\"cli-000000000000000018de8a64f1839438-0000000000000000\",\"reason\":null,\"schema_version\":1}]}\n",
       "stderr": ""
     },
     {
       "argv": [
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/historical-target/release/bif",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/historical-target/release/bif",
         "capture",
         "Historical rollback item",
         "--project",
@@ -2563,13 +2563,13 @@
         "--idempotency-key",
         "gate-historical",
         "--config",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema3-rollback/config.toml",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback/config.toml",
         "--root",
-        "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF/target/phase-e-final-gate-corrected-run-2/schema3-rollback",
+        "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF/target/phase-e-final-gate-aggregate-correction-1/schema3-rollback",
         "--requester",
         "GATE"
       ],
-      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/k48hr9fpr42d/BIF",
+      "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
       "exit_code": 0,
       "stdout": "Captured GATE:gate:001\ntitle: Historical rollback item\nstatus: proposed\nreplayed: true\nsource: local\n",
       "stderr": ""

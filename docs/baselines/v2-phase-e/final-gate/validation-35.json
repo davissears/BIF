@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--check"
+  ],
+  "command": "git diff --check",
+  "cwd": "/Users/davissears/Projects/BIF/.delta/worktrees/v7cpbn5v0rgn/BIF",
+  "started_at_unix_ns": 1792022098135057000,
+  "finished_at_unix_ns": 1792022098155334000,
+  "elapsed_seconds": 0.020277,
+  "available_bytes_before": 6903468032,
+  "available_bytes_after": 6903468032,
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": ""
+}

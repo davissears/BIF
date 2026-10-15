@@ -2,8 +2,8 @@
 
 ## Disposition
 
-**Recommend approval of the inactive storage foundation, subject to independent
-review. No live Phase E release, sync activation or Phase F approval.**
+**Fresh evidence is ready for independent aggregate review, not aggregate approval.
+No live Phase E release, sync activation or Phase F approval.**
 No production change was necessary: the production inputs match
 `f0cd787f64a6bd3d301f11e616bb587e112a14fa` exactly. V2-054 runbook and V2-055 CI
 foundation are verified prerequisite document labels, not ledger IDs. Phase D's
@@ -18,21 +18,28 @@ Exact executable, toolchain, archive, source, lock, test and harness SHA256s are
 the [protocol](protocol.json). The historical/candidate executable hashes are
 also checked unchanged after execution.
 
-This is the fresh Step 3 run after both independently approved P2 harness
-corrections. The reviewed `gate.py`, `test_gate.py`, all bound Rust tests and
-workflows remained frozen throughout. Their exact input hashes are recorded in
+This is the fresh remediation Step 3 run at clean starting HEAD
+`478aa623a229a04bd4a714f2a907728fa1f2944d`, after independently approved
+contract correction `55b0a4d` and documentation `478aa62`. Initial batch/main base
+remains `d4399a93e49ce8f87e39e3129377821858472807`. The contract regression
+changed a bound Rust test, intentionally superseding the prior source binding.
+Prior current evidence/report is preserved in Git `d66a6ae`; its raw measurements
+are not retrospectively invalidated. No sample or claim is transplanted here.
+The reviewed `gate.py`, `test_gate.py`, all bound Rust tests and workflows
+remained frozen throughout this run. Their exact input hashes are recorded in
 the protocol; the two Python SHA256s are respectively
 `db450e1283c07a4b07693133f5930fab63c74f00d5c370bf95c8bfab567ca790` and
 `9e6e84158a65ce0f79da52d8e614901bf40ff94da67a706637feec74ae5b80b3`.
 The exact current-output command was:
 
 ```sh
-python3 docs/baselines/v2-phase-e/final-gate/gate.py --output docs/baselines/v2-phase-e/final-gate --work-dir target/phase-e-final-gate-corrected-run-2
+python3 docs/baselines/v2-phase-e/final-gate/gate.py --output docs/baselines/v2-phase-e/final-gate --work-dir target/phase-e-final-gate-aggregate-correction-1
 ```
 
-The work directory was unused. Protocol freeze time `1792019506513418000`
-precedes timing start `1792019506514319000`; timing ended
-`1792019519932614000` (Unix nanoseconds). All four current JSON files were
+The work directory was verified unused. Generation exited 0 in 84.942727 seconds
+([validation-23](validation-23.json)). Protocol freeze time `1792021905441229000`
+precedes timing start `1792021905442203000`; timing ended
+`1792021920041812000` (Unix nanoseconds). All four current JSON files were
 generated together by that command, not transplanted from another attempt.
 
 ## Evidence inventory
@@ -49,7 +56,7 @@ generated together by that command, not transplanted from another attempt.
   generation-bound prune from `(0,3]` to `(2,3]`, with immutable audit, receipts,
   allocator and every other table unchanged.
 - The exact documented read-only diagnostic returned exit 0 and
-  `2e0185c89f20ddbf2532c2a43f7bafef|0|3`, with empty stderr, on the intended
+  `bc9d4fd777a54b5f7140cc8b63bd294c|0|3`, with empty stderr, on the intended
   disposable APFS-backed path. No writable-open substitution or live-config
   workaround was used. **Prior DeltaFS open-14 remains filesystem-specific
   unverified behavior**, not a production/API failure fixed by this task.
@@ -58,15 +65,17 @@ generated together by that command, not transplanted from another attempt.
   process-kill/reopen/retry, migration preflight/checksum refusal, injected
   journal/H failures, capture project/counter rollback, duplicate keys,
   note-only/compound-once, replay/no-op-none, retention, backup/restore and token
-  invalidation. This does not inherit the old 43-test audit.
+  invalidation. This does not inherit previous validation results.
   Fresh executions passed: Python archived controls 4/4, final-gate controls 22/22;
+  exact sync-contract/restore/retention command 32 passed;
   focused storage/migration/maintenance command 60 passed (4 test-only child
   entries ignored at top level); proof/schema/manifest/new-gate command 15 passed;
-  `cargo test --locked` 411 passed, 6 ignored, 0 failed. Four ignored entries are
+  `cargo test --locked` 412 passed, 6 ignored, 0 failed. Four ignored entries are
   children invoked by parent process-crash tests; two are unrelated manual
   Phase C/index measurement tests not run by that command. Formatting passed;
-  Clippy passed with pre-existing warnings, retained verbatim in validation-18.
-- [Fresh-evidence adversarial controls](validation-11.json) call full
+  Clippy passed with pre-existing warnings, retained verbatim in validation-34.
+- [Fresh-evidence adversarial controls](validation-26.json) re-execute the exact
+  stdin preserved in historical validation-11 and call full
   `gate.validate` on temporary copies of this run. Replacing every candidate
   sample argv with its baseline argv is rejected at `candidate 100 capture 0`;
   swapping entire effective/note-only workloads is rejected at
@@ -77,13 +86,17 @@ generated together by that command, not transplanted from another attempt.
   both independent copies (16 cases). The 22 Python controls additionally
   cover setup/results/context, ordered expected effects, counter-only prepare
   refusal, empty tables and exact required-key coverage.
-- [Preservation validation](validation-19.json) verifies all 16 archived
-  originals against their inventory and 35 pre-existing non-current-evidence
-  files against pre-run hashes, including both earlier attempt upgrade proofs
-  and the entire invalid-observer archive. Production, historical Phase D and
-  task007 inputs compare unchanged to `f0cd787`. No ledger/Git write occurred.
+- [Pre-run inventory](validation-22.json) and
+  [preservation validation](validation-37.json) verify all 345 immutable tracked
+  files byte-identically, including validation-01–21, every invalid-observer and
+  invalid-validation archive file and both earlier attempt upgrade proofs.
+  Immutable inventory SHA256:
+  `15facb6b17b1b46cc0887b46a6d0718c175b4c1313aa4398d9e0e9b9ebc56de1`.
+  All production and bound inputs match the pre-run inventory; production,
+  historical Phase D and task007 inputs also compare unchanged to `f0cd787`.
+  No ledger/Git write occurred in this worker.
 - [Frozen protocol](protocol.json) SHA256:
-  `d9f39fe14da2ee7e5161580bb3055421aeacc695aa4873f48a4e33d89358abb1`.
+  `dff0bd5e5413a0a4dfcb2eda0b23494fd1d5189047ecf572f2546cb13ea0be5e`.
   [Measurements](measurements.json) bind that hash and start after its freeze.
   The fixtures reuse the unchanged historical deterministic generator, seed
   2003, with identical digests for all eight required legacy tables before
@@ -117,19 +130,19 @@ per-binary median and nearest-rank p95 and every raw sample are in measurements.
 
 | Workload | 100 | 10k | 100k |
 | --- | --- | --- | --- |
-| Capture | 1.012 [0.993, 1.018] | 1.020 [1.003, 1.027] | 1.015 [1.006, 1.025] |
-| Effective priority | 1.084 [1.060, 1.118] | 1.066 [1.046, 1.102] | 1.060 [1.048, 1.080] |
-| Note-only | 1.069 [1.054, 1.096] | 1.059 [1.040, 1.075] | 1.063 [1.044, 1.078] |
-| Compound | 1.065 [1.051, 1.077] | 1.052 [1.024, 1.083] | 1.061 [1.034, 1.083] |
-| Receipt replay | 1.007 [0.998, 1.017] | 1.005 [1.000, 1.018] | 1.007 [0.995, 1.019] |
-| Genuine no-op | 1.018 [1.009, 1.041] | 1.052 [1.029, 1.073] | 1.036 [1.015, 1.055] |
+| Capture | 1.011 [0.997, 1.028] | 1.015 [0.981, 1.038] | 1.021 [0.984, 1.037] |
+| Effective priority | 1.066 [1.026, 1.080] | 1.053 [1.017, 1.132] | 1.043 [1.005, 1.072] |
+| Note-only | 1.052 [1.012, 1.096] | 1.066 [1.022, 1.096] | 1.067 [1.033, 1.084] |
+| Compound | 1.078 [1.047, 1.115] | 1.060 [1.032, 1.078] | 1.071 [1.059, 1.088] |
+| Receipt replay | 1.001 [0.982, 1.018] | 1.000 [0.982, 1.016] | 0.997 [0.968, 1.037] |
+| Genuine no-op | 1.027 [0.990, 1.042] | 1.039 [1.025, 1.057] | 1.036 [1.011, 1.052] |
 
-**Disposition:** none reaches the predeclared >=10% median plus wholly-above-
+**Disposition:** all 18 are `no_trigger`; none reaches the predeclared >=10% median plus wholly-above-
 parity interval trigger, nor its >=10% inconclusive-repeat band. Effective
-mutation overhead is measurable (~5.2–8.4% paired medians), not zero. Capture
-candidate medians are ~14.42–14.63 ms; effective/note/compound candidate medians
-~3.53–3.63 ms. This is this run's computed disposition, not an inherited
-no-trigger claim. The 100-item capture baseline p95 is 33.57 ms; all samples,
+mutation overhead is measurable (~4.3–7.8% paired medians), not zero. Capture
+candidate medians are ~15.24–15.54 ms; effective/note/compound candidate medians
+~3.63–4.35 ms. This is this run's computed disposition, not an inherited
+no-trigger claim. The 10k capture baseline p95 is 43.85 ms; all samples,
 including that tail, are retained. No outlier filtering or rerun selection was
 used to obtain this result.
 The journal's extra linked insert/metadata validation/coverage update is
@@ -158,7 +171,7 @@ Pruning bounds logical coverage, **not physical file shrinkage**.
 
 ## Attempts and issue disposition
 
-Tests were written first. The initial Python/final-gate Rust check failed because
+Historical implementation record only: tests were written first. The initial Python/final-gate Rust check failed because
 `gate` was missing; the new manifest assertion separately failed on absent
 `phase_e.final_gate`. Focused regression controls were also red before adding
 Rust C-string version parsing and symmetric observer initialization.
@@ -184,25 +197,44 @@ preserved byte-identically under
 [`invalid-validation-attempt/`](invalid-validation-attempt/README.md), with
 their original claims and inventory untouched. Its README describes the state
 at archival time, not a claim that current evidence is still stale. Historical
-top-level `validation-01` through `validation-08` are retained but superseded;
-only `validation-09` onward contributes to the current validation summary.
+top-level `validation-01` through `validation-21` are retained byte-identically.
+They are historical observations, not current source-bound acceptance results.
 
-After both corrections were independently approved, a complete fresh run into
+In the earlier harness-correction round, a complete fresh run into
 `target/phase-e-final-gate-corrected-evidence-1` passed. A promotion-tool payload
 capacity concern was reported before any edit; the coordinator resolved it by
 direct generation with the same frozen harness. Only the four stale current
-generated JSON files were deleted using `apply_patch`; the exact command above
-then rebuilt everything in unused `corrected-run-2` and regenerated current
-evidence. The successful target-only run remains disposable prior-run output,
-not the source of any current sample or patched hash. No harness/test/workflow
-or production input was edited in Step 3.
+generated JSON files were deleted using `apply_patch`; that round rebuilt
+everything in unused `corrected-run-2`. Its source-bound evidence is now
+superseded after the approved contract regression. Neither that run nor its
+successful target-only predecessor supplies any current sample or patched hash.
+The current exact command above rebuilt everything again. No harness/test/workflow,
+fixture or production input was edited in this remediation Step 3.
+
+Two new issues were reported immediately and work paused for coordinator approval:
+
+- After generation, the recorded filesystem had 3.5 GiB free at 99% capacity.
+  No ENOSPC occurred. The coordinator authorized continuation with existing
+  private fixtures, no cleanup/configuration change, and a 2 GiB stop threshold.
+  Validation resumed at 7.3 GiB free. Before/after observations in validation-24–37
+  remained above 2 GiB; the heavy checks completed with sufficient margin
+  (6,903,500,800 bytes after Clippy). The capacity concern is resolved for this
+  execution by sufficient margin, not fabricated cleanup.
+- Companion audit [validation-36](validation-36.json) verified immutable files
+  and results, then its observer stdin requested a nonexistent `toolchain` key
+  and exited 1. No frozen harness/evidence failure occurred. After approval,
+  only that lookup was changed to the actual recorded `rustc`, `cargo`,
+  `active_toolchain`, `toolchain_executables`, `toolchain_sha256` fields.
+  [Validation-37](validation-37.json) passed; failed validation-36 remains
+  byte-identical, not hidden or rewritten.
 
 The historical red-before record is partial and inherited, not a newly executed
 red phase. The fresh 22-test suite and the real-evidence negative controls are
 new executions; expected attack rejections are not production failures.
 
 No material out-of-scope production blocker was found. No arbitrary issue-count
-threshold was used; the cumulative task010 issue count remains 3.
+threshold was used. Coordinator-reported cumulative counts are task002=3,
+task008=2, task010=5; other task counts remain 0.
 Ledger/Git operations and final independent whole-task010 rereview remain
 coordinator-owned. This evidence does not itself approve the whole task.
 
