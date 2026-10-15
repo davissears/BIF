@@ -1,18 +1,23 @@
-# Invalid validation attempt — superseded observations
+# Invalid validation attempt — retained in Git history
 
 These observations are superseded as acceptance evidence because of two
 validator gaps: incomplete required-table fixture digest coverage (including the
 omitted requester/project allocator) and missing command-semantic validation.
-This archive records the state before the fixture-digest remediation; it does
-not claim either gap was already fixed or that a replacement run has occurred.
+The generated payloads and obsolete harness copies are no longer kept in the
+current source tree.
 
-The 16 artifacts were copied byte-for-byte from the final-gate top level.
-Embedded paths, hashes, results and the report's original claims are untouched
-historical content, not current approval. `inventory.json` maps original
-repository-relative paths to SHA256, sorted by path; it excludes itself and
-this archival README. Neither `invalid-observer-attempt/` nor
-`attempt-1-upgrade-proof.json` / `attempt-2-upgrade-proof.json` was changed.
+The complete original directory, including its README and SHA256 inventory,
+is preserved in commit `cd4a50579ca6016c117c7d8463a60ab8096bc95a`. With that
+commit available locally, inspect it without changing the working tree:
 
-The top-level frozen evidence intentionally remains stale and must fail harness
-binding after remediation. No hashes, samples or validation results are refreshed
-here; a later complete rerun must freeze a new protocol.
+```sh
+archive=cd4a50579ca6016c117c7d8463a60ab8096bc95a
+path=docs/baselines/v2-phase-e/final-gate/invalid-validation-attempt
+git ls-tree -r --name-only "$archive" -- "$path/"
+git show "$archive:$path/inventory.json"
+```
+
+The original inventory maps 16 repository-relative artifact paths to SHA256.
+Its historical claims describe the superseded attempt, not the accepted
+evidence one directory above. No old hashes or samples were patched into the
+accepted run.

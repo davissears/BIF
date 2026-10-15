@@ -42,6 +42,19 @@ precedes timing start `1792021905442203000`; timing ended
 `1792021920041812000` (Unix nanoseconds). All four current JSON files were
 generated together by that command, not transplanted from another attempt.
 
+## Evidence storage
+
+Failed-run payloads and obsolete harness copies are retained in Git commit
+`cd4a50579ca6016c117c7d8463a60ab8096bc95a`, rather than duplicated in the current
+source tree. Each attempt's README below provides read-only retrieval commands.
+The accepted generated evidence, active harnesses, validation manifest and logs
+are unchanged by this cleanup; no measurements were rerun.
+
+Earlier inventory and companion logs are immutable observations of the
+pre-cleanup tree and report at that commit. Their original paths and hashes
+refer to that Git version, not a requirement to retain failed-run payloads in
+the current tree.
+
 ## Evidence inventory
 
 - [Current upgrade proof](upgrade-proof.json): actual old one-shot writer OS
@@ -86,10 +99,11 @@ generated together by that command, not transplanted from another attempt.
   both independent copies (16 cases). The 22 Python controls additionally
   cover setup/results/context, ordered expected effects, counter-only prepare
   refusal, empty tables and exact required-key coverage.
-- [Pre-run inventory](validation-22.json) and
-  [preservation validation](validation-37.json) verify all 345 immutable tracked
-  files byte-identically, including validation-01–21, every invalid-observer and
-  invalid-validation archive file and both earlier attempt upgrade proofs.
+- At evidence-generation time, [pre-run inventory](validation-22.json) and
+  [preservation validation](validation-37.json) verified all 345 immutable tracked
+  files byte-identically, including validation-01–21, both failed-run archives
+  and the earlier attempt upgrade proofs. The failed-run payloads are now
+  recoverable from the Git version identified above.
   Immutable inventory SHA256:
   `15facb6b17b1b46cc0887b46a6d0718c175b4c1313aa4398d9e0e9b9ebc56de1`.
   All production and bound inputs match the pre-run inventory; production,
@@ -182,9 +196,9 @@ config, then SQLite provenance parsing expecting byte strings rather than Rust
 protocol deviation; their upgrade proofs remain `attempt-1-upgrade-proof.json`
 and `attempt-2-upgrade-proof.json`. The first complete timing run was invalid:
 only the candidate observer had established SQLite access during capture.
-Its protocol/raw results are retained under
-[`invalid-observer-attempt/`](invalid-observer-attempt/README.md) and excluded from
-the conclusions above. After a focused failing control and symmetric
+Its protocol/raw results are retained in Git history; see the
+[retrieval instructions](invalid-observer-attempt/README.md). They are excluded
+from the conclusions above. After a focused failing control and symmetric
 initialization/checkpoint fix, the **entire** protocol was refrozen and every
 size/workload rerun. No invalid-run sample was selected for the final result.
 The output-path safety check refused to overwrite that provisional evidence;
@@ -193,10 +207,10 @@ no timing ran on that refusal or subsequent filesystem-only checks.
 That former top-level evidence was subsequently invalidated by two P2 review
 findings: incomplete canonical fixture-table coverage (allocator omitted) and
 missing workload command-semantic binding. Its 16 original artifacts are
-preserved byte-identically under
-[`invalid-validation-attempt/`](invalid-validation-attempt/README.md), with
-their original claims and inventory untouched. Its README describes the state
-at archival time, not a claim that current evidence is still stale. Historical
+preserved byte-identically in Git history, with their original claims and
+inventory untouched; see the [retrieval instructions](invalid-validation-attempt/README.md).
+The archived README describes the state at archival time, not a claim that
+current evidence is still stale. Historical
 top-level `validation-01` through `validation-21` are retained byte-identically.
 They are historical observations, not current source-bound acceptance results.
 
