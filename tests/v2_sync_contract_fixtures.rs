@@ -7,13 +7,15 @@ use std::{
 use bif::{
     application::{
         Actor, ActorKind, AuthorizationRequest, CaptureIdentity, CaptureInput, CaptureRequest,
-        CaptureStore, Command, Execution, HumanAuthorization, ItemProjection, ItemProjectionKind,
-        ItemSummary, MutationIdentity, MutationRequest, MutationStore, ObservedExecution,
+        CaptureStore, Command, Execution, HumanAuthorization, ItemListFilters, ItemProjection,
+        ItemProjectionKind, ItemSummary, MutationIdentity, MutationRequest, MutationStore,
+        ObservedExecution, read_semantics::EffectiveItemFilters,
     },
     config::Config,
     domain::{
-        AssigneeId, ItemContent, ItemId, ItemMutation, LifecycleMutation, Priority, ProjectId,
-        Provenance, RequesterId, Revision, Status, Timestamp, Triage, TriageField,
+        AssigneeId, Item, ItemContent, ItemId, ItemMutation, LifecycleMutation, NamedView,
+        Priority, ProjectId, Provenance, RequesterId, Revision, Status, Timestamp, Triage,
+        TriageField,
     },
     read_session::{ReadRequest, ReadSession},
     storage::{self, CaptureRepository, MutationRepository, maintenance},
@@ -528,12 +530,490 @@ fn all_fixture_item_identities_and_assignees_are_canonical() {
     check(&fixture());
 }
 
-// Mine is assignment to the requester, using the assignee domain's canonical form.
-fn mine_count<'a>(items: impl Iterator<Item = &'a Value>, requester: &RequesterId) -> usize {
-    let assignee = AssigneeId::new(requester.as_str()).unwrap();
+// Summary-only membership supplies neutral fields that these unfiltered views never inspect.
+fn summary_domain_item(summary: &Value) -> Item {
+    let parts = text(&summary["id"]).split(':').collect::<Vec<_>>();
+    let id = ItemId::new(
+        RequesterId::new(parts[0]).unwrap(),
+        ProjectId::new(parts[1]).unwrap(),
+        parts[2].parse().unwrap(),
+    )
+    .unwrap();
+    let status = match text(&summary["status"]) {
+        "proposed" => Status::Proposed,
+        "ready" => Status::Ready,
+        "in_progress" => Status::InProgress,
+        "blocked" => Status::Blocked,
+        "done" => Status::Done,
+        "rejected" => Status::Rejected,
+        other => panic!("unknown summary status {other}"),
+    };
+    let priority = summary["priority"].as_str().map(|priority| match priority {
+        "P0" => Priority::P0,
+        "P1" => Priority::P1,
+        "P2" => Priority::P2,
+        "P3" => Priority::P3,
+        "P4" => Priority::P4,
+        other => panic!("unknown summary priority {other}"),
+    });
+    Item::new(
+        id,
+        ItemContent::new(text(&summary["title"]), None, vec![]).unwrap(),
+        status,
+        priority,
+        summary["assignee"]
+            .as_str()
+            .map(|value| AssigneeId::new(value).unwrap()),
+        None,
+        Revision::new(number(&summary["revision"])).unwrap(),
+        Timestamp::new("model-only"),
+        Timestamp::new("model-only"),
+        Provenance::new(None, None, None, None, None, None, None),
+    )
+}
+
+fn view_count<'a>(
+    items: impl Iterator<Item = &'a Value>,
+    requester: &RequesterId,
+    view: NamedView,
+) -> usize {
+    let filters = EffectiveItemFilters::new(view, requester, &ItemListFilters::default()).unwrap();
     items
-        .filter(|item| item["assignee"] == assignee.as_str())
+        .filter(|item| filters.matches(&summary_domain_item(item)))
         .count()
+}
+
+fn mine_count<'a>(items: impl Iterator<Item = &'a Value>, requester: &RequesterId) -> usize {
+    view_count(items, requester, NamedView::Mine)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CoveragePhase {
+    Scan,
+    Replay,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CoverageDecision {
+    Scan,
+    Replay,
+    Rebuild,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CoverageCase {
+    phase: CoveragePhase,
+    start: u64,
+    checkpoint: u64,
+    floor: u64,
+    expected: CoverageDecision,
+}
+
+impl CoverageCase {
+    // Positions are fixture/server semantics, not decoded client cursor tokens.
+    fn decide(&self) -> CoverageDecision {
+        match self.phase {
+            CoveragePhase::Scan if self.start >= self.floor => CoverageDecision::Scan,
+            CoveragePhase::Replay if self.checkpoint >= self.floor => CoverageDecision::Replay,
+            _ => CoverageDecision::Rebuild,
+        }
+    }
+
+    fn advance_to(&mut self, next: u64) -> bool {
+        if next < self.checkpoint || self.decide() == CoverageDecision::Rebuild {
+            return false;
+        }
+        self.checkpoint = next;
+        true
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+struct CallbackGuard {
+    attempt_id: String,
+    baseline_identity: Option<String>,
+    staging_identity: Option<String>,
+    checkpoint: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum RebuildPhase {
+    Idle,
+    Scanning,
+    CatchingUp,
+    Blocked,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize)]
+struct FiniteCatchUp {
+    checkpoint: String,
+    high_water: u64,
+    observation: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize)]
+struct UnfitRecord {
+    record_id: String,
+    maximum_response_bytes: u64,
+    minimum_required_bytes: u64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum ModelFailure {
+    Transient,
+    Unfit(UnfitRecord),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct PublishedBaseline {
+    identity: String,
+    checkpoint: String,
+    items: BTreeMap<String, Value>,
+    complete: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct Staging {
+    identity: String,
+    checkpoint: String,
+    items: BTreeMap<String, Value>,
+    high_water: Option<u64>,
+    caught_up: Option<FiniteCatchUp>,
+}
+
+#[derive(Clone, Debug)]
+enum PageProgress {
+    Scan {
+        exhausted: bool,
+    },
+    Replay {
+        through: u64,
+        high_water: u64,
+        complete: bool,
+        observation: String,
+    },
+}
+
+#[derive(Clone, Debug)]
+struct ModelPage {
+    items: BTreeMap<String, Value>,
+    checkpoint: String,
+    progress: PageProgress,
+}
+
+#[derive(Clone, Debug)]
+enum Callback {
+    Page(ModelPage),
+    Failure(ModelFailure),
+}
+
+#[derive(Debug, PartialEq)]
+enum Delivery {
+    Applied,
+    Discarded,
+    Blocked,
+    Invalid,
+}
+
+#[derive(Debug, PartialEq)]
+enum ModelError {
+    NotOwner,
+    Busy,
+    Blocked,
+    NotReady,
+}
+
+// Only ownership, callback guards and publication are modeled here. Revision/coalescing
+// rules remain in ConsumerModel/check_poll; there is no transport, persistence or lock.
+#[derive(Clone, Debug, PartialEq)]
+struct PublicationModel {
+    owner: Option<String>,
+    serial: u64,
+    pending: Option<CallbackGuard>,
+    baseline: Option<PublishedBaseline>,
+    staging: Option<Staging>,
+    phase: RebuildPhase,
+    last_success: Option<FiniteCatchUp>,
+    failure: Option<ModelFailure>,
+}
+
+fn item_map(items: &[Value]) -> BTreeMap<String, Value> {
+    items
+        .iter()
+        .map(|item| (text(&item["id"]).to_owned(), item.clone()))
+        .collect()
+}
+
+impl PublicationModel {
+    // Setup reads the amended examples; transitions never consult expected outcomes.
+    fn from_status(fixture: &Value, id: &str, pending: Option<CallbackGuard>) -> Self {
+        let status = &case(&fixture["mirror"]["statuses"], id)["status"];
+        let baseline = &status["published_baseline"];
+        let staging = status["staging_identity"].as_str().map(|identity| Staging {
+            identity: identity.into(),
+            checkpoint: pending.as_ref().unwrap().checkpoint.clone().unwrap(),
+            items: BTreeMap::new(),
+            high_water: None,
+            caught_up: None,
+        });
+        Self {
+            owner: Some("owner".into()),
+            serial: 0,
+            pending,
+            baseline: (!baseline.is_null()).then(|| PublishedBaseline {
+                identity: text(&baseline["identity"]).into(),
+                checkpoint: text(&baseline["checkpoint"]).into(),
+                items: item_map(if id == "published" {
+                    array(&fixture["bootstrap"]["published_items"])
+                } else {
+                    array(&fixture["consumer_cases"][0]["before_items"])
+                }),
+                complete: baseline["complete"] == true,
+            }),
+            staging,
+            phase: serde_json::from_value(status["rebuild_phase"].clone()).unwrap(),
+            last_success: serde_json::from_value(status["last_successful_catch_up"].clone())
+                .unwrap(),
+            failure: match status["last_failure"]["code"].as_str() {
+                None => None,
+                Some("transient") => Some(ModelFailure::Transient),
+                other => panic!("unsupported publication setup failure {other:?}"),
+            },
+        }
+    }
+
+    fn acquire(&mut self, owner: &str) -> Result<(), ModelError> {
+        if self.owner.is_some() {
+            return Err(ModelError::NotOwner);
+        }
+        self.owner = Some(owner.into());
+        Ok(())
+    }
+
+    fn require_owner(&self, owner: &str) -> Result<(), ModelError> {
+        if self.owner.as_deref() != Some(owner) {
+            return Err(ModelError::NotOwner);
+        }
+        if self.phase == RebuildPhase::Blocked {
+            return Err(ModelError::Blocked);
+        }
+        Ok(())
+    }
+
+    fn release(&mut self, owner: &str) -> Result<(), ModelError> {
+        if self.owner.as_deref() != Some(owner) {
+            return Err(ModelError::NotOwner);
+        }
+        self.owner = None;
+        self.pending = None;
+        Ok(())
+    }
+
+    fn begin_rebuild(
+        &mut self,
+        owner: &str,
+        identity: &str,
+        start: &str,
+    ) -> Result<(), ModelError> {
+        self.require_owner(owner)?;
+        if self.pending.is_some() {
+            return Err(ModelError::Busy);
+        }
+        self.staging = Some(Staging {
+            identity: identity.into(),
+            checkpoint: start.into(),
+            items: BTreeMap::new(),
+            high_water: None,
+            caught_up: None,
+        });
+        self.phase = RebuildPhase::Scanning;
+        Ok(())
+    }
+
+    fn guard(&self, attempt_id: String) -> CallbackGuard {
+        CallbackGuard {
+            attempt_id,
+            baseline_identity: self
+                .baseline
+                .as_ref()
+                .map(|baseline| baseline.identity.clone()),
+            staging_identity: self
+                .staging
+                .as_ref()
+                .map(|staging| staging.identity.clone()),
+            checkpoint: self
+                .staging
+                .as_ref()
+                .map(|stage| stage.checkpoint.clone())
+                .or_else(|| {
+                    self.baseline
+                        .as_ref()
+                        .map(|baseline| baseline.checkpoint.clone())
+                }),
+        }
+    }
+
+    fn request(&mut self, owner: &str) -> Result<CallbackGuard, ModelError> {
+        self.require_owner(owner)?;
+        if self.pending.is_some() {
+            return Err(ModelError::Busy);
+        }
+        if self.staging.is_none() && self.baseline.is_none() {
+            return Err(ModelError::NotReady);
+        }
+        self.serial += 1;
+        let guard = self.guard(format!("model-attempt-{}", self.serial));
+        self.pending = Some(guard.clone());
+        Ok(guard)
+    }
+
+    // The same guard protects success and error. An accepted attempt is consumed,
+    // including when no data/checkpoint changes, so a duplicate is not an observation.
+    fn deliver(&mut self, captured: &CallbackGuard, callback: Callback) -> Delivery {
+        if self.owner.is_none()
+            || self.pending.as_ref() != Some(captured)
+            || self.guard(captured.attempt_id.clone()) != *captured
+        {
+            return Delivery::Discarded;
+        }
+        let mut next = self.clone();
+        let outcome = next.apply_callback(callback);
+        if outcome != Delivery::Invalid {
+            next.pending = None;
+            *self = next;
+        }
+        outcome
+    }
+
+    fn apply_callback(&mut self, callback: Callback) -> Delivery {
+        let page = match callback {
+            Callback::Failure(failure) => {
+                let blocked = matches!(failure, ModelFailure::Unfit(_));
+                self.failure = Some(failure);
+                if blocked {
+                    self.phase = RebuildPhase::Blocked;
+                    self.staging = None;
+                }
+                return if blocked {
+                    Delivery::Blocked
+                } else {
+                    Delivery::Applied
+                };
+            }
+            Callback::Page(page) => page,
+        };
+        let success = match page.progress {
+            PageProgress::Scan { exhausted } => {
+                if self.phase != RebuildPhase::Scanning {
+                    return Delivery::Invalid;
+                }
+                if exhausted {
+                    self.phase = RebuildPhase::CatchingUp;
+                }
+                None
+            }
+            PageProgress::Replay {
+                through,
+                high_water,
+                complete,
+                observation,
+            } => {
+                if !matches!(self.phase, RebuildPhase::Idle | RebuildPhase::CatchingUp)
+                    || through > high_water
+                    || complete != (through == high_water)
+                {
+                    return Delivery::Invalid;
+                }
+                if let Some(stage) = &mut self.staging {
+                    if stage.high_water.is_some_and(|target| target != high_water) {
+                        return Delivery::Invalid;
+                    }
+                    stage.high_water = Some(high_water);
+                }
+                complete.then(|| FiniteCatchUp {
+                    checkpoint: page.checkpoint.clone(),
+                    high_water,
+                    observation,
+                })
+            }
+        };
+        if let Some(stage) = &mut self.staging {
+            stage.items.extend(page.items);
+            stage.checkpoint = page.checkpoint;
+            stage.caught_up = success;
+        } else if let Some(baseline) = &mut self.baseline {
+            baseline.items.extend(page.items);
+            baseline.checkpoint = page.checkpoint;
+            if let Some(success) = success {
+                self.last_success = Some(success);
+                self.failure = None;
+            }
+        } else {
+            return Delivery::Invalid;
+        }
+        Delivery::Applied
+    }
+
+    fn publish(&mut self, owner: &str, identity: &str) -> Result<(), ModelError> {
+        self.require_owner(owner)?;
+        let stage = self.staging.as_ref().ok_or(ModelError::NotReady)?;
+        if stage.identity != identity
+            || self.phase != RebuildPhase::CatchingUp
+            || stage.caught_up.is_none()
+            || self.pending.is_some()
+        {
+            return Err(ModelError::NotReady);
+        }
+        let stage = self.staging.take().unwrap();
+        // One model transition replaces all publication coordinates, never unions old data.
+        self.baseline = Some(PublishedBaseline {
+            identity: stage.identity,
+            checkpoint: stage.checkpoint,
+            items: stage.items,
+            complete: true,
+        });
+        self.last_success = stage.caught_up;
+        self.failure = None;
+        self.phase = RebuildPhase::Idle;
+        Ok(())
+    }
+}
+
+fn scan_page(fixture: &Value, index: usize) -> ModelPage {
+    let result = &fixture["bootstrap"]["pages"][index]["response"]["result"];
+    let exhausted = result["next_cursor"].is_null();
+    ModelPage {
+        items: item_map(array(&result["items"])),
+        checkpoint: text(if exhausted {
+            &result["sync_start_cursor"]
+        } else {
+            &result["next_cursor"]
+        })
+        .into(),
+        progress: PageProgress::Scan { exhausted },
+    }
+}
+
+fn model_page(fixture: &Value, complete: bool) -> ModelPage {
+    let bootstrap = &fixture["bootstrap"];
+    let high_water = number(&bootstrap["catch_up_high_water"]);
+    ModelPage {
+        items: item_map(array(&bootstrap["catch_up_replacements"])),
+        checkpoint: if complete {
+            text(&bootstrap["catch_up_checkpoint"]).into()
+        } else {
+            "partial-replay".into()
+        },
+        progress: PageProgress::Replay {
+            through: if complete { high_water } else { high_water - 1 },
+            high_water,
+            complete,
+            observation: "finite-catch-up-a".into(),
+        },
+    }
 }
 
 #[test]
@@ -548,6 +1028,357 @@ fn mine_queue_matches_normalized_assignee_not_requester_casing() {
     );
     let cleared = array(&fixture["consumer_cases"][0]["expected_items"]);
     assert_eq!(mine_count(cleared.iter(), &requester), 0);
+}
+
+#[test]
+fn queue_membership_covers_every_status_and_owner() {
+    let requester = RequesterId::new("alice").unwrap();
+    let seed = fixture()["consumer_cases"][0]["before_items"][0].clone();
+    // Expected outcomes are examples; the helper must use application semantics.
+    for (status, ready, mine, active) in [
+        ("proposed", false, true, false),
+        ("ready", true, true, false),
+        ("in_progress", false, true, true),
+        ("blocked", false, true, true),
+        ("done", false, false, false),
+        ("rejected", false, false, false),
+    ] {
+        for assignee in [json!("alice"), json!("bob"), Value::Null] {
+            let mut item = seed.clone();
+            item["status"] = json!(status);
+            item["assignee"] = assignee.clone();
+            assert_eq!(
+                mine_count(std::iter::once(&item), &requester),
+                usize::from(mine && assignee == "alice"),
+                "{status}/{assignee}"
+            );
+            for (view, expected) in [(NamedView::Ready, ready), (NamedView::Active, active)] {
+                assert_eq!(
+                    view_count(std::iter::once(&item), &requester, view),
+                    usize::from(expected),
+                    "{view}/{status}/{assignee}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn coverage_decisions_execute_scan_start_and_durable_replay_boundaries() {
+    for case in array(&fixture()["coverage_cases"]) {
+        let mut coverage: CoverageCase = serde_json::from_value(case.clone()).unwrap();
+        assert_eq!(coverage.decide(), coverage.expected, "{}", case["id"]);
+        if coverage.expected == CoverageDecision::Rebuild {
+            // A proposed advance across missing coverage must be rejected.
+            let before = coverage.checkpoint;
+            assert!(!coverage.advance_to(before + 1));
+            assert_eq!(coverage.checkpoint, before);
+        }
+    }
+}
+
+#[test]
+fn callback_fixture_examples_execute_without_changing_any_persisted_state() {
+    let fixture = fixture();
+    for case in array(&fixture["mirror"]["callbacks"]) {
+        let captured = serde_json::from_value(case["captured"].clone()).unwrap();
+        let persisted = serde_json::from_value(case["persisted_before"].clone()).unwrap();
+        let mut model =
+            PublicationModel::from_status(&fixture, text(&case["status_before"]), Some(persisted));
+        let before = model.clone();
+        let callback = if case["kind"] == "success" {
+            Callback::Page(if model.phase == RebuildPhase::Scanning {
+                scan_page(&fixture, 0)
+            } else {
+                model_page(&fixture, true)
+            })
+        } else {
+            Callback::Failure(ModelFailure::Transient)
+        };
+        assert_eq!(model.deliver(&captured, callback), Delivery::Discarded);
+        assert_eq!(model, before, "{}", case["id"]);
+        assert_eq!(
+            serde_json::to_value(model.pending.as_ref().unwrap()).unwrap(),
+            case["persisted_after"]
+        );
+        assert_eq!(case["status_before"], case["status_after"]);
+    }
+}
+
+#[test]
+fn each_callback_guard_coordinate_blocks_both_success_and_failure() {
+    let fixture = fixture();
+    for coordinate in ["attempt", "baseline", "staging", "checkpoint", "owner"] {
+        for callback in [
+            Callback::Page(scan_page(&fixture, 0)),
+            Callback::Failure(ModelFailure::Transient),
+        ] {
+            let mut model = PublicationModel::from_status(&fixture, "client-a-complete", None);
+            model
+                .begin_rebuild("owner", "stage-a", "scan-start")
+                .unwrap();
+            let captured = model.request("owner").unwrap();
+            match coordinate {
+                "attempt" => model.pending.as_mut().unwrap().attempt_id.push_str("-new"),
+                "baseline" => model.baseline.as_mut().unwrap().identity.push_str("-new"),
+                "staging" => model.staging.as_mut().unwrap().identity.push_str("-new"),
+                "checkpoint" => model.staging.as_mut().unwrap().checkpoint.push_str("-new"),
+                "owner" => {
+                    model.release("owner").unwrap();
+                    model.acquire("replacement-owner").unwrap();
+                }
+                _ => unreachable!(),
+            }
+            let before = model.clone();
+            assert_eq!(model.deliver(&captured, callback), Delivery::Discarded);
+            assert_eq!(model, before, "{coordinate}");
+        }
+    }
+}
+
+#[test]
+fn bootstrap_publication_requires_one_owner_scan_exhaustion_and_finite_catch_up() {
+    let fixture = fixture();
+    let mut model = PublicationModel::from_status(&fixture, "client-a-complete", None);
+    // This old-only row must disappear on replacement, not survive a union.
+    model.baseline.as_mut().unwrap().items.insert(
+        "ALICE:bif:999".into(),
+        json!({"id": "ALICE:bif:999", "revision": 1}),
+    );
+    let old = model.baseline.clone();
+    let previous_success = model.last_success.clone();
+    assert_eq!(model.acquire("competitor"), Err(ModelError::NotOwner));
+    model
+        .begin_rebuild("owner", "stage-old", "scan-start")
+        .unwrap();
+    assert_eq!(
+        model.publish("owner", "stage-old"),
+        Err(ModelError::NotReady)
+    );
+    for page in [
+        scan_page(&fixture, 0),
+        scan_page(&fixture, 1),
+        model_page(&fixture, true),
+    ] {
+        let request = model.request("owner").unwrap();
+        assert_eq!(
+            model.deliver(&request, Callback::Page(page)),
+            Delivery::Applied
+        );
+    }
+    assert!(model.staging.as_ref().unwrap().caught_up.is_some());
+    let abandoned = model.request("owner").unwrap();
+    assert_eq!(model.request("owner"), Err(ModelError::Busy));
+    model.release("owner").unwrap();
+    model.acquire("winner").unwrap();
+    model
+        .begin_rebuild("winner", "stage-new", "scan-start")
+        .unwrap();
+    let before = model.clone();
+    assert_eq!(
+        model.deliver(&abandoned, Callback::Page(model_page(&fixture, true))),
+        Delivery::Discarded
+    );
+    assert_eq!(model, before);
+    assert_eq!(
+        model.publish("owner", "stage-old"),
+        Err(ModelError::NotOwner)
+    );
+    assert_eq!(
+        model.publish("winner", "stage-old"),
+        Err(ModelError::NotReady)
+    );
+
+    let scan = model.request("winner").unwrap();
+    assert_eq!(
+        model.deliver(&scan, Callback::Page(scan_page(&fixture, 0))),
+        Delivery::Applied
+    );
+    assert_eq!(
+        model.publish("winner", "stage-new"),
+        Err(ModelError::NotReady)
+    );
+    let scan = model.request("winner").unwrap();
+    assert_eq!(
+        model.deliver(&scan, Callback::Page(scan_page(&fixture, 1))),
+        Delivery::Applied
+    );
+    assert_eq!(
+        model.publish("winner", "stage-new"),
+        Err(ModelError::NotReady)
+    );
+    let replay = model.request("winner").unwrap();
+    assert_eq!(
+        model.deliver(&replay, Callback::Page(model_page(&fixture, false))),
+        Delivery::Applied
+    );
+    assert_eq!(model.baseline, old, "staging is not a published queue");
+    assert_eq!(model.last_success, previous_success, "partial is not fresh");
+    assert_eq!(
+        model.publish("winner", "stage-new"),
+        Err(ModelError::NotReady)
+    );
+    let replay = model.request("winner").unwrap();
+    // A moving target or a false completion cannot authorize publication/freshness.
+    for (through, high_water) in [(8, 8), (6, 7)] {
+        let mut bad = model_page(&fixture, true);
+        bad.progress = PageProgress::Replay {
+            through,
+            high_water,
+            complete: true,
+            observation: "regressed".into(),
+        };
+        let before = model.clone();
+        assert_eq!(
+            model.deliver(&replay, Callback::Page(bad)),
+            Delivery::Invalid
+        );
+        assert_eq!(model, before);
+    }
+    assert_eq!(
+        model.deliver(&replay, Callback::Page(model_page(&fixture, true))),
+        Delivery::Applied
+    );
+    assert_eq!(model.baseline, old);
+    model.publish("winner", "stage-new").unwrap();
+    let published = model.baseline.as_ref().unwrap();
+    assert_eq!(published.identity, "stage-new");
+    assert!(published.complete);
+    assert_eq!(published.checkpoint, "opaque-sync-7");
+    assert_eq!(
+        published.items,
+        item_map(array(&fixture["bootstrap"]["published_items"]))
+    );
+    assert_eq!(model.phase, RebuildPhase::Idle);
+    assert!(model.staging.is_none());
+    assert_eq!(
+        model.last_success.as_ref().unwrap().checkpoint,
+        published.checkpoint
+    );
+    assert_eq!(model.last_success.as_ref().unwrap().high_water, 7);
+    assert_eq!(
+        model.publish("winner", "stage-old"),
+        Err(ModelError::NotReady)
+    );
+    let published = model.clone();
+    for callback in [
+        Callback::Page(model_page(&fixture, true)),
+        Callback::Failure(ModelFailure::Transient),
+    ] {
+        assert_eq!(model.deliver(&abandoned, callback), Delivery::Discarded);
+        assert_eq!(
+            model, published,
+            "abandoned publisher cannot affect its replacement"
+        );
+    }
+}
+
+#[test]
+fn no_change_callbacks_need_new_attempts_to_observe_freshness() {
+    let fixture = fixture();
+    let mut model = PublicationModel::from_status(&fixture, "transient-failure", None);
+    let attempt = model.request("owner").unwrap();
+    let checkpoint = model.baseline.as_ref().unwrap().checkpoint.clone();
+    let page = ModelPage {
+        items: BTreeMap::new(),
+        checkpoint,
+        progress: PageProgress::Replay {
+            through: 3,
+            high_water: 3,
+            complete: true,
+            observation: "new-no-change".into(),
+        },
+    };
+    assert_eq!(
+        model.deliver(&attempt, Callback::Page(page.clone())),
+        Delivery::Applied
+    );
+    assert!(model.failure.is_none());
+    assert_eq!(
+        model.last_success.as_ref().unwrap().observation,
+        "new-no-change"
+    );
+    let next = model.request("owner").unwrap();
+    assert_ne!(attempt.attempt_id, next.attempt_id);
+    assert_eq!(attempt.checkpoint, next.checkpoint);
+    let observed = model.last_success.clone();
+    assert_eq!(
+        model.deliver(&next, Callback::Failure(ModelFailure::Transient)),
+        Delivery::Applied
+    );
+    assert_eq!(
+        model.last_success, observed,
+        "failure retains the previous observation"
+    );
+    let before = model.clone();
+    for callback in [
+        Callback::Page(page),
+        Callback::Failure(ModelFailure::Transient),
+    ] {
+        assert_eq!(model.deliver(&attempt, callback), Delivery::Discarded);
+        assert_eq!(
+            model, before,
+            "matching checkpoint must not manufacture freshness"
+        );
+    }
+}
+
+#[test]
+fn unfit_single_summary_blocks_scan_poll_retry_and_rebuild_without_partial_publish() {
+    let fixture = fixture();
+    let unfit: UnfitRecord =
+        serde_json::from_value(fixture["unfit_summary"]["response"]["error"]["details"].clone())
+            .unwrap();
+    assert!(unfit.minimum_required_bytes > unfit.maximum_response_bytes);
+    for phase in ["scan", "poll"] {
+        let mut model = PublicationModel::from_status(&fixture, "client-a-complete", None);
+        let baseline = model.baseline.clone();
+        let success = model.last_success.clone();
+        if phase == "scan" {
+            model
+                .begin_rebuild("owner", "stage-unfit", "scan-start")
+                .unwrap();
+            let attempt = model.request("owner").unwrap();
+            assert_eq!(
+                model.deliver(&attempt, Callback::Page(scan_page(&fixture, 0))),
+                Delivery::Applied
+            );
+        }
+        let attempt = model.request("owner").unwrap();
+        assert_eq!(
+            model.deliver(
+                &attempt,
+                Callback::Failure(ModelFailure::Unfit(unfit.clone()))
+            ),
+            Delivery::Blocked
+        );
+        assert_eq!(
+            model.baseline, baseline,
+            "{phase}: no advance or partial publish"
+        );
+        assert_eq!(model.last_success, success);
+        assert_eq!(model.phase, RebuildPhase::Blocked);
+        assert_eq!(model.failure, Some(ModelFailure::Unfit(unfit.clone())));
+        let blocked = model.clone();
+        assert_eq!(model.request("owner"), Err(ModelError::Blocked));
+        assert_eq!(
+            model.begin_rebuild("owner", "retry-stage", "scan-start"),
+            Err(ModelError::Blocked)
+        );
+        assert_eq!(
+            model.publish("owner", "stage-unfit"),
+            Err(ModelError::Blocked)
+        );
+        assert_eq!(
+            model, blocked,
+            "unchanged record/budget cannot clear the blocker"
+        );
+        model.release("owner").unwrap();
+        model.acquire("retry-owner").unwrap();
+        assert_eq!(model.request("retry-owner"), Err(ModelError::Blocked));
+        assert_eq!(model.last_success, success);
+        assert_eq!(model.baseline, baseline);
+    }
 }
 
 #[test]
@@ -856,6 +1687,20 @@ fn fixed_windows_coalesce_without_skips_and_empty_projects_advance() {
     let mut bad = first.clone();
     bad["response"]["result"]["replacements"] = json!([]);
     assert!(check_poll(&fixture, &bad).is_err());
+    // Even a snapshot-consistent summary cannot acknowledge a newer covered revision.
+    let mut bad = first.clone();
+    bad["response"]["result"]["replacements"][0]["item"]["revision"] = json!(1);
+    let regressed = bad["response"]["result"]["replacements"][0]["item"].clone();
+    let snapshot = bad["snapshot_items"].as_array_mut().unwrap();
+    let current = snapshot
+        .iter_mut()
+        .find(|item| item["id"] == regressed["id"])
+        .unwrap();
+    *current = regressed;
+    assert_eq!(
+        check_poll(&fixture, &bad),
+        Err("hydration regressed below covered operation")
+    );
 }
 
 #[test]
@@ -1196,13 +2041,17 @@ fn consumer_rejects_stale_responses_and_never_regresses_revisions_or_queues() {
             .map(|item| (text(&item["id"]).to_owned(), item.clone()))
             .collect::<BTreeMap<_, _>>();
         assert_eq!(items, expected, "{}", case["id"]);
-        let ready = items
-            .values()
-            .filter(|item| item["status"] == "ready")
-            .count();
-        let mine = mine_count(items.values(), &RequesterId::new("ALICE").unwrap());
+        let requester = RequesterId::new("ALICE").unwrap();
+        let ready = view_count(items.values(), &requester, NamedView::Ready);
+        let mine = mine_count(items.values(), &requester);
         assert_eq!(ready as u64, number(&case["expected_ready_count"]));
         assert_eq!(mine as u64, number(&case["expected_mine_count"]));
+        assert_eq!(
+            view_count(items.values(), &requester, NamedView::Active),
+            view_count(expected.values(), &requester, NamedView::Active),
+            "active queue: {}",
+            case["id"]
+        );
     }
     assert_eq!(fixture["tombstones"]["runtime_enabled"], false);
     assert_eq!(
