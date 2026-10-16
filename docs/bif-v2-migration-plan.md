@@ -1,5 +1,125 @@
 # BIF v2 migration plan
 
+## Before Phase F — Required preparation
+
+These tasks amend the Phase F contract and implement its activation prerequisite;
+they do not approve a sync release or live-store activation.
+`F-PNN` identifiers are document-local planning labels.
+Complete them before starting V2-036–V2-044. Existing Phase E evidence remains
+historical evidence, not proof of a synchronization runtime.
+
+**Required order and completion evidence:**
+
+1. **Before runtime implementation:** Complete F-P01's fixture/schema and recovery
+   contract amendments, then F-P02's model corrections and regression cases.
+   Review them together against this plan and existing application semantics;
+   resolve contradictions before treating the amended contract as frozen.
+   Passing the existing, unamended tests does not satisfy this gate.
+2. **First runtime prerequisite:** After F-P01/F-P02 verification passes and
+   V2-035's storage-foundation gate is satisfied, implement F-P03 with focused
+   tests written first. Verify activation/recovery on disposable stores and
+   review the change before marking the prerequisite complete.
+3. **Before the main Phase F implementation:** Confirm F-P01–F-P03 outcomes and
+   verification evidence are complete, then start V2-036–V2-044 in dependency
+   order, including V2-040A. Do not defer task-level tests to the stress gate.
+4. **Before release or live use:** Complete V2-044's evidence and operational
+   decisions, and obtain separate authorization for live-store operations.
+   Choosing an actual deployment path, owner, retention policy, or maintenance
+   window is not required to begin the contract/model preparation.
+
+Notation: `S` is bootstrap start, `C` is durably applied coverage, `F` is the
+retention floor, and `H` is a poll's fixed high water. These are server/model
+positions; consumers never decode or order opaque cursor tokens.
+
+**Confirmed decisions:**
+
+- Activation/reactivation requires stopping source processes and running an
+  explicit offline maintenance command, consistent with supported restore.
+- The consumer requires an explicit client-owned SQLite mirror path; it does
+  not choose a machine-local default.
+
+#### F-P01 — Freeze activation and mirror lifecycle contracts
+
+**Depends on:** V2-028, V2-029, V2-033.
+
+**Scope:** Update the sync fixture/schema and recovery documentation to define:
+
+- Explicit authorized offline activation with source processes stopped, an
+  expected generation, prerequisites proving supported writers journal, atomic
+  enablement, and retry/crash behavior.
+  Distinguish initial journal/schema creation from enabling sync service:
+  service activation preserves generation, floor, high water, and client state.
+  Restore rotates generation and disables service; restart does neither.
+- Server availability is independent of mirror completeness. Keep the legacy
+  `bootstrap_required` column for compatibility, but exclude it from new
+  runtime client-progress decisions. Never clear it because a client finished.
+- Typed client status: published-baseline completeness, rebuild phase, last
+  successful finite catch-up, last failure/recovery action, and last-observed
+  source compatibility. Define transitions for transient failure, expiration,
+  generation mismatch, missing baseline, corruption, and unfit records.
+- Stable error details and precedence: authorize normally; report incompatible
+  source identity before service-disabled status where identity is supplied.
+  All scan/poll requests, including initial scan, fail closed while disabled.
+  An unfit-record error identifies the item, required bytes, and effective budget.
+- One writer owner across polling and reconciliation; persisted staging
+  identity; request-attempt guards for both success and failure callbacks.
+  Serialize scan/poll requests within that owner. A rebuilding mirror keeps
+  its previous usable baseline readable but not updating; detected corruption
+  prevents serving that baseline, and incompatible history stays labeled.
+- During scan validate original start `S`; during replay validate the durably
+  applied checkpoint `C`. `S < F <= C` is valid; `C < F` requires rebuilding.
+
+**Outcome:** One normative transition/error contract, usable by both adapters
+and the consumer, with no unresolved activation or mirror-location choice.
+Status means last observed coverage, never guaranteed current state.
+
+**Verification:** Example cases validate against the strict schema for disabled
+service, independent clients, restore/reactivation, empty versus missing baseline,
+abandoned callbacks, and permanently unfit summaries. F-P02 checks their modeled
+behavior; neither task establishes runtime correctness.
+
+#### F-P02 — Correct and extend the synchronization test oracle
+
+**Depends on:** F-P01.
+
+**Scope:** Update focused contract-model tests before runtime implementation.
+Match existing ready/mine/active membership; `mine` excludes done/rejected.
+Add competing bootstrap publication, delayed success/error, duplicate no-change,
+`S < F <= C`, `C == F`, `C < F`, and unfit-single-summary cases. Preserve tests
+for coverage bounds, replay, baseline loss, and revision conflicts.
+
+**Outcome:** Fixtures and models enforce the amended contract without becoming
+a competing definition of domain semantics. Coalescing need not deliver every
+intermediate revision; it must not skip required coverage.
+
+**Verification:** Tests reject deliberately regressed membership, publication,
+coverage, and freshness transitions. Run
+`cargo test --locked --offline --test v2_sync_contract_fixtures --test named_views`.
+Report model-only coverage separately from storage/runtime coverage.
+
+#### F-P03 — Implement explicit sync activation and recovery controls
+
+**Depends on:** V2-035, F-P01, F-P02.
+
+**Scope:** Implement the explicit offline maintenance activation command,
+requiring stopped source processes, expected-generation validation,
+writer-participation prerequisites, and an atomic availability transition.
+Add a storage guard reusable by scan/poll reads in their own read snapshot.
+Update the maintenance runbook. Do not activate on ordinary open, migration,
+client bootstrap, or restore; do not implement online pruning or a client registry.
+
+**Outcome:** A prepared source can be explicitly enabled and a restored source
+explicitly re-enabled without changing journal history or marking clients ready.
+The reusable guard enforces availability and identity-error precedence; cursor
+decoding and end-to-end enforcement remain V2-036/V2-042 work.
+
+**Verification:** On disposable stores test prerequisite/generation rejection,
+retry, rollback on failure, restart persistence, and restore → disabled → explicit
+reactivation. Add adapter-level enforcement tests with V2-042. No live-store
+operation is authorized by completing this task.
+
+## Current delivery status
+
 **Status:** Phase D read implementation, local evidence, and real configured MCP
 host workflows are recorded; the operator has approved candidate validation and
 compatibility review. Live-store maintenance requires separate authorization.
@@ -207,11 +327,15 @@ fixtures do not assert that current maintenance accepts such a store.
 Hydrated current state can be newer than `H`. `through` describes covered
 journal positions, not an as-of snapshot of returned objects. Consumers replace
 objects monotonically by revision and atomically persist replacements and the
-new cursor. Use one in-flight poll per mirror and compare the response's source
-checkpoint and client-local bootstrap identity with the currently persisted
-ones before committing it. A delayed response must not move the checkpoint
-backward or modify a replacement baseline. Same-revision equivalent replay
-within the accepted response is harmless.
+new cursor. Use one cross-process writer owner per mirror across polling,
+bootstrap, and publication, with one active scan/poll request within that owner.
+Compare the response's source checkpoint and client-local baseline/staging
+identity with persisted state before committing.
+Guard status changes with local request-attempt ownership too: duplicate
+no-change responses can share a checkpoint without being fresh observations.
+A delayed success or failure must not modify a replacement baseline or its
+health. Same-revision equivalent replay is harmless; conflicting data at the
+same revision aborts the entire commit.
 
 The initial domain still has no delete, reopen, or project-move operation.
 Rejected items remain items. Specify tombstone envelopes and consumer behavior,
@@ -264,13 +388,30 @@ Legacy v1 output retains its compatibility behavior.
 ### 2.9 Keep state ownership explicit
 
 SQLite owns durable ledger truth. Cursors own continuation positions.
-A host/client mirror owns the baseline necessary to interpret deltas.
-An empty delta is useful only when that baseline still exists.
+The standalone, transport-neutral consumer owns a separate machine-local SQLite
+mirror. It is not Git-backed, a server item cache, or a cross-machine replica.
+Server availability, generation, and retention are separate from each mirror's
+baseline completeness and checkpoint. No server registry tracks client progress;
+clients outside retained coverage rebuild independently.
 
-Provide a reference consumer and integration contract, not a generalized
-server item cache. After context loss, a host must supply selected current
-state from its mirror or perform a fresh bounded read. It must not present
-an empty delta as a complete queue to a fresh agent.
+Build replacements in staging, then atomically publish the baseline identity,
+contents/reference, completeness, and checkpoint. Keep a previous complete,
+usable baseline readable but pause its updates during rebuilding. Never expose
+staging as a complete queue. A cursor without its baseline cannot resume
+incremental use.
+
+Expose completeness, health, and last observed coverage through both transports
+and agent handoff. A complete stale baseline may support browsing and provisional
+preparation, not authoritative eligibility, ownership, authorization, or mutation.
+Generation-incompatible data must be identified as old-history data; corrupt
+data must not be presented as a usable mirror. Context loss requires selected
+current state from a usable baseline or a fresh bounded read, not an empty delta.
+
+Phase F adds no offline write queue, assignment-aware claim, ACL/revocation
+system, or external-action guarantee. Existing write validation remains
+authoritative. Summary fields support named-view membership, not reconstruction
+of canonical list/next ordering. Arbitrary semantic corruption is not automatically
+detectable; do not promise more than specified integrity checks and reconciliation.
 
 ## 3. Delivery milestones
 
@@ -839,9 +980,12 @@ hydrated version, no changes, other-project changes, queue exit, and lost
 client baseline. Tombstone fixtures are clearly marked future-domain cases.
 
 **Normative contract:** [Synchronization/recovery fixtures](fixtures/bif-v2-sync-contract.json)
-and their [strict schema](fixtures/bif-v2-sync-contract.schema.json) freeze
-sections 2.6–2.9, including exact wire shapes and store-global retention coverage.
-These are pure contract models, not a synchronization runtime release.
+and their [strict schema](fixtures/bif-v2-sync-contract.schema.json) record the
+Phase E contract, including exact wire shapes and store-global retention coverage.
+F-P01/F-P02 must amend and revalidate them against the revised sections 2.6–2.9
+before Phase F runtime implementation; the existing artifacts alone do not
+establish agreement with this plan. These are pure contract models, not a
+synchronization runtime release.
 Phase E runtime checks cover existing page/history/validator/warm-session
 generation invalidation and storage read interleavings only. Actual sync
 expiry, bootstrap, and reconciliation validation belongs to V2-036, V2-039,
@@ -981,153 +1125,221 @@ history is rewritten.
 
 ### Phase F — Implement synchronization and its consumer
 
+**Entry gate:** F-P01–F-P03 are complete. Use their contract and fixtures as the
+source of truth. Each task adds focused behavioral tests before implementation;
+V2-043 supplements rather than replaces those tests. Use disposable stores only.
+
 #### V2-036 — Implement scoped sync cursors
 
-**Depends on:** V2-028, V2-029.
+**Depends on:** V2-028, V2-029, F-P03.
 
 **Scope:** Add a distinct sync cursor carrying store/generation, project,
 summary schema version, consumed position, and fixed high water while a poll
-is being continued. Validate retained coverage within the read transaction.
+is being continued. Reuse bounded strict parsing and authorization boundaries.
+Validate generation and `F <= C <= H <= durable high water` in the read
+transaction. Completed checkpoints start a new poll; continuations preserve H.
 
 **Outcome:** Sync cursors cannot be mistaken for page cursors, moved between
-stores/projects, or used after incompatible recovery/schema changes.
+stores/projects, or used after incompatible recovery/schema changes. Consumers
+can treat all tokens as opaque and compare checkpoints only for equality.
 
 **Verification:** Wrong-kind/version/scope, malformed position, future position,
-expired floor, generation change, and restart fixtures pass.
+generation missing/mismatch, `C == F`, `C < F`, and ordinary restart tests pass.
+Accepted numeric positions fit storage's supported integer range.
 
 #### V2-037 — Select bounded journal windows
 
 **Depends on:** V2-035, V2-036.
 
-**Scope:** Implement indexed `(C, H]` chunk selection, sentinel detection,
-within-chunk ID coalescing, and exact coverage advancement. Measure the
-no-change path and avoid rescanning irrelevant project history.
+**Scope:** Implement indexed project selection in `(C, H]`. Consume at most
+`min(internal_journal_limit, request.limit)` matching rows, capped at 100, plus
+at most one unconsumed matching sentinel. Coalesce only the consumed prefix.
+Advance through its last position if a matching row remains, otherwise H,
+including empty/other-project-only windows. Establish one storage snapshot seam
+for metadata, availability checks, selection, and V2-038 hydration.
 
-**Outcome:** A finite poll finishes at its fixed `H`, even with new concurrent
-writes, and duplicate hot-item changes do not require duplicate output rows
-within the chunk.
+**Outcome:** Page selection has bounded work and exact coverage. New writes do
+not extend a poll's H. No-change reads avoid scanning unrelated project history.
 
 **Verification:** Sparse projects, abstract wire-model sequence gaps, hot items,
-limits of one, empty results, and continual writes cannot stall or skip the
-consumed interval.
-Gapped global-position fixtures exercise wire/consumer semantics, not acceptance
-by current storage maintenance; its retained-range integrity check remains.
+limit one, sentinel boundaries, empty results, and concurrent writes preserve
+coverage. Record query plans and no-change work. Preserve current storage's
+contiguous retained-range validation; gapped fixtures test wire semantics only.
 
 #### V2-038 — Hydrate complete sync replacements
 
 **Depends on:** V2-010, V2-013, V2-037.
 
 **Scope:** Batch-load current summaries for the selected IDs in the same short
-read transaction as journal selection. Include revision-only changes and
-explicit replacement semantics. On output overflow, reduce consumed coverage
-safely or fail without advancing it.
+read transaction as journal selection; close it before response serialization.
+Include explicit null clears and revision-only changes. Enforce existing core
+and transport byte budgets. On overflow shorten the journal prefix and recompute
+coalescing, coverage, completion, and cursor; never trim only the output array.
+If one replacement cannot fit, return the agreed actionable error without success
+or checkpoint advancement. Treat a missing current row as corruption.
 
 **Outcome:** Each returned summary is valid current state at the page's read
-snapshot, potentially newer than the fixed poll high water; coverage is not
-misrepresented as historical object versioning.
+snapshot and may be newer than H. No required coverage is acknowledged without
+its same-or-newer replacement. An immutable unfit summary is an explicit sync
+blocker, not something retries or rebuilding are claimed to repair.
 
 **Verification:** Two updates to one item, explicit clears, a newer version
-between chunks, oversized rows, and unexpected missing item rows are covered.
-Future tombstone envelopes are tested at the pure consumer/codec boundary,
-not produced by treating rejection as deletion.
+between chunks, exact byte boundaries, hot-item prefix shrinking, an unfit single
+record, and missing rows. Synthetic future tombstones stay at the consumer/codec
+boundary; rejection remains an upsert.
 
 #### V2-039 — Add immutable-order bootstrap scanning
 
 **Depends on:** V2-015, V2-028, V2-036.
 
-**Scope:** Add a project-summary scan ordered only by immutable canonical
-identity. Its initial response includes a sync starting position captured
-before primary-row scanning. Bind page continuation to the same scope and
-generation, without claiming historical visibility. Pair the scan with a
-measured index supporting project scope and immutable identity order; do not
-assume a queue's priority/time index also serves this traversal.
+**Scope:** Scan all project summaries in canonical requester/project/numeric
+sequence order, not textual item-ID or queue order. Capture start S before first
+rows in the same snapshot. Return the same opaque starting checkpoint on every
+page, including empty scans; bind continuation to identity boundary, scope,
+generation, and S. Validate S against retention on every scan page. Use bounded
+responses and the F-P01 errors. Add a measured scan index via an additive
+migration; preserve generation and update upgrade tests/runbook accordingly.
 
 **Outcome:** Consumers can build a fresh baseline and replay changes that
-happened during traversal.
+happened during traversal. The scan is live, not a historical snapshot.
 
 **Verification:** Insert before/after boundary, update already-read items,
-empty projects, restart, generation change, and retention expiry demonstrate
-either eventual complete state or an explicit bootstrap restart. Query plans
-and deep-scan measurements verify the immutable-order access path.
+numeric sequence 999/1000, empty projects, restart, generation change, retention
+expiry, and oversized records. Measure shallow/deep access before/after ANALYZE;
+verify migration preserves existing history and identity.
 
-#### V2-040 — Implement a reference durable sync consumer
+#### V2-040 — Implement the standalone durable mirror
 
 **Depends on:** V2-028, V2-038, V2-039.
 
-**Scope:** Add a reusable example/test client maintaining project summaries
-and cursor in a separate client-owned store. Apply complete replacements
-monotonically by revision and commit state plus cursor atomically. Serialize
-polls per mirror and accept a response only if its source checkpoint and
-client-local bootstrap identity still match persisted state.
+**Scope:** Add the reusable transport-neutral consumer and separate client-owned
+SQLite store at an explicit caller-supplied path. Define a typed scan/poll source
+port; test it without depending on future CLI/MCP adapters. Persist baseline/staging
+identity, completeness, summaries, and opaque checkpoint. Implement one cross-process
+writer lock spanning polls and reconciliation, with one active scan/poll request,
+short database transactions, and no write transaction across transport calls.
+Guard acceptance by persisted identity, source checkpoint, and local request attempt.
 
-**Outcome:** The client can recover from duplicate responses, interruption,
-and out-of-order hydrated revisions without regressing state.
+Apply higher revisions as full replacements; ignore lower revisions while
+advancing accepted coverage; allow equivalent equal revisions and abort the
+whole transaction on conflicting equal revisions. Commit state and checkpoint
+atomically. Keep synthetic tombstone revision watermarks to prevent resurrection.
+
+**Outcome:** Replay and crashes cannot acknowledge unapplied changes or regress
+accepted state. A retained cursor without a complete baseline requires bootstrap.
 
 **Verification:** Inject crashes before/after client commit, duplicate chunks,
-equivalent same-revision updates, conflicting same-revision data, and synthetic
-tombstones. Deliver an older response after a newer checkpoint or replacement
-bootstrap commits; neither state nor checkpoint may regress. A missing
-baseline triggers bootstrap rather than delta-only use.
+revision reordering/conflicts, synthetic tombstones, delayed responses, competing
+processes, and baseline loss with surviving cursor. Verify rollback includes
+checkpoint and every replacement, not just the conflicting row.
 
-#### V2-041 — Coordinate reconciliation and queue membership
+#### V2-040A — Implement mirror health and recovery transitions
 
 **Depends on:** V2-040.
 
-**Scope:** Build a fresh mirror via scan then replay from the initial position;
-publish it only after reaching a chosen finite catch-up high water. Replace
-old mirror contents instead of retaining items absent from a complete new
-baseline. Derive ready/mine/active views from project state.
+**Scope:** Implement F-P01's typed status independently of baseline contents.
+Persist successful finite catch-up and blocked/recovery state atomically with
+the transitions they describe. Guard both success and error callbacks by request
+attempt and baseline/staging identity. Transient failures retain state; expiration
+requests rebuild; known generation mismatch marks old-history data incompatible;
+detected corruption, revision conflict, or unfit record blocks advancement.
 
-**Outcome:** Reconciliation converges when writes quiesce, and a task leaving
-ready or changing assignee disappears from the corresponding local queue.
+**Outcome:** Status distinguishes complete empty, incomplete, stale, rebuilding,
+incompatible, and blocked mirrors without claiming current-now freshness.
+Duplicate responses do not manufacture new successful observations.
+
+**Verification:** Duplicate no-change response, late success after newer failure,
+late error after replacement publication, restart, and empty versus missing
+baseline. Verify bounded retry/explicit operator recovery for persistent blockers.
+
+#### V2-041 — Coordinate reconciliation and queue membership
+
+**Depends on:** V2-040A.
+
+**Scope:** Hold mirror writer ownership across staged scan, replay, and
+publication. Persist a fresh staging identity before accepting pages; keep the
+old usable baseline readable with its status but pause its polling. Never serve
+detected-corrupt data. Replay from S toward a finite H; after each atomic apply
+validate current C, not original S, against retention.
+Guard pages and publication against abandoned staging identities. Atomically
+replace active identity, contents/reference, completeness, checkpoint, and status.
+Clean abandoned staging safely without deleting the published baseline.
+
+Derive ready/mine/active membership using existing application semantics,
+including done/rejected exclusion from mine. Do not claim canonical list/next
+ordering from summaries that lack capture timestamps.
+
+**Outcome:** A successful rebuild replaces, never unions, baseline contents.
+Readers see an entire old or new baseline. Convergence holds after quiescence
+and successful catch-up, not under arbitrary write load or resource constraints.
 
 **Verification:** Compare mirror state with a complete database read after
-adversarial interleavings; test empty reconciliation, interrupted bootstrap,
-retention reset, client corruption reset, and baseline loss after agent handoff.
+quiescence. Test two competing rebuilds, polling versus publication, abandoned
+scan responses, crashes around publication, empty replacement, expiry during
+scan/replay, `S < F <= C`, generation reset, and detected corruption recovery.
+Test assigned in-progress → done, rejected, and blocked membership.
 
 #### V2-042 — Expose scan and sync through CLI and MCP
 
 **Depends on:** V2-023, V2-038, V2-039, V2-041.
 
-**Scope:** Add explicit v2 scan/sync interfaces sharing the same core. Document
-which host/client retains the baseline and how a fresh model receives selected
-current state rather than an unexplained delta.
+**Scope:** Add explicit v2 scan/sync interfaces over the same application core,
+including initial scan's null cursor and normal authorization on every request.
+Connect both to the standalone consumer; neither adapter owns a second mirror
+implementation. Enforce availability/identity errors from F-P01 and existing
+transport budgets. Expose selected baseline data with the same typed completeness,
+health, and last-observed catch-up information in CLI, MCP, and agent handoff.
 
 **Outcome:** Both transports can bootstrap and resume without server-held
-consumer sessions. The reference consumer runs against either adapter.
+consumer sessions. A fresh agent receives usable selected state or an explicit
+need to fetch/rebuild—not an unexplained delta or a falsely current empty queue.
 
 **Verification:** Process/host tests resume after server restart, reject stale
-cursors, handle no-change polls, and expose identical semantic results.
+cursors, handle no-change polls and outages, and propagate identical status.
+Test two independent mirrors and restore → disabled → explicit reactivation →
+independent rebuilds. Semantic results agree; byte budgets may change page sizes.
 
 #### V2-043 — Stress synchronization correctness
 
 **Depends on:** V2-042.
 
 **Scope:** Add model/state-machine and multi-process tests interleaving captures,
-mutations, polling, coalescing, bootstrap, crashes, pruning, and restore.
-Keep test histories reproducible by seed.
+mutations, polling, coalescing, bootstrap, crashes, supported pruning, and restore.
+Use an independent complete-read oracle. Record seed and replayable operation
+trace. Exercise maintenance through its supported stopped-process/offline path;
+do not imply support for online prune/restore. Include competing writers and
+delayed success/error callbacks across publication and recovery.
 
 **Outcome:** Sync correctness is established beyond isolated happy-path unit
-tests and all failures retain a replayable operation trace.
+tests; every failure has a reproducible trace and classified recovery action.
 
 **Verification:** After quiescence, the reference mirror equals current scoped
-database state. There are no lost committed revisions, silently ignored
-expiration gaps, or unauthorized cursor-based reads.
+summaries after successful catch-up. No required journal coverage is silently
+skipped; covered changes have the same or newer complete item revision.
+Failures never advance checkpoints past applied state or publish incomplete
+baselines. Verify authorization boundaries without inventing new ACL guarantees.
 
 #### V2-044 — Gate the sync release
 
 **Depends on:** V2-027, V2-035, V2-043.
 
 **Scope:** Benchmark no-change and 1%/5%/25%-changed loops, hot-item updates,
-reconciliation, output size, journal growth, and writes. Run at least one
-configured host workflow with an explicit baseline owner.
+bootstrap/recovery, output size, journal growth, and source/mirror writes.
+Separate distinct items changed from journal operations. Measure scan duration,
+retention needs, staging disk use, retry behavior, and unfit-record failures.
+Run a configured host workflow with an explicit mirror path, owner, handoff,
+and stale/incompatible-state behavior. Report raw evidence and methodology.
 
 **Outcome:** Approve or reject the sync release with recovery documentation,
-measured benefits, and supported scope stated as project-summary state sync.
+measured benefits, supported project-summary scope, and operational limits.
+State retention/maintenance policy explicitly; bounded history is not automatic
+pruning or guaranteed file shrinkage. Live activation needs separate approval.
 
 **Verification:** Correctness stress tests pass; workflow accounting includes
-bootstrap/recovery costs. Do not claim that an empty delta works for a fresh
-agent with no prior state.
+bootstrap/recovery and client persistence costs. Demonstrate blocked-state
+reporting rather than endless rebuilds for unfit records. Do not claim measured
+model-token savings from bytes, perpetual freshness, intermediate-revision
+delivery, guaranteed bootstrap under arbitrary load, or exclusive work ownership.
 
 ### Phase G — Reduce mutation/workflow round trips safely
 
