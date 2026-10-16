@@ -4,7 +4,7 @@
   "title": "V2-028 normative synchronization and recovery fixtures",
   "type": "object",
   "additionalProperties": false,
-  "required": ["fixture_version", "contract", "read_contract", "execution_state", "rules", "activation", "operations", "journal", "tokens", "polls", "bootstrap", "consumer_cases", "retention", "recovery", "read_interleavings", "tombstones", "validation_scope"],
+  "required": ["fixture_version", "contract", "read_contract", "execution_state", "rules", "activation", "mirror", "service_requests", "coverage_cases", "unfit_summary", "operations", "journal", "tokens", "polls", "bootstrap", "consumer_cases", "retention", "recovery", "read_interleavings", "tombstones", "validation_scope"],
   "properties": {
     "fixture_version": {"const": 1},
     "contract": {"const": "V2-028"},
@@ -12,6 +12,10 @@
     "execution_state": {"const": "pure_contract_models_no_sync_runtime"},
     "rules": {"$ref": "#/$defs/rules"},
     "activation": {"$ref": "#/$defs/activation"},
+    "mirror": {"$ref": "#/$defs/mirror"},
+    "service_requests": {"type": "array", "minItems": 6, "items": {"$ref": "#/$defs/serviceRequest"}},
+    "coverage_cases": {"type": "array", "minItems": 4, "items": {"$ref": "#/$defs/coverageCase"}},
+    "unfit_summary": {"$ref": "#/$defs/unfitSummary"},
     "operations": {"type": "array", "minItems": 8, "items": {"$ref": "#/$defs/operation"}},
     "journal": {"type": "array", "minItems": 6, "items": {"$ref": "#/$defs/journal"}},
     "tokens": {"type": "array", "minItems": 6, "items": {"$ref": "#/$defs/token"}},
@@ -67,12 +71,178 @@
     },
     "activation": {
       "type": "object", "additionalProperties": false,
-      "required": ["new_generation", "initial_high_water", "initial_floor", "full_bootstrap_required", "timestamp_audit_backfill", "sync_enabled_before_all_writers_participate", "after_operations_high_water"],
+      "required": ["new_generation", "initial_high_water", "initial_floor", "full_bootstrap_required", "timestamp_audit_backfill", "sync_enabled_before_all_writers_participate", "after_operations_high_water", "initial_sync_enabled", "service_contract", "attempts"],
       "properties": {
         "new_generation": {"$ref": "#/$defs/generation"}, "initial_high_water": {"const": 0},
         "initial_floor": {"const": 0}, "full_bootstrap_required": {"const": true},
         "timestamp_audit_backfill": {"const": false}, "sync_enabled_before_all_writers_participate": {"const": false},
-        "after_operations_high_water": {"$ref": "#/$defs/position"}
+        "after_operations_high_water": {"$ref": "#/$defs/position"},
+        "initial_sync_enabled": {"const": false},
+        "service_contract": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "preserves", "server_client_registry", "client_finish_clears_bootstrap_required", "atomicity", "retry"],
+          "properties": {
+            "mode": {"const": "authorized_offline"},
+            "preserves": {"const": ["generation", "floor", "high_water", "bootstrap_required", "client_state"]},
+            "server_client_registry": {"const": false},
+            "client_finish_clears_bootstrap_required": {"const": false},
+            "atomicity": {"const": "validate_prerequisites_and_expected_generation_then_enable_in_one_transaction"},
+            "retry": {"const": "reinspect_after_uncertain_commit_revalidate_same_generation_already_enabled_is_success"}
+          }
+        },
+        "attempts": {"type": "array", "minItems": 14, "items": {"$ref": "#/$defs/activationAttempt"}}
+      }
+    },
+    "serviceState": {
+      "type": "object", "additionalProperties": false,
+      "required": ["generation", "floor", "high_water", "sync_enabled", "bootstrap_required"],
+      "properties": {
+        "generation": {"$ref": "#/$defs/generation"}, "floor": {"$ref": "#/$defs/position"},
+        "high_water": {"$ref": "#/$defs/position"}, "sync_enabled": {"type": "boolean"},
+        "bootstrap_required": {"type": "boolean"}
+      }
+    },
+    "activationAttempt": {
+      "type": "object", "additionalProperties": false,
+      "if": {"properties": {"action": {"const": "activate"}}},
+      "then": {"properties": {"expected_generation": {"$ref": "#/$defs/generation"}}},
+      "else": {"properties": {"expected_generation": {"type": "null"}}},
+      "required": ["id", "action", "expected_generation", "prerequisites", "before", "after", "outcome", "rejection", "client_state_changed"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "action": {"enum": ["activate", "restore", "restart"]},
+        "expected_generation": {"$ref": "#/$defs/nullableGeneration"},
+        "prerequisites": {
+          "type": "object", "additionalProperties": false,
+          "required": ["authorized", "offline", "source_processes_reaped", "restart_excluded", "supported_writers_journal", "schema_and_integrity_valid"],
+          "properties": {
+            "authorized": {"type": "boolean"}, "offline": {"type": "boolean"},
+            "source_processes_reaped": {"type": "boolean"}, "restart_excluded": {"type": "boolean"},
+            "supported_writers_journal": {"type": "boolean"}, "schema_and_integrity_valid": {"type": "boolean"}
+          }
+        },
+        "before": {"$ref": "#/$defs/serviceState"}, "after": {"$ref": "#/$defs/serviceState"},
+        "outcome": {"enum": ["enabled", "already_enabled", "rejected", "rolled_back", "committed_without_ack", "restored_disabled", "unchanged"]},
+        "rejection": {"enum": [null, "unauthorized", "offline_required", "source_processes_running", "restart_not_excluded", "unsupported_writers", "wrong_generation", "invalid_schema_or_integrity"]},
+        "client_state_changed": {"const": false}
+      }
+    },
+    "baseline": {
+      "type": "object", "additionalProperties": false,
+      "required": ["identity", "complete", "checkpoint", "item_count", "usability"],
+      "properties": {
+        "identity": {"$ref": "#/$defs/text"}, "complete": {"const": true},
+        "checkpoint": {"$ref": "#/$defs/text"}, "item_count": {"$ref": "#/$defs/position"},
+        "usability": {"enum": ["usable", "incompatible_history", "corrupt_not_servable"]}
+      }
+    },
+    "catchUp": {
+      "type": "object", "additionalProperties": false,
+      "required": ["checkpoint", "high_water", "observation"],
+      "properties": {
+        "checkpoint": {"$ref": "#/$defs/text"}, "high_water": {"$ref": "#/$defs/position"},
+        "observation": {"$ref": "#/$defs/text"}
+      }
+    },
+    "failure": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "recovery_action"],
+      "properties": {
+        "code": {"enum": ["transient", "expired", "wrong_generation", "wrong_store", "missing_baseline", "corrupt", "payload_too_large", "sync_disabled"]},
+        "recovery_action": {"enum": ["retry", "rebuild", "repair_local", "resolve_record_or_budget", "activate_source"]}
+      }
+    },
+    "mirrorStatus": {
+      "type": "object", "additionalProperties": false,
+      "required": ["published_baseline", "rebuild_phase", "staging_identity", "last_successful_catch_up", "last_failure", "source_compatibility", "observation_scope"],
+      "properties": {
+        "published_baseline": {"oneOf": [{"$ref": "#/$defs/baseline"}, {"type": "null"}]},
+        "rebuild_phase": {"enum": ["idle", "scanning", "catching_up", "blocked"]},
+        "staging_identity": {"$ref": "#/$defs/nullableText"},
+        "last_successful_catch_up": {"oneOf": [{"$ref": "#/$defs/catchUp"}, {"type": "null"}]},
+        "last_failure": {"oneOf": [{"$ref": "#/$defs/failure"}, {"type": "null"}]},
+        "source_compatibility": {"enum": ["unobserved", "compatible", "incompatible"]},
+        "observation_scope": {"const": "last_observed_not_current_now"}
+      }
+    },
+    "callbackGuard": {
+      "type": "object", "additionalProperties": false,
+      "required": ["attempt_id", "baseline_identity", "staging_identity", "checkpoint"],
+      "properties": {
+        "attempt_id": {"$ref": "#/$defs/text"}, "baseline_identity": {"$ref": "#/$defs/nullableText"},
+        "staging_identity": {"$ref": "#/$defs/nullableText"}, "checkpoint": {"$ref": "#/$defs/nullableText"}
+      }
+    },
+    "mirror": {
+      "type": "object", "additionalProperties": false,
+      "required": ["location", "ownership", "transactions", "publication", "statuses", "transitions", "callbacks"],
+      "properties": {
+        "location": {"const": "explicit_caller_owned_separate_sqlite_path_no_default"},
+        "ownership": {"const": "one_cross_process_writer_for_poll_reconcile_publish_one_active_scan_or_poll"},
+        "transactions": {"const": "short_sqlite_transactions_no_transport_under_write_transaction"},
+        "publication": {"const": "persist_staging_identity_then_atomically_publish_identity_contents_completeness_checkpoint_after_complete_finite_catch_up"},
+        "statuses": {"type": "array", "minItems": 13, "items": {
+          "type": "object", "additionalProperties": false, "required": ["id", "client_id", "mirror_path", "status"],
+          "properties": {
+            "id": {"$ref": "#/$defs/text"}, "client_id": {"$ref": "#/$defs/text"},
+            "mirror_path": {"$ref": "#/$defs/text"}, "status": {"$ref": "#/$defs/mirrorStatus"}
+          }
+        }},
+        "transitions": {"type": "array", "minItems": 10, "items": {
+          "type": "object", "additionalProperties": false, "required": ["id", "before", "after", "checkpoint_advanced"],
+          "properties": {
+            "id": {"$ref": "#/$defs/text"}, "before": {"$ref": "#/$defs/text"},
+            "after": {"$ref": "#/$defs/text"}, "checkpoint_advanced": {"type": "boolean"}
+          }
+        }},
+        "callbacks": {"type": "array", "minItems": 4, "items": {
+          "type": "object", "additionalProperties": false,
+          "required": ["id", "kind", "captured", "persisted_before", "persisted_after", "status_before", "status_after", "expected"],
+          "properties": {
+            "id": {"$ref": "#/$defs/text"}, "kind": {"enum": ["success", "failure"]},
+            "captured": {"$ref": "#/$defs/callbackGuard"}, "persisted_before": {"$ref": "#/$defs/callbackGuard"},
+            "persisted_after": {"$ref": "#/$defs/callbackGuard"},
+            "status_before": {"$ref": "#/$defs/text"}, "status_after": {"$ref": "#/$defs/text"},
+            "expected": {"const": "discarded"}
+          }
+        }}
+      }
+    },
+    "errorResponse": {
+      "type": "object", "additionalProperties": false, "required": ["api_version", "schema_version", "ok", "error"],
+      "properties": {
+        "api_version": {"const": 2}, "schema_version": {"const": 1}, "ok": {"const": false},
+        "error": {"$ref": "#/$defs/error"}
+      }
+    },
+    "serviceRequest": {
+      "type": "object", "additionalProperties": false,
+      "if": {"properties": {"kind": {"const": "poll"}}},
+      "then": {"properties": {"cursor": {"$ref": "#/$defs/text"}}},
+      "required": ["id", "kind", "cursor", "authorized", "supplied_identity", "sync_enabled", "response", "checkpoint_advanced"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "kind": {"enum": ["scan", "poll"]},
+        "cursor": {"$ref": "#/$defs/nullableText"}, "authorized": {"type": "boolean"},
+        "supplied_identity": {"enum": ["absent", "compatible", "wrong_generation", "wrong_store"]},
+        "sync_enabled": {"const": false}, "response": {"$ref": "#/$defs/errorResponse"},
+        "checkpoint_advanced": {"const": false}
+      }
+    },
+    "coverageCase": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "phase", "start", "floor", "checkpoint", "expected"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "phase": {"enum": ["scan", "replay"]},
+        "start": {"$ref": "#/$defs/position"}, "floor": {"$ref": "#/$defs/position"},
+        "checkpoint": {"$ref": "#/$defs/position"}, "expected": {"enum": ["scan", "replay", "rebuild"]}
+      }
+    },
+    "unfitSummary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["phases", "response", "checkpoint_before", "checkpoint_after", "retry_same_budget_repairs", "rebuild_same_budget_repairs"],
+      "properties": {
+        "phases": {"const": ["scan", "poll"]}, "response": {"$ref": "#/$defs/errorResponse"},
+        "checkpoint_before": {"$ref": "#/$defs/text"}, "checkpoint_after": {"$ref": "#/$defs/text"},
+        "retry_same_budget_repairs": {"const": false}, "rebuild_same_budget_repairs": {"const": false}
       }
     },
     "operation": {
@@ -209,6 +379,26 @@
       }
     },
     "error": {"oneOf": [
+      {"type": "object", "additionalProperties": false, "required": ["code", "message", "details"], "properties": {
+        "code": {"const": "unauthorized"}, "message": {"$ref": "#/$defs/text"}, "details": {"type": "null"}
+      }},
+      {"type": "object", "additionalProperties": false, "required": ["code", "message", "details"], "properties": {
+        "code": {"const": "sync_disabled"}, "message": {"$ref": "#/$defs/text"},
+        "details": {"type": "object", "additionalProperties": false, "required": ["reason", "recovery_action"], "properties": {
+          "reason": {"const": "service_disabled"}, "recovery_action": {"const": "activate_source"}
+        }}
+      }},
+      {"type": "object", "additionalProperties": false, "required": ["code", "message", "details"], "properties": {
+        "code": {"const": "payload_too_large"}, "message": {"$ref": "#/$defs/text"},
+        "details": {"type": "object", "additionalProperties": false,
+          "required": ["record_kind", "record_id", "maximum_response_bytes", "minimum_required_bytes"],
+          "properties": {
+            "record_kind": {"const": "item"}, "record_id": {"$ref": "#/$defs/text"},
+            "maximum_response_bytes": {"type": "integer", "minimum": 1, "maximum": 1048576},
+            "minimum_required_bytes": {"$ref": "#/$defs/revision"}
+          }
+        }
+      }},
       {"type": "object", "additionalProperties": false, "required": ["code", "message", "details"], "properties": {
         "code": {"const": "invalid_cursor"}, "message": {"$ref": "#/$defs/text"},
         "details": {"type": "object", "additionalProperties": false, "required": ["reason", "restart_required"], "properties": {

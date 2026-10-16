@@ -9,11 +9,11 @@
     "hydration": "Return each consumed identity once per chunk as kind=upsert plus a complete V2-001 summary, including explicit null clears. Select journal coverage and hydrate current summaries in one short read transaction. Hydration can be newer than fixed H: through is coverage, not historical visibility. An unexpectedly missing current item is corruption, never an inferred tombstone. Reject is an upsert, not deletion.",
     "bounds": "Bound matching journal rows consumed to at most 100, output items to request.limit<=100, and compact UTF-8 response bytes to 1048576; sentinel examination is bounded separately (at most one extra matching row) and is never consumed. Test journal_limit is an internal smaller bound, not a wire option. Conservative chunks may consume at most min(journal_limit,limit) rows; coalescing need not fill an item page. Never skip unconsumed rows to fill output. On byte overflow shorten the consumed prefix and recompute coalescing/through, or return payload_too_large without any checkpoint advance if one full replacement cannot fit. Never truncate fields or emit partial success.",
     "cursor": "Handles in tokens are illustrative, opaque and not runtime-generated. The test-only decoded semantics freeze kind, store_id, persisted generation, project, summary schema version, covered through, and fixed high_water for incomplete polls (null for completed checkpoints). Scan continuation additionally binds immutable identity boundary and original sync starting checkpoint. Clients must not construct, decode, sort or alter tokens. Tokens are continuation data, not authorization; every request retains normal authorization. Encoding is not frozen by these example handles.",
-    "scan": "scan takes exactly project, projection=summary, limit (1..100), cursor (null starts). Success is v2 envelope result items, next_cursor (null on exhaustion), sync_start_cursor (same opaque checkpoint on every page, including empty). Capture sync start S before scanning the first primary row in that read transaction. Scan all project summaries in ascending immutable canonical requester/project/numeric item sequence order, not queue priority/time; it is live and not a historical snapshot. Bind scope/generation/start to continuation, check S against the global floor on every page and catch-up poll, then replay from S toward a chosen finite H before publishing. Expiry or generation change requires discarding staging and restarting bootstrap. Reconciliation replaces old baseline contents, including absent items, rather than unioning them.",
-    "consumer": "One in-flight poll per mirror. The client owns baseline and a fresh local bootstrap identity; accept only if baseline exists and echoed source checkpoint plus captured local bootstrap identity equal persisted values. Apply higher revisions as full replacements; ignore lower revisions; equivalent same-revision replay is harmless; conflicting same-revision data fails the whole commit. Atomically persist replacements and next cursor. Discard delayed responses from old checkpoints or bootstrap identities. Baseline loss requires bootstrap even if the cursor remains and the delta is empty. Derive ready/mine queues from project state, not by filtering the feed.",
+    "scan": "scan takes exactly project, projection=summary, limit (1..100), cursor (null starts). Success is v2 envelope result items, next_cursor (null on exhaustion), sync_start_cursor (same opaque checkpoint on every page, including empty). Capture sync start S before scanning the first primary row in that read transaction. Scan all project summaries in ascending immutable canonical requester/project/numeric item sequence order, not queue priority/time; it is live and not a historical snapshot. Bind scope/generation/start to continuation and validate S against global F on every scan page. After scan, replay validates durably applied C, initially S, not original S: S<F<=C is valid, C==F is valid, C<F rebuilds. Replay to a chosen finite H before publishing. Expiry or generation change discards staging and restarts bootstrap. Reconciliation replaces old baseline contents, including absent items, rather than unioning them.",
+    "consumer": "Require an explicit caller-owned separate SQLite mirror path, no default. One cross-process writer owner covers polling, reconciliation and publication; serialize scan/poll requests. Persist staging identity before transport. For both success and failure compare local request-attempt ownership, baseline/staging identity and captured source checkpoint to persisted state in a short transaction. A duplicate no-change response with the same checkpoint is not a fresh observation. No transport runs under a SQLite write transaction. Apply higher revisions as full replacements; ignore lower revisions; equivalent same-revision replay is harmless; conflicting same-revision data fails the whole commit. Persist replacements and checkpoint atomically; publish baseline identity, contents/reference, completeness and checkpoint together only after complete finite catch-up. Keep a usable old complete baseline readable but not updating during rebuild; label incompatible history, never serve detected-corrupt data or staging as complete. Baseline loss requires bootstrap even if the cursor remains and the delta is empty. Derive ready/mine queues from project state, not by filtering the feed. Typed status is last observed coverage/compatibility, never current-now or write authority.",
     "atomicity": "An effective committed item operation appends exactly one operation-linked change record in the existing item/audit/receipt transaction and updates durable high water there. Compound component events do not multiply appends; a note-only revision change appends once. Idempotent replay and genuine no-op append nothing. Pruning is explicit transactional prefix pruning: F and durable high water never decrease within a generation, prune-all preserves high water and generation, restart preserves metadata, subsequent commits allocate above all prior committed positions. Each cursor-dependent storage read obtains generation, floor, high-water/coverage metadata, selected rows and hydration from the same read transaction; maintenance is wholly before or after its snapshot.",
-    "recovery": "Initial tracking activation creates a persisted independent random 128-bit generation, high water=0, floor=0 and requires full bootstrap. No timestamp-ordered audit backfill and no rewriting old audit/receipts. Sync stays disabled until supported writers all journal. Every supported offline restore, including repeated restore of the identical backup, persists a fresh independently OS-random 128-bit generation, not a counter or backup-derived value. Collision probability is assumed negligible, not mathematically impossible. Restored content may have identical item revisions; generation rejects all previous tokens anyway. Ordinary process restart preserves persisted store identity/generation and tokens. Supported restore requires stopping warm sessions, SQLite-consistent backup/restore and integrity validation; silent out-of-band replacement detection is not promised.",
-    "errors": "Use existing v2 error envelope api_version=2,schema_version=1,ok=false,error={code,message,details}. Reject cursor kind/store/project/schema/version mismatch, malformed/future positions, generation mismatch, and expired coverage explicitly with invalid_cursor details reason and restart_required=true. Generation-less page/history/scan/sync tokens return invalid_cursor details {reason:generation_missing,restart_required:true}. Generation-less validators return invalid_input details {reason:generation_missing,refetch_required:true}; changed generation validators also refetch and never return not_modified, even for restored content at the same revision. Warm sessions fail identity checks and request restart before another read or mutation is accepted. Missing baseline is client bootstrap_required, not a server not_modified or empty-queue success."
+    "recovery": "Initial journal/schema creation, not service activation, creates an independent random 128-bit generation with H=F=0, sync_enabled=false and legacy bootstrap_required=true; no timestamp audit backfill. Explicit service activation is authorized offline maintenance with every source reader/writer stopped and reaped, restart/new-launch exclusion, expected-generation validation, exact supported schema/integrity and an inventoried supported-writer deployment whose effective capture/mutation writes all append journal entries in the shared item/audit/receipt transaction. No ordinary open, migration or client finish enables service. Atomically validate then set only sync_enabled=true; preserve generation/F/H/bootstrap_required and all client state. Retry revalidates prerequisites and expected generation, including already-enabled success; crash before commit rolls back, lost acknowledgement requires reinspection before retry. Every supported offline restore, including the same backup twice, independently rotates generation and disables service; reactivate explicitly. Collision probability is negligible, not impossible. Restart changes neither generation nor availability. No server client registry: bootstrap_required is compatibility metadata, never client progress and never cleared by client completion. Silent out-of-band replacement detection is not promised.",
+    "errors": "Use existing v2 error envelope api_version=2,schema_version=1,ok=false,error={code,message,details}. Authorize first; incompatible supplied source identity returns invalid_cursor wrong_store/wrong_generation before sync_disabled, then check availability in the same read snapshot. Disabled initial scan, continuation scan and poll all fail closed with sync_disabled details {reason:service_disabled,recovery_action:activate_source}, never empty success or checkpoint advancement. Other cursor kind/project/schema/version, malformed/future and expiry errors remain explicit invalid_cursor with restart_required=true. Generation-less page/history/scan/sync tokens return invalid_cursor {reason:generation_missing,restart_required:true}; generation-less validators return invalid_input {reason:generation_missing,refetch_required:true}. Changed-generation validators refetch, never not_modified at matching revisions. Warm sessions require restart after identity failure. Missing baseline is local rebuild, not server not_modified or empty-queue success. Permanently unfit summaries reuse payload_too_large details {record_kind:item,record_id,maximum_response_bytes,minimum_required_bytes}; bytes cover the complete UTF-8 envelope and maximum is the effective supported budget. Do not advance scan/replay checkpoint, publish partial success, truncate, or claim retry/rebuild with unchanged record and budget repairs it."
   },
   "activation": {
     "new_generation": "17c4607f59e849e584627308cf9e1711",
@@ -22,7 +22,279 @@
     "full_bootstrap_required": true,
     "timestamp_audit_backfill": false,
     "sync_enabled_before_all_writers_participate": false,
-    "after_operations_high_water": 7
+    "after_operations_high_water": 7,
+    "initial_sync_enabled": false,
+    "service_contract": {
+      "mode": "authorized_offline",
+      "preserves": ["generation", "floor", "high_water", "bootstrap_required", "client_state"],
+      "server_client_registry": false,
+      "client_finish_clears_bootstrap_required": false,
+      "atomicity": "validate_prerequisites_and_expected_generation_then_enable_in_one_transaction",
+      "retry": "reinspect_after_uncertain_commit_revalidate_same_generation_already_enabled_is_success"
+    },
+    "attempts": [
+      {
+        "id": "enable", "action": "activate", "expected_generation": "17c4607f59e849e584627308cf9e1711",
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "after": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": true, "bootstrap_required": true},
+        "outcome": "enabled", "rejection": null, "client_state_changed": false
+      },
+      {
+        "id": "retry", "action": "activate", "expected_generation": "17c4607f59e849e584627308cf9e1711",
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": true, "bootstrap_required": true},
+        "after": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": true, "bootstrap_required": true},
+        "outcome": "already_enabled", "rejection": null, "client_state_changed": false
+      },
+      {
+        "id": "unauthorized", "action": "activate", "expected_generation": "17c4607f59e849e584627308cf9e1711",
+        "prerequisites": {"authorized": false, "offline": true, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "after": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "outcome": "rejected", "rejection": "unauthorized", "client_state_changed": false
+      },
+      {
+        "id": "not_offline", "action": "activate", "expected_generation": "17c4607f59e849e584627308cf9e1711",
+        "prerequisites": {"authorized": true, "offline": false, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "after": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "outcome": "rejected", "rejection": "offline_required", "client_state_changed": false
+      },
+      {
+        "id": "not_reaped", "action": "activate", "expected_generation": "17c4607f59e849e584627308cf9e1711",
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": false, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "after": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "outcome": "rejected", "rejection": "source_processes_running", "client_state_changed": false
+      },
+      {
+        "id": "restart_allowed", "action": "activate", "expected_generation": "17c4607f59e849e584627308cf9e1711",
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": true, "restart_excluded": false, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "after": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "outcome": "rejected", "rejection": "restart_not_excluded", "client_state_changed": false
+      },
+      {
+        "id": "unsupported_writers", "action": "activate", "expected_generation": "17c4607f59e849e584627308cf9e1711",
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": false, "schema_and_integrity_valid": true},
+        "before": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "after": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "outcome": "rejected", "rejection": "unsupported_writers", "client_state_changed": false
+      },
+      {
+        "id": "wrong_generation", "action": "activate", "expected_generation": "22222222222222222222222222222222",
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "after": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "outcome": "rejected", "rejection": "wrong_generation", "client_state_changed": false
+      },
+      {
+        "id": "crash_before_commit", "action": "activate", "expected_generation": "17c4607f59e849e584627308cf9e1711",
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "after": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "outcome": "rolled_back", "rejection": null, "client_state_changed": false
+      },
+      {
+        "id": "committed_without_ack", "action": "activate", "expected_generation": "17c4607f59e849e584627308cf9e1711",
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "after": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": true, "bootstrap_required": true},
+        "outcome": "committed_without_ack", "rejection": null, "client_state_changed": false
+      },
+      {
+        "id": "restore", "action": "restore", "expected_generation": null,
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "17c4607f59e849e584627308cf9e1711", "floor": 3, "high_water": 7, "sync_enabled": true, "bootstrap_required": true},
+        "after": {"generation": "22222222222222222222222222222222", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "outcome": "restored_disabled", "rejection": null, "client_state_changed": false
+      },
+      {
+        "id": "reactivate", "action": "activate", "expected_generation": "22222222222222222222222222222222",
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "22222222222222222222222222222222", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "after": {"generation": "22222222222222222222222222222222", "floor": 3, "high_water": 7, "sync_enabled": true, "bootstrap_required": true},
+        "outcome": "enabled", "rejection": null, "client_state_changed": false
+      },
+      {
+        "id": "restart", "action": "restart", "expected_generation": null,
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "22222222222222222222222222222222", "floor": 3, "high_water": 7, "sync_enabled": true, "bootstrap_required": true},
+        "after": {"generation": "22222222222222222222222222222222", "floor": 3, "high_water": 7, "sync_enabled": true, "bootstrap_required": true},
+        "outcome": "unchanged", "rejection": null, "client_state_changed": false
+      },
+      {
+        "id": "disabled_restart", "action": "restart", "expected_generation": null,
+        "prerequisites": {"authorized": true, "offline": true, "source_processes_reaped": true, "restart_excluded": true, "supported_writers_journal": true, "schema_and_integrity_valid": true},
+        "before": {"generation": "22222222222222222222222222222222", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "after": {"generation": "22222222222222222222222222222222", "floor": 3, "high_water": 7, "sync_enabled": false, "bootstrap_required": true},
+        "outcome": "unchanged", "rejection": null, "client_state_changed": false
+      }
+    ]
+  },
+  "mirror": {
+    "location": "explicit_caller_owned_separate_sqlite_path_no_default",
+    "ownership": "one_cross_process_writer_for_poll_reconcile_publish_one_active_scan_or_poll",
+    "transactions": "short_sqlite_transactions_no_transport_under_write_transaction",
+    "publication": "persist_staging_identity_then_atomically_publish_identity_contents_completeness_checkpoint_after_complete_finite_catch_up",
+    "statuses": [
+      {"id": "client-a-complete", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-a", "complete": true, "checkpoint": "sync@3", "item_count": 1, "usability": "usable"},
+        "rebuild_phase": "idle", "staging_identity": null,
+        "last_successful_catch_up": {"checkpoint": "sync@3", "high_water": 3, "observation": "finite-poll-a"},
+        "last_failure": null, "source_compatibility": "compatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "client-b-absent", "client_id": "client-b", "mirror_path": "/mirrors/client-b.sqlite", "status": {
+        "published_baseline": null, "rebuild_phase": "idle", "staging_identity": null,
+        "last_successful_catch_up": null, "last_failure": null,
+        "source_compatibility": "unobserved", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "complete-empty", "client_id": "client-b", "mirror_path": "/mirrors/client-b.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-empty", "complete": true, "checkpoint": "sync-empty@7", "item_count": 0, "usability": "usable"},
+        "rebuild_phase": "idle", "staging_identity": null,
+        "last_successful_catch_up": {"checkpoint": "sync-empty@7", "high_water": 7, "observation": "finite-poll-empty"},
+        "last_failure": null, "source_compatibility": "compatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "rebuilding", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-a", "complete": true, "checkpoint": "sync@3", "item_count": 1, "usability": "usable"},
+        "rebuild_phase": "scanning", "staging_identity": "stage-a",
+        "last_successful_catch_up": {"checkpoint": "sync@3", "high_water": 3, "observation": "finite-poll-a"},
+        "last_failure": null, "source_compatibility": "compatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "transient-failure", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-a", "complete": true, "checkpoint": "sync@3", "item_count": 1, "usability": "usable"},
+        "rebuild_phase": "idle", "staging_identity": null,
+        "last_successful_catch_up": {"checkpoint": "sync@3", "high_water": 3, "observation": "finite-poll-a"},
+        "last_failure": {"code": "transient", "recovery_action": "retry"},
+        "source_compatibility": "compatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "expired", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-a", "complete": true, "checkpoint": "sync@3", "item_count": 1, "usability": "usable"},
+        "rebuild_phase": "scanning", "staging_identity": "stage-expired",
+        "last_successful_catch_up": {"checkpoint": "sync@3", "high_water": 3, "observation": "finite-poll-a"},
+        "last_failure": {"code": "expired", "recovery_action": "rebuild"},
+        "source_compatibility": "compatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "incompatible", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-a", "complete": true, "checkpoint": "sync@3", "item_count": 1, "usability": "incompatible_history"},
+        "rebuild_phase": "scanning", "staging_identity": "stage-new-generation",
+        "last_successful_catch_up": {"checkpoint": "sync@3", "high_water": 3, "observation": "finite-poll-a"},
+        "last_failure": {"code": "wrong_generation", "recovery_action": "rebuild"},
+        "source_compatibility": "incompatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "lost", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": null, "rebuild_phase": "scanning", "staging_identity": "stage-lost",
+        "last_successful_catch_up": {"checkpoint": "sync@3", "high_water": 3, "observation": "finite-poll-a"},
+        "last_failure": {"code": "missing_baseline", "recovery_action": "rebuild"},
+        "source_compatibility": "compatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "corrupt", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-a", "complete": true, "checkpoint": "sync@3", "item_count": 1, "usability": "corrupt_not_servable"},
+        "rebuild_phase": "blocked", "staging_identity": null,
+        "last_successful_catch_up": {"checkpoint": "sync@3", "high_water": 3, "observation": "finite-poll-a"},
+        "last_failure": {"code": "corrupt", "recovery_action": "repair_local"},
+        "source_compatibility": "compatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "unfit", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-a", "complete": true, "checkpoint": "sync@3", "item_count": 1, "usability": "usable"},
+        "rebuild_phase": "blocked", "staging_identity": null,
+        "last_successful_catch_up": {"checkpoint": "sync@3", "high_water": 3, "observation": "finite-poll-a"},
+        "last_failure": {"code": "payload_too_large", "recovery_action": "resolve_record_or_budget"},
+        "source_compatibility": "compatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "disabled", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-a", "complete": true, "checkpoint": "sync@3", "item_count": 1, "usability": "usable"},
+        "rebuild_phase": "blocked", "staging_identity": null,
+        "last_successful_catch_up": {"checkpoint": "sync@3", "high_water": 3, "observation": "finite-poll-a"},
+        "last_failure": {"code": "sync_disabled", "recovery_action": "activate_source"},
+        "source_compatibility": "compatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "catching-up", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-a", "complete": true, "checkpoint": "sync@3", "item_count": 1, "usability": "usable"},
+        "rebuild_phase": "catching_up", "staging_identity": "stage-a",
+        "last_successful_catch_up": {"checkpoint": "sync@3", "high_water": 3, "observation": "finite-poll-a"},
+        "last_failure": null, "source_compatibility": "compatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "published", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-new", "complete": true, "checkpoint": "opaque-sync-7", "item_count": 3, "usability": "usable"},
+        "rebuild_phase": "idle", "staging_identity": null,
+        "last_successful_catch_up": {"checkpoint": "opaque-sync-7", "high_water": 7, "observation": "finite-catch-up-a"},
+        "last_failure": null, "source_compatibility": "compatible", "observation_scope": "last_observed_not_current_now"
+      }},
+      {"id": "wrong-store", "client_id": "client-a", "mirror_path": "/mirrors/client-a.sqlite", "status": {
+        "published_baseline": {"identity": "baseline-a", "complete": true, "checkpoint": "sync@3", "item_count": 1, "usability": "incompatible_history"},
+        "rebuild_phase": "blocked", "staging_identity": null,
+        "last_successful_catch_up": {"checkpoint": "sync@3", "high_water": 3, "observation": "finite-poll-a"},
+        "last_failure": {"code": "wrong_store", "recovery_action": "rebuild"},
+        "source_compatibility": "incompatible", "observation_scope": "last_observed_not_current_now"
+      }}
+    ],
+    "transitions": [
+      {"id": "transient", "before": "client-a-complete", "after": "transient-failure", "checkpoint_advanced": false},
+      {"id": "expired", "before": "client-a-complete", "after": "expired", "checkpoint_advanced": false},
+      {"id": "generation", "before": "client-a-complete", "after": "incompatible", "checkpoint_advanced": false},
+      {"id": "baseline_loss", "before": "client-a-complete", "after": "lost", "checkpoint_advanced": false},
+      {"id": "corruption", "before": "client-a-complete", "after": "corrupt", "checkpoint_advanced": false},
+      {"id": "unfit", "before": "client-a-complete", "after": "unfit", "checkpoint_advanced": false},
+      {"id": "disabled", "before": "client-a-complete", "after": "disabled", "checkpoint_advanced": false},
+      {"id": "begin_rebuild", "before": "client-a-complete", "after": "rebuilding", "checkpoint_advanced": false},
+      {"id": "scan_exhausted", "before": "rebuilding", "after": "catching-up", "checkpoint_advanced": false},
+      {"id": "complete_catch_up_publish", "before": "catching-up", "after": "published", "checkpoint_advanced": true},
+      {"id": "store", "before": "client-a-complete", "after": "wrong-store", "checkpoint_advanced": false}
+    ],
+    "callbacks": [
+      {"id": "abandoned_scan_success", "kind": "success",
+        "captured": {"attempt_id": "attempt-old", "baseline_identity": "baseline-a", "staging_identity": "stage-old", "checkpoint": "scan-old"},
+        "persisted_before": {"attempt_id": "attempt-new", "baseline_identity": "baseline-a", "staging_identity": "stage-a", "checkpoint": "scan-new"},
+        "persisted_after": {"attempt_id": "attempt-new", "baseline_identity": "baseline-a", "staging_identity": "stage-a", "checkpoint": "scan-new"},
+        "status_before": "rebuilding", "status_after": "rebuilding", "expected": "discarded"},
+      {"id": "abandoned_poll_failure", "kind": "failure",
+        "captured": {"attempt_id": "attempt-old", "baseline_identity": "baseline-a", "staging_identity": null, "checkpoint": "sync@3"},
+        "persisted_before": {"attempt_id": "attempt-new", "baseline_identity": "baseline-new", "staging_identity": null, "checkpoint": "opaque-sync-7"},
+        "persisted_after": {"attempt_id": "attempt-new", "baseline_identity": "baseline-new", "staging_identity": null, "checkpoint": "opaque-sync-7"},
+        "status_before": "published", "status_after": "published", "expected": "discarded"},
+      {"id": "duplicate_no_change_success", "kind": "success",
+        "captured": {"attempt_id": "attempt-old", "baseline_identity": "baseline-a", "staging_identity": null, "checkpoint": "sync@3"},
+        "persisted_before": {"attempt_id": "attempt-new", "baseline_identity": "baseline-a", "staging_identity": null, "checkpoint": "sync@3"},
+        "persisted_after": {"attempt_id": "attempt-new", "baseline_identity": "baseline-a", "staging_identity": null, "checkpoint": "sync@3"},
+        "status_before": "transient-failure", "status_after": "transient-failure", "expected": "discarded"},
+      {"id": "duplicate_no_change_failure", "kind": "failure",
+        "captured": {"attempt_id": "attempt-old", "baseline_identity": "baseline-a", "staging_identity": null, "checkpoint": "sync@3"},
+        "persisted_before": {"attempt_id": "attempt-new", "baseline_identity": "baseline-a", "staging_identity": null, "checkpoint": "sync@3"},
+        "persisted_after": {"attempt_id": "attempt-new", "baseline_identity": "baseline-a", "staging_identity": null, "checkpoint": "sync@3"},
+        "status_before": "client-a-complete", "status_after": "client-a-complete", "expected": "discarded"}
+    ]
+  },
+  "service_requests": [
+    {"id": "disabled_initial_scan", "kind": "scan", "cursor": null, "authorized": true, "supplied_identity": "absent", "sync_enabled": false,
+      "response": {"api_version": 2, "schema_version": 1, "ok": false, "error": {"code": "sync_disabled", "message": "Synchronization service is disabled.", "details": {"reason": "service_disabled", "recovery_action": "activate_source"}}}, "checkpoint_advanced": false},
+    {"id": "disabled_scan", "kind": "scan", "cursor": "scan-a", "authorized": true, "supplied_identity": "compatible", "sync_enabled": false,
+      "response": {"api_version": 2, "schema_version": 1, "ok": false, "error": {"code": "sync_disabled", "message": "Synchronization service is disabled.", "details": {"reason": "service_disabled", "recovery_action": "activate_source"}}}, "checkpoint_advanced": false},
+    {"id": "disabled_poll", "kind": "poll", "cursor": "sync@3", "authorized": true, "supplied_identity": "compatible", "sync_enabled": false,
+      "response": {"api_version": 2, "schema_version": 1, "ok": false, "error": {"code": "sync_disabled", "message": "Synchronization service is disabled.", "details": {"reason": "service_disabled", "recovery_action": "activate_source"}}}, "checkpoint_advanced": false},
+    {"id": "unauthorized_wrong_identity_disabled", "kind": "poll", "cursor": "old-generation", "authorized": false, "supplied_identity": "wrong_generation", "sync_enabled": false,
+      "response": {"api_version": 2, "schema_version": 1, "ok": false, "error": {"code": "unauthorized", "message": "Unauthorized request.", "details": null}}, "checkpoint_advanced": false},
+    {"id": "wrong_generation_disabled", "kind": "poll", "cursor": "old-generation", "authorized": true, "supplied_identity": "wrong_generation", "sync_enabled": false,
+      "response": {"api_version": 2, "schema_version": 1, "ok": false, "error": {"code": "invalid_cursor", "message": "Source generation changed.", "details": {"reason": "wrong_generation", "restart_required": true}}}, "checkpoint_advanced": false},
+    {"id": "wrong_store_disabled", "kind": "scan", "cursor": "other-store", "authorized": true, "supplied_identity": "wrong_store", "sync_enabled": false,
+      "response": {"api_version": 2, "schema_version": 1, "ok": false, "error": {"code": "invalid_cursor", "message": "Source store changed.", "details": {"reason": "wrong_store", "restart_required": true}}}, "checkpoint_advanced": false}
+  ],
+  "coverage_cases": [
+    {"id": "scan_start_pruned", "phase": "scan", "start": 3, "floor": 5, "checkpoint": 6, "expected": "rebuild"},
+    {"id": "replay_after_start_pruned", "phase": "replay", "start": 3, "floor": 5, "checkpoint": 6, "expected": "replay"},
+    {"id": "replay_at_floor", "phase": "replay", "start": 3, "floor": 5, "checkpoint": 5, "expected": "replay"},
+    {"id": "replay_below_floor", "phase": "replay", "start": 3, "floor": 5, "checkpoint": 4, "expected": "rebuild"},
+    {"id": "scan_at_floor", "phase": "scan", "start": 5, "floor": 5, "checkpoint": 5, "expected": "scan"}
+  ],
+  "unfit_summary": {
+    "phases": ["scan", "poll"],
+    "response": {"api_version": 2, "schema_version": 1, "ok": false, "error": {
+      "code": "payload_too_large", "message": "Complete item cannot fit the effective response budget.",
+      "details": {"record_kind": "item", "record_id": "ALICE:bif:001", "maximum_response_bytes": 1048576, "minimum_required_bytes": 1048700}
+    }},
+    "checkpoint_before": "sync@3", "checkpoint_after": "sync@3",
+    "retry_same_budget_repairs": false, "rebuild_same_budget_repairs": false
   },
   "operations": [
     {"id": "capture-a", "kind": "capture", "item_id": "ALICE:bif:001", "project": "bif", "effective": true, "replay": false, "before_revision": 0, "after_revision": 1, "component_events": 1, "expected_high_water": 1},

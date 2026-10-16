@@ -55,6 +55,417 @@ fn text(value: &Value) -> &str {
     value.as_str().expect("string")
 }
 
+fn case<'a>(cases: &'a Value, id: &str) -> &'a Value {
+    array(cases)
+        .iter()
+        .find(|case| case["id"] == id)
+        .unwrap_or_else(|| panic!("missing contract case {id}"))
+}
+
+// F-P01 checks agreement among declared examples, not a new consumer state machine.
+#[test]
+fn activation_examples_preserve_history_and_independent_client_state() {
+    let fixture = fixture();
+    let activation = &fixture["activation"];
+    assert_eq!(activation["initial_sync_enabled"], false);
+    assert_eq!(activation["service_contract"]["mode"], "authorized_offline");
+    assert_eq!(
+        activation["service_contract"]["preserves"],
+        json!([
+            "generation",
+            "floor",
+            "high_water",
+            "bootstrap_required",
+            "client_state"
+        ])
+    );
+    for id in ["enable", "retry", "reactivate", "committed_without_ack"] {
+        let attempt = case(&activation["attempts"], id);
+        assert_eq!(attempt["after"]["sync_enabled"], true, "{id}");
+        for field in ["generation", "floor", "high_water", "bootstrap_required"] {
+            assert_eq!(
+                attempt["before"][field], attempt["after"][field],
+                "{id}: {field}"
+            );
+        }
+        assert_eq!(attempt["client_state_changed"], false);
+        assert_eq!(
+            attempt["expected_generation"],
+            attempt["before"]["generation"]
+        );
+        assert!(attempt["rejection"].is_null());
+        for prerequisite in attempt["prerequisites"].as_object().unwrap().values() {
+            assert_eq!(prerequisite, true, "{id}");
+        }
+    }
+    for id in [
+        "unauthorized",
+        "not_offline",
+        "not_reaped",
+        "restart_allowed",
+        "unsupported_writers",
+        "wrong_generation",
+        "crash_before_commit",
+    ] {
+        let attempt = case(&activation["attempts"], id);
+        assert_eq!(attempt["before"], attempt["after"], "{id}");
+        assert_eq!(attempt["client_state_changed"], false);
+    }
+    for (id, prerequisite, rejection) in [
+        ("unauthorized", "authorized", "unauthorized"),
+        ("not_offline", "offline", "offline_required"),
+        (
+            "not_reaped",
+            "source_processes_reaped",
+            "source_processes_running",
+        ),
+        (
+            "restart_allowed",
+            "restart_excluded",
+            "restart_not_excluded",
+        ),
+        (
+            "unsupported_writers",
+            "supported_writers_journal",
+            "unsupported_writers",
+        ),
+    ] {
+        let attempt = case(&activation["attempts"], id);
+        assert_eq!(attempt["prerequisites"][prerequisite], false);
+        assert_eq!(attempt["rejection"], rejection);
+    }
+    let wrong_generation = case(&activation["attempts"], "wrong_generation");
+    assert_ne!(
+        wrong_generation["expected_generation"],
+        wrong_generation["before"]["generation"]
+    );
+    assert_eq!(wrong_generation["rejection"], "wrong_generation");
+    let restore = case(&activation["attempts"], "restore");
+    assert_ne!(
+        restore["before"]["generation"],
+        restore["after"]["generation"]
+    );
+    assert_eq!(restore["after"]["sync_enabled"], false);
+    assert_eq!(restore["after"]["bootstrap_required"], true);
+    let reactivation = case(&activation["attempts"], "reactivate");
+    assert_eq!(restore["after"], reactivation["before"]);
+    let restart = case(&activation["attempts"], "restart");
+    assert_eq!(restart["before"], restart["after"]);
+    let disabled_restart = case(&activation["attempts"], "disabled_restart");
+    assert_eq!(disabled_restart["before"], disabled_restart["after"]);
+    assert_eq!(disabled_restart["after"]["sync_enabled"], false);
+
+    let mirror = &fixture["mirror"];
+    let complete = case(&mirror["statuses"], "client-a-complete");
+    let absent = case(&mirror["statuses"], "client-b-absent");
+    assert_ne!(complete["client_id"], absent["client_id"]);
+    assert_ne!(complete["mirror_path"], absent["mirror_path"]);
+    assert_eq!(complete["status"]["published_baseline"]["complete"], true);
+    assert!(absent["status"]["published_baseline"].is_null());
+    assert_eq!(
+        activation["service_contract"]["server_client_registry"],
+        false
+    );
+    assert_eq!(
+        activation["service_contract"]["client_finish_clears_bootstrap_required"],
+        false
+    );
+}
+
+#[test]
+fn status_examples_distinguish_empty_missing_rebuilding_and_unusable_baselines() {
+    let fixture = fixture();
+    let mirror = &fixture["mirror"];
+    let status = |id| &case(&mirror["statuses"], id)["status"];
+    let empty = status("complete-empty");
+    assert_eq!(empty["published_baseline"]["complete"], true);
+    assert_eq!(empty["published_baseline"]["item_count"], 0);
+    assert!(!empty["published_baseline"]["checkpoint"].is_null());
+    assert!(status("client-b-absent")["published_baseline"].is_null());
+    let rebuilding = status("rebuilding");
+    assert_eq!(
+        rebuilding["published_baseline"],
+        status("client-a-complete")["published_baseline"]
+    );
+    assert_eq!(rebuilding["rebuild_phase"], "scanning");
+    assert_eq!(
+        status("incompatible")["published_baseline"]["usability"],
+        "incompatible_history"
+    );
+    assert_eq!(
+        status("corrupt")["published_baseline"]["usability"],
+        "corrupt_not_servable"
+    );
+    for entry in array(&mirror["statuses"]) {
+        assert_eq!(
+            entry["status"]["observation_scope"],
+            "last_observed_not_current_now"
+        );
+    }
+    for transition in array(&mirror["transitions"]) {
+        let before = case(&mirror["statuses"], text(&transition["before"]));
+        let after = case(&mirror["statuses"], text(&transition["after"]));
+        assert_eq!(before["client_id"], after["client_id"]);
+        assert_eq!(before["mirror_path"], after["mirror_path"]);
+    }
+    assert_eq!(
+        status("catching-up")["published_baseline"],
+        rebuilding["published_baseline"]
+    );
+    assert_eq!(
+        status("catching-up")["staging_identity"],
+        rebuilding["staging_identity"]
+    );
+    assert_eq!(
+        status("published")["published_baseline"]["checkpoint"],
+        fixture["bootstrap"]["catch_up_checkpoint"]
+    );
+    assert_eq!(
+        status("published")["last_successful_catch_up"]["high_water"],
+        fixture["bootstrap"]["catch_up_high_water"]
+    );
+    let transitions = &mirror["transitions"];
+    for (id, action) in [
+        ("transient", "retry"),
+        ("expired", "rebuild"),
+        ("generation", "rebuild"),
+        ("baseline_loss", "rebuild"),
+        ("corruption", "repair_local"),
+        ("unfit", "resolve_record_or_budget"),
+        ("disabled", "activate_source"),
+    ] {
+        let transition = case(transitions, id);
+        let before = status(text(&transition["before"]));
+        let after = status(text(&transition["after"]));
+        assert_eq!(after["last_failure"]["recovery_action"], action);
+        assert_eq!(transition["checkpoint_advanced"], false);
+        assert_eq!(
+            after["last_successful_catch_up"],
+            before["last_successful_catch_up"]
+        );
+    }
+    for callback in array(&mirror["callbacks"]) {
+        assert_eq!(callback["expected"], "discarded");
+        assert_eq!(callback["persisted_before"], callback["persisted_after"]);
+        assert_ne!(callback["captured"], callback["persisted_before"]);
+        assert_eq!(
+            status(text(&callback["status_before"])),
+            status(text(&callback["status_after"]))
+        );
+        let persisted_status = status(text(&callback["status_before"]));
+        assert_eq!(
+            callback["persisted_before"]["baseline_identity"],
+            persisted_status["published_baseline"]["identity"]
+        );
+        assert_eq!(
+            callback["persisted_before"]["staging_identity"],
+            persisted_status["staging_identity"]
+        );
+        if text(&callback["id"]).starts_with("duplicate_no_change") {
+            assert_eq!(
+                callback["captured"]["checkpoint"],
+                callback["persisted_before"]["checkpoint"]
+            );
+            assert_ne!(
+                callback["captured"]["attempt_id"],
+                callback["persisted_before"]["attempt_id"]
+            );
+        }
+    }
+    for kind in ["success", "failure"] {
+        assert!(
+            array(&mirror["callbacks"])
+                .iter()
+                .any(|callback| callback["kind"] == kind)
+        );
+    }
+}
+
+#[test]
+fn wrong_store_error_has_a_schema_valid_incompatible_mirror_recovery() {
+    let fixture = fixture();
+    let transition = case(&fixture["mirror"]["transitions"], "store");
+    let statuses = &fixture["mirror"]["statuses"];
+    let before = &case(statuses, text(&transition["before"]))["status"];
+    let after = &case(statuses, text(&transition["after"]))["status"];
+    let error = &case(&fixture["service_requests"], "wrong_store_disabled")["response"]["error"];
+    assert_eq!(error["details"]["reason"], "wrong_store");
+    assert_eq!(after["last_failure"]["code"], error["details"]["reason"]);
+    assert_eq!(after["last_failure"]["recovery_action"], "rebuild");
+    assert_eq!(after["source_compatibility"], "incompatible");
+    assert_eq!(after["rebuild_phase"], "blocked");
+    assert!(after["staging_identity"].is_null());
+    assert_eq!(
+        after["published_baseline"]["usability"],
+        "incompatible_history"
+    );
+    assert_eq!(transition["checkpoint_advanced"], false);
+    for field in ["identity", "complete", "checkpoint", "item_count"] {
+        assert_eq!(
+            before["published_baseline"][field],
+            after["published_baseline"][field]
+        );
+    }
+    assert_eq!(
+        before["last_successful_catch_up"],
+        after["last_successful_catch_up"]
+    );
+    let validator = validator();
+    assert!(
+        validator.is_valid(&fixture),
+        "{:?}",
+        validator.iter_errors(&fixture).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn disabled_requests_and_identity_precedence_are_explicit_contract_examples() {
+    let fixture = fixture();
+    let requests = &fixture["service_requests"];
+    for id in ["disabled_initial_scan", "disabled_scan", "disabled_poll"] {
+        let request = case(requests, id);
+        assert_eq!(request["response"]["error"]["code"], "sync_disabled");
+        assert_eq!(request["checkpoint_advanced"], false);
+    }
+    assert!(case(requests, "disabled_initial_scan")["cursor"].is_null());
+    assert_eq!(
+        case(requests, "unauthorized_wrong_identity_disabled")["response"]["error"]["code"],
+        "unauthorized"
+    );
+    for (id, reason) in [
+        ("wrong_generation_disabled", "wrong_generation"),
+        ("wrong_store_disabled", "wrong_store"),
+    ] {
+        let error = &case(requests, id)["response"]["error"];
+        assert_eq!(error["code"], "invalid_cursor");
+        assert_eq!(error["details"]["reason"], reason);
+    }
+}
+
+#[test]
+fn coverage_and_unfit_examples_freeze_boundaries_without_modeling_runtime() {
+    let fixture = fixture();
+    let cases = &fixture["coverage_cases"];
+    let advanced = case(cases, "replay_after_start_pruned");
+    assert!(number(&advanced["start"]) < number(&advanced["floor"]));
+    assert!(number(&advanced["floor"]) < number(&advanced["checkpoint"]));
+    assert_eq!(advanced["expected"], "replay");
+    let equal = case(cases, "replay_at_floor");
+    assert_eq!(equal["checkpoint"], equal["floor"]);
+    assert_eq!(equal["expected"], "replay");
+    let expired = case(cases, "replay_below_floor");
+    assert!(number(&expired["checkpoint"]) < number(&expired["floor"]));
+    assert_eq!(expired["expected"], "rebuild");
+    assert_eq!(case(cases, "scan_start_pruned")["expected"], "rebuild");
+
+    let unfit = &fixture["unfit_summary"];
+    let details = &unfit["response"]["error"]["details"];
+    assert_eq!(unfit["response"]["error"]["code"], "payload_too_large");
+    assert_eq!(details["record_kind"], "item");
+    assert!(
+        number(&details["minimum_required_bytes"]) > number(&details["maximum_response_bytes"])
+    );
+    assert_eq!(unfit["checkpoint_before"], unfit["checkpoint_after"]);
+    assert_eq!(unfit["retry_same_budget_repairs"], false);
+    assert_eq!(unfit["rebuild_same_budget_repairs"], false);
+    assert_eq!(unfit["phases"], json!(["scan", "poll"]));
+    // Reuse the existing response error detail type and wire names.
+    let typed = bif::v2_response::PayloadTooLarge {
+        record_kind: bif::v2_response::RecordKind::Item,
+        record_id: text(&details["record_id"]).to_owned(),
+        maximum_response_bytes: number(&details["maximum_response_bytes"]) as usize,
+        minimum_required_bytes: number(&details["minimum_required_bytes"]) as usize,
+    };
+    assert_eq!(serde_json::to_value(typed).unwrap(), *details);
+}
+
+#[test]
+fn lifecycle_schema_rejects_missing_fields_unknown_enums_and_extra_fields() {
+    let fixture = fixture();
+    let validator = validator();
+    assert!(validator.is_valid(&fixture));
+    // Every property of these representative closed objects is required.
+    for pointer in [
+        "/activation",
+        "/activation/service_contract",
+        "/activation/attempts/0",
+        "/activation/attempts/0/prerequisites",
+        "/activation/attempts/0/before",
+        "/mirror",
+        "/mirror/statuses/0",
+        "/mirror/statuses/0/status",
+        "/mirror/statuses/0/status/published_baseline",
+        "/mirror/statuses/0/status/last_successful_catch_up",
+        "/mirror/statuses/4/status/last_failure",
+        "/mirror/transitions/0",
+        "/mirror/callbacks/0",
+        "/mirror/callbacks/0/captured",
+        "/service_requests/0",
+        "/service_requests/0/response",
+        "/service_requests/0/response/error",
+        "/service_requests/0/response/error/details",
+        "/service_requests/4/response/error/details",
+        "/unfit_summary",
+        "/unfit_summary/response/error",
+        "/unfit_summary/response/error/details",
+        "/coverage_cases/0",
+    ] {
+        let object = fixture
+            .pointer(pointer)
+            .unwrap_or_else(|| panic!("missing {pointer}"));
+        for field in object.as_object().expect("closed object").keys() {
+            let mut changed = fixture.clone();
+            changed
+                .pointer_mut(pointer)
+                .unwrap()
+                .as_object_mut()
+                .unwrap()
+                .remove(field);
+            assert!(
+                !validator.is_valid(&changed),
+                "accepted omission {pointer}/{field}"
+            );
+        }
+        let mut changed = fixture.clone();
+        changed
+            .pointer_mut(pointer)
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert("extra".into(), json!(true));
+        assert!(
+            !validator.is_valid(&changed),
+            "accepted extra field at {pointer}"
+        );
+    }
+    for pointer in [
+        "/activation/service_contract/mode",
+        "/activation/attempts/0/action",
+        "/activation/attempts/0/outcome",
+        "/activation/attempts/0/rejection",
+        "/mirror/statuses/0/status/rebuild_phase",
+        "/mirror/statuses/0/status/source_compatibility",
+        "/mirror/statuses/0/status/published_baseline/usability",
+        "/mirror/statuses/4/status/last_failure/code",
+        "/mirror/statuses/4/status/last_failure/recovery_action",
+        "/mirror/callbacks/0/kind",
+        "/mirror/callbacks/0/expected",
+        "/service_requests/0/response/error/code",
+        "/service_requests/0/response/error/details/reason",
+        "/service_requests/4/response/error/details/reason",
+        "/unfit_summary/response/error/details/record_kind",
+        "/coverage_cases/0/phase",
+        "/coverage_cases/0/expected",
+    ] {
+        let mut changed = fixture.clone();
+        *changed.pointer_mut(pointer).unwrap() = json!("unknown");
+        assert!(
+            !validator.is_valid(&changed),
+            "accepted unknown enum at {pointer}"
+        );
+    }
+}
+
 #[test]
 fn sync_summary_matches_existing_domain_normalization_and_v2_serialization() {
     let item = ItemProjection::Summary(ItemSummary::new(
