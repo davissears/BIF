@@ -431,3 +431,120 @@ fn snapshot_reuses_outer_transaction_and_does_not_commit_it() {
     transaction.rollback().unwrap();
     assert_eq!(metadata(&connection).2, 0);
 }
+
+#[test]
+fn sync_guard_checks_supplied_identity_before_availability_and_initial_scan_fails_closed() {
+    let connection = storage::open(":memory:").unwrap();
+    let id = storage::read_store_identity(&connection).unwrap();
+    let snapshot = JournalSnapshot::begin(&connection).unwrap();
+    let generation = snapshot.metadata().generation.clone();
+    let wrong = Generation::parse("11111111111111111111111111111111").unwrap();
+    assert!(matches!(
+        snapshot.require_sync(None),
+        Err(JournalError::SyncDisabled)
+    ));
+    assert!(matches!(
+        snapshot.require_sync(Some((&id, &generation))),
+        Err(JournalError::SyncDisabled)
+    ));
+    assert!(matches!(
+        snapshot.require_sync(Some(("wrong", &wrong))),
+        Err(JournalError::StoreMismatch)
+    ));
+    assert!(matches!(
+        snapshot.require_sync(Some((&id, &wrong))),
+        Err(JournalError::GenerationMismatch)
+    ));
+    snapshot.finish().unwrap();
+    connection
+        .execute("UPDATE journal_metadata SET sync_enabled = 1", [])
+        .unwrap();
+    let snapshot = JournalSnapshot::begin(&connection).unwrap();
+    snapshot.require_sync(None).unwrap();
+    snapshot.require_sync(Some((&id, &generation))).unwrap();
+    assert!(matches!(
+        snapshot.require_sync(Some(("wrong", &generation))),
+        Err(JournalError::StoreMismatch)
+    ));
+    assert!(matches!(
+        snapshot.require_sync(Some((&id, &wrong))),
+        Err(JournalError::GenerationMismatch)
+    ));
+}
+
+#[test]
+fn sync_guard_identity_availability_coverage_and_rows_share_the_callers_snapshot() {
+    for outer in [false, true] {
+        for enabled_first in [false, true] {
+            let root = OwnedTestDirectory::new();
+            let path = root.path().join("guard.sqlite");
+            let reader = storage::open(&path).unwrap();
+            let mut writer = storage::open(&path).unwrap();
+            seed(&writer);
+            append(&mut writer, "op-1");
+            let id = storage::read_store_identity(&reader).unwrap();
+            let generation = Generation::parse(&metadata(&reader).0).unwrap();
+            if enabled_first {
+                storage::maintenance::activate(&path, &generation).unwrap();
+            }
+            if outer {
+                reader.execute_batch("BEGIN").unwrap();
+                // Establish the caller's snapshot before availability changes.
+                assert_eq!(storage::read_store_identity(&reader).unwrap(), id);
+            }
+            let snapshot = JournalSnapshot::begin(&reader).unwrap();
+            let transaction = writer
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .unwrap();
+            // Simulate an atomic identity/availability/coverage transition, to
+            // deterministically interleave between begin and guard/row selection.
+            transaction
+                .execute_batch(
+                    "UPDATE store_metadata SET store_id = 'replacement-store';
+                 DELETE FROM change_journal;
+                 UPDATE journal_metadata SET generation = '22222222222222222222222222222222',
+                   retention_floor = 1, sync_enabled = 1 - sync_enabled;",
+                )
+                .unwrap();
+            transaction.commit().unwrap();
+            let result = snapshot.require_sync(Some((&id, &generation)));
+            if enabled_first {
+                result.unwrap();
+                snapshot.require_sync(None).unwrap();
+            } else {
+                assert!(matches!(result, Err(JournalError::SyncDisabled)));
+                assert!(matches!(
+                    snapshot.require_sync(None),
+                    Err(JournalError::SyncDisabled)
+                ));
+            }
+            assert_eq!(snapshot.store_id(), id);
+            assert_eq!(snapshot.metadata().retention_floor, 0);
+            assert_eq!(selected(&snapshot, &generation, 0, 1).unwrap(), vec![1]);
+            snapshot.finish().unwrap();
+            if outer {
+                assert!(!reader.is_autocommit());
+                reader.execute_batch("ROLLBACK").unwrap();
+            }
+            let fresh = JournalSnapshot::begin(&reader).unwrap();
+            assert!(matches!(
+                fresh.require_sync(Some((&id, &generation))),
+                Err(JournalError::StoreMismatch)
+            ));
+            assert!(matches!(
+                fresh.require_sync(Some(("replacement-store", &generation))),
+                Err(JournalError::GenerationMismatch)
+            ));
+            assert_eq!(fresh.store_id(), "replacement-store");
+            assert_eq!(fresh.metadata().retention_floor, 1);
+            if enabled_first {
+                assert!(matches!(
+                    fresh.require_sync(None),
+                    Err(JournalError::SyncDisabled)
+                ));
+            } else {
+                fresh.require_sync(None).unwrap();
+            }
+        }
+    }
+}

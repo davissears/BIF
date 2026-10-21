@@ -11,8 +11,10 @@ pub(crate) const HELP: &str = "
   bif maintenance backup --store DB --output BACKUP --offline
   bif maintenance restore --store DB --from BACKUP --preserve-later BACKUP --offline
   bif maintenance prune --store DB --expected-generation GEN --through N --offline
+  bif maintenance activate --store DB --expected-generation GEN --offline
 Operator prerequisite: stop/reap all readers/writers and disable restart/new launches.
 --offline acknowledges this prerequisite; it is NOT proof of shutdown.
+Activation also requires an inventoried supported-writer deployment; exclude direct SQL.
 Keep directories trusted. Outputs must be new; restore supports current schema only.";
 
 #[derive(Debug)]
@@ -31,13 +33,18 @@ pub(crate) enum MaintenanceCommand {
         expected_generation: Generation,
         through: i64,
     },
+    Activate {
+        store: PathBuf,
+        expected_generation: Generation,
+    },
 }
 
 pub(crate) fn parse(arguments: &[String]) -> Result<MaintenanceCommand, CliError> {
-    let Some(operation @ ("backup" | "restore" | "prune")) = arguments.first().map(String::as_str)
+    let Some(operation @ ("backup" | "restore" | "prune" | "activate")) =
+        arguments.first().map(String::as_str)
     else {
         return Err(CliError::Usage(
-            "maintenance requires backup, restore or prune".into(),
+            "maintenance requires backup, restore, prune or activate".into(),
         ));
     };
     let mut values = Vec::new();
@@ -56,6 +63,7 @@ pub(crate) fn parse(arguments: &[String]) -> Result<MaintenanceCommand, CliError
         let allowed = match operation {
             "backup" => &["--store", "--output"][..],
             "restore" => &["--store", "--from", "--preserve-later"][..],
+            "activate" => &["--store", "--expected-generation"][..],
             _ => &["--store", "--expected-generation", "--through"][..],
         };
         if !allowed.contains(&option.as_str()) {
@@ -104,6 +112,12 @@ pub(crate) fn parse(arguments: &[String]) -> Result<MaintenanceCommand, CliError
                     "--expected-generation requires 32 lowercase hexadecimal characters".into(),
                 )
             })?;
+        if operation == "activate" {
+            return Ok(MaintenanceCommand::Activate {
+                store,
+                expected_generation,
+            });
+        }
         let value = required("--through")?;
         let through = value
             .parse::<i64>()
@@ -147,6 +161,17 @@ pub(crate) fn execute(command: MaintenanceCommand) -> Result<String, CliError> {
             Ok(format!(
                 "Pruned journal through {through}: {}\n",
                 store.display()
+            ))
+        }
+        MaintenanceCommand::Activate {
+            store,
+            expected_generation,
+        } => {
+            maintenance::activate(&store, &expected_generation)?;
+            Ok(format!(
+                "Sync enabled: {}\nGeneration: {}\nClient bootstrap state unchanged.\n",
+                store.display(),
+                expected_generation.as_str()
             ))
         }
     }

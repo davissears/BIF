@@ -318,6 +318,15 @@ class WorkloadSemanticTests(unittest.TestCase):
                 patch.object(gate, "command", side_effect=AssertionError("live command")):
             gate.validate_semantics(self.protocol, self.measurements)
 
+    def test_strict_validation_rejects_changed_harness_and_production_separately(self):
+        for owner, name, message in [
+            (gate, "harness_inputs", "harness/tests changed"),
+            (gate.archived, "source_inputs", "production changed"),
+        ]:
+            with self.subTest(inputs=name), patch.object(owner, name, return_value={"changed": "sha256"}):
+                with self.assertRaisesRegex(RuntimeError, message):
+                    self.validate_full(self.measurements)
+
     def test_all_candidate_argv_replaced_by_baseline_is_rejected_semantically(self):
         altered = copy.deepcopy(self.measurements)
         for fixture in altered["fixtures"]:
@@ -601,7 +610,71 @@ class GateTests(unittest.TestCase):
             gate.statistics(samples[:29])
 
     def test_recorded_evidence_is_bound_and_complete(self):
-        gate.validate(pathlib.Path(__file__).resolve().parent)
+        with patch.object(gate, "harness_inputs", return_value={"changed": "harness"}), \
+                patch.object(gate.archived, "source_inputs", return_value={"changed": "production"}):
+            gate.validate_historical(pathlib.Path(__file__).resolve().parent)
+
+    def test_historical_validation_runs_provenance_semantics_and_statistics(self):
+        with patch.object(gate, "validate_proof", wraps=gate.validate_proof) as proof, \
+                patch.object(gate.archived, "validate_order", wraps=gate.archived.validate_order) as order, \
+                patch.object(gate, "validate_semantics", wraps=gate.validate_semantics) as semantics, \
+                patch.object(gate, "validate_fixture_digest", wraps=gate.validate_fixture_digest) as fixtures, \
+                patch.object(gate, "statistics", wraps=gate.statistics) as statistics:
+            gate.validate_historical(pathlib.Path(__file__).resolve().parent)
+        proof.assert_called_once()
+        order.assert_called_once()
+        semantics.assert_called_once()
+        self.assertEqual(fixtures.call_count, 3)
+        self.assertEqual(statistics.call_count, 18)
+
+    def test_historical_validation_rejects_each_changed_artifact_before_semantic_checks(self):
+        here = pathlib.Path(__file__).resolve().parent
+        names = ("proof.json", "protocol.json", "measurements.json", "upgrade-proof.json")
+        for changed in names:
+            with self.subTest(artifact=changed), tempfile.TemporaryDirectory() as temporary:
+                directory = pathlib.Path(temporary)
+                for name in names:
+                    (directory / name).write_bytes((here / name).read_bytes())
+                artifact = directory / changed
+                artifact.write_bytes(artifact.read_bytes() + b"\n")
+                # An adjacent mutable manifest cannot authorize different bytes.
+                gate.write(directory / "validation-results.json", {
+                    "generated_artifacts_sha256": {
+                        name: gate.digest((directory / name).read_bytes()) for name in names}})
+                with patch.object(gate, "validate_proof") as proof:
+                    with self.assertRaisesRegex(RuntimeError, "historical artifact changed: " + changed):
+                        gate.validate_historical(directory)
+                proof.assert_not_called()
+
+    def test_historical_validation_rejects_coordinated_internal_rebinding(self):
+        here = pathlib.Path(__file__).resolve().parent
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            records = {name: json.loads((here / name).read_text()) for name in
+                       ("proof.json", "protocol.json", "measurements.json", "upgrade-proof.json")}
+            protocol, upgrade = records["protocol.json"], records["upgrade-proof.json"]
+            replacement = {"replacement.rs": gate.digest(b"replacement source")}
+            candidate = upgrade["candidate"]
+            candidate["source_inputs_sha256"] = replacement
+            candidate["source_sha256"] = candidate["source_end_sha256"] = gate.digest(gate.canonical(replacement))
+            protocol["candidate_build"] = candidate
+            protocol["production_inputs_sha256"] = replacement
+            gate.write(directory / "upgrade-proof.json", upgrade)
+            protocol["upgrade_proof_sha256"] = gate.digest((directory / "upgrade-proof.json").read_bytes())
+            gate.write(directory / "protocol.json", protocol)
+            protocol_hash = gate.digest((directory / "protocol.json").read_bytes())
+            for name in ("proof.json", "measurements.json"):
+                records[name]["protocol_sha256"] = protocol_hash
+                gate.write(directory / name, records[name])
+            gate.write(directory / "validation-results.json", {
+                "generated_artifacts_sha256": {
+                    name: gate.digest((directory / name).read_bytes()) for name in records}})
+            # All existing internal bindings pass with matching current inputs.
+            with patch.object(gate, "harness_inputs", return_value=protocol["harness_inputs_sha256"]), \
+                    patch.object(gate.archived, "source_inputs", return_value=replacement):
+                gate.validate(directory)
+            with self.assertRaisesRegex(RuntimeError, "historical artifact changed"):
+                gate.validate_historical(directory)
 
     def test_proof_cannot_omit_cases_or_claim_live_release(self):
         directory = pathlib.Path(__file__).resolve().parent

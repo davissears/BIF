@@ -1,9 +1,9 @@
 //! Prepared operation journal storage, deliberately not a sync endpoint.
 //!
 //! Coverage is global within a generation. Callers must not modify the same
-//! connection while using a journal read snapshot. Maintenance/restore and
-//! activation remain separate work; all supported writers must participate
-//! before synchronization can be enabled.
+//! connection while using a journal read snapshot. Activation is explicit
+//! offline maintenance; all supported writers must participate before enabling.
+//! The reusable availability guard is not scan/poll adapter enforcement.
 
 use std::{fmt, num::NonZeroU32};
 
@@ -58,7 +58,9 @@ pub struct JournalChange {
 pub enum JournalError {
     Sqlite(rusqlite::Error),
     InvalidMetadata,
+    StoreMismatch,
     GenerationMismatch,
+    SyncDisabled,
     InvalidCoverage,
     ExpiredCoverage,
     SequenceExhausted,
@@ -69,7 +71,9 @@ impl fmt::Display for JournalError {
         match self {
             Self::Sqlite(error) => write!(formatter, "SQLite journal error: {error}"),
             Self::InvalidMetadata => formatter.write_str("missing or malformed journal metadata"),
+            Self::StoreMismatch => formatter.write_str("journal store identity changed"),
             Self::GenerationMismatch => formatter.write_str("journal generation changed"),
+            Self::SyncDisabled => formatter.write_str("sync disabled; activate source offline"),
             Self::InvalidCoverage => formatter.write_str("invalid or future journal coverage"),
             Self::ExpiredCoverage => formatter.write_str("journal coverage expired"),
             Self::SequenceExhausted => {
@@ -189,17 +193,47 @@ pub const JOURNAL_RANGE_SQL: &str =
 pub struct JournalSnapshot<'connection> {
     snapshot: ReadSnapshot<'connection>,
     metadata: JournalMetadata,
+    store_id: String,
 }
 
 impl<'connection> JournalSnapshot<'connection> {
     pub fn begin(connection: &'connection Connection) -> Result<Self, JournalError> {
         let snapshot = ReadSnapshot::begin(connection)?;
         let metadata = read_metadata(&snapshot)?;
-        Ok(Self { snapshot, metadata })
+        let store_id = super::read_store_identity(&snapshot)?;
+        Ok(Self {
+            snapshot,
+            metadata,
+            store_id,
+        })
     }
 
     pub fn metadata(&self) -> &JournalMetadata {
         &self.metadata
+    }
+
+    pub fn store_id(&self) -> &str {
+        &self.store_id
+    }
+
+    /// Caller authorizes first, then supplies decoded source identity (or None
+    /// for an initial scan). Wrong store/generation precedes disabled service.
+    /// Identity, availability, coverage and row reads use this same snapshot.
+    /// This guard neither decodes cursors nor enforces wire/adapter policy;
+    /// raw journal inspection remains available while service is disabled.
+    pub fn require_sync(&self, source: Option<(&str, &Generation)>) -> Result<(), JournalError> {
+        if let Some((store_id, generation)) = source {
+            if store_id != self.store_id {
+                return Err(JournalError::StoreMismatch);
+            }
+            if generation != &self.metadata.generation {
+                return Err(JournalError::GenerationMismatch);
+            }
+        }
+        if !self.metadata.sync_enabled {
+            return Err(JournalError::SyncDisabled);
+        }
+        Ok(())
     }
 
     /// Validate generation and F <= C <= H <= durable H before selecting (C,H].

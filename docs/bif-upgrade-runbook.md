@@ -15,8 +15,9 @@ See the
 [Phase E proof](baselines/v2-phase-e/README.md) records only disposable executable
 and process evidence. V2-033 adds offline current-schema backup/restore and
 restore-generation reset; V2-034 adds explicit global journal pruning below.
-Journal rollout, activation, reconciliation and
-live operational release gates remain unfinished.
+F-P03 adds explicit offline activation and a reusable snapshot guard below.
+Sync adapters, reconciliation, journal rollout and live operational release gates
+remain unfinished.
 
 ## Compatibility and maintenance window
 
@@ -145,6 +146,232 @@ evidence, **not physical power-loss/torn-write** or live/platform release approv
 `FULL` SQLite synchronization and output-file sync are not a substitute for the
 operator's durable filesystem/directory sync, off-machine retention, encryption
 and access-control policy.
+
+## Normative sync activation and mirror recovery contract (F-P01)
+
+F-P01 freezes the
+[fixture](fixtures/bif-v2-sync-contract.json) and its
+[strict schema](fixtures/bif-v2-sync-contract.schema.json), following the
+[preparation plan](bif-v2-migration-plan.md#before-phase-f--required-preparation).
+F-P02 supplies behavioral-model checks. F-P03 implements the explicit offline
+activation CLI/API and reusable storage read guard. Actual scan/poll adapters,
+cursor decoding/enforcement and the mirror still follow in Phase F
+(V2-036/V2-042); the wire/mirror behavior below remains their normative contract,
+not implemented endpoint evidence. This procedure is for separately authorized
+maintenance and disposable rehearsal, not release or live-store authorization.
+
+### Source availability is not client completeness
+
+Initial journal/schema creation establishes an independently random generation,
+`F=H=0`, `sync_enabled=0`, and legacy `bootstrap_required=1`. It does not backfill
+timestamp-ordered audit history, rewrite receipts, or activate synchronization.
+Effective supported capture/mutation writes already append one journal entry in
+their shared item/audit/receipt transaction; receipt replay and genuine no-ops
+append nothing. Journal participation must continue while service is disabled.
+
+Activation/reactivation is a separate, explicitly authorized **offline**
+maintenance operation:
+
+1. Establish the existing maintenance window: inventory every source process and
+   launcher, stop/reap all readers and writers (including warm MCP sessions), and
+   exclude automatic restarts and new launches through verification.
+   An offline acknowledgement or a database lock cannot prove this operator duty.
+2. Verify the exact supported schema/migration history, integrity, store identity,
+   retained coverage and allocator. Inventory the approved binaries/launch paths
+   and establish that every supported effective writer journals in the same
+   transaction as the item/audit/receipt changes. A successful schema open alone
+   is not proof of deployment participation; direct SQL writers remain unsupported.
+3. Supply the deliberately inspected expected generation. In one immediate write
+   transaction, validate persisted prerequisites and expected generation, then
+   set **only** `sync_enabled=1`. Do not reset generation, `F`, `H`,
+   `bootstrap_required`, journal rows, items, audit, receipts or client state.
+   Failed validation or failure before commit changes none of them.
+4. Verify persisted state before lifting restart prevention. Retrying the same
+   expected generation rechecks all prerequisites; already enabled is a successful
+   no-op, not a new generation or a bootstrap reset. An interrupted or unacknowledged
+   commit may have enabled service: keep the window, reopen and inspect, then
+   safely retry. Do not infer rollback from missing acknowledgement.
+
+Use the exact explicit path, ignoring configuration/environment store selection.
+The CLI accepts only `--store`, `--expected-generation`, and the required
+`--offline` acknowledgement. There are no process-proof flags or markers.
+The API is `storage::maintenance::activate(store, expected_generation)` and has
+the same operator prerequisites; it cannot establish shutdown or binary inventory.
+
+```sh
+# After separately authorized stop/reap, restart exclusion and writer inventory:
+# Inspect only; no supported inspect endpoint or direct SQL writes are implied.
+sqlite3 -readonly "$DB" \
+  'SELECT generation, retention_floor AS F, high_water AS H, sync_enabled, bootstrap_required FROM journal_metadata WHERE singleton = 1;'
+
+# Set GEN deliberately to the inspected generation, not an old backup/token:
+bif maintenance activate --store "$DB" --expected-generation "$GEN" --offline
+
+# Reinspect the same path and verify only sync_enabled changed before reopening:
+sqlite3 -readonly "$DB" \
+  'SELECT generation, retention_floor AS F, high_water AS H, sync_enabled, bootstrap_required FROM journal_metadata WHERE singleton = 1;'
+```
+
+Activation opens only an existing regular store using the established trusted
+path/sidecar checks, without migration or journal-mode changes. `BEGIN IMMEDIATE`
+reserves the writer **before** checking the exact embedded schema and complete
+migration/name/checksum history, database integrity and foreign keys, store and
+generation identity, retained journal coverage/operation-item-project links and
+allocator. It checks the expected generation, sets only `sync_enabled=1` if
+disabled, revalidates, and commits. An already-enabled retry still validates
+everything and rejects stale generation. Missing/invalid prerequisites are
+refused without repair. Busy/locked fails closed without retry loops.
+
+These are **full history/integrity validations**, not constant-cost checks or
+bounded sync request work. Validation runs twice under the writer reservation,
+including a matching-generation retry; budget the maintenance window for store
+size, retained history and temporary reference-schema construction. Locks
+serialize SQLite writers but neither prove shutdown nor exclude future process
+launches. Operator inventory must verify the actual deployed supported binaries
+and launch paths, their transactional journal participation, and exclusion of
+unsupported/direct-SQL writers. Do not lift restart prevention on command success
+alone without persisted-state verification.
+
+Ordinary open, migration, restart, and client bootstrap completion never activate
+service. Restart preserves both generation and availability. Supported restore
+independently rotates generation and disables service, even when the same backup
+is restored again; its `F`/`H` come from the backup, not the later target.
+After restore, inspect the **new** generation and explicitly reactivate under the
+same prerequisites. Reactivation preserves that restored history and does not
+make any old client compatible or complete.
+
+The recovery order is **restore → disabled → inspect new generation → explicitly
+activate → verify persisted state**, under the same uninterrupted maintenance
+window. Never reuse the pre-restore generation: it is rejected even if the backup
+was enabled. Restore sets `bootstrap_required=1`; activation preserves it along
+with restored F/H, journal rows, allocator and all other persisted values.
+
+There is **no server client registry**. `bootstrap_required` remains only for
+storage compatibility: no new runtime client-progress decision consults it, and
+no client's successful catch-up clears it. Two clients can independently have a
+complete baseline and no baseline while the same source is enabled. Each client
+owns its own checkpoint and recovery; activation cannot mark either ready.
+
+Disposable runtime tests compare complete table inventories, cover strict CLI
+rejection/retry and restored reactivation, and inject failures after flag update
+in the private production core using TEMP triggers (without relaxing main-schema
+validation). A test-only child calls the actual activation API, signals after
+commit but before a simulated operation response, and is forcibly killed/reaped;
+fresh inspection and retry retain the committed flag. CLI parsing/execution is
+tested separately, not instrumented inside that crash boundary. This is
+**process-crash**, not physical power-loss/torn-write or release evidence.
+
+### Fail-closed requests and actionable errors
+
+Every scan/poll request uses normal authorization first. After authorization,
+incompatible supplied source identity wins over availability:
+`invalid_cursor` with `details={reason:wrong_store|wrong_generation,
+restart_required:true}`. Next, disabled service returns `sync_disabled` with
+`details={reason:service_disabled,recovery_action:activate_source}`.
+Initial scan with no cursor is **also refused**; disabled never means an empty
+project, successful no-change response, or checkpoint advancement. Read identity,
+availability, retention and coverage in the same read snapshot. Other typed cursor
+errors remain as frozen in the fixture. Tokens do not confer authorization.
+
+The implemented storage seam is `JournalSnapshot::require_sync`: the caller
+authorizes first and supplies decoded store/generation identity, or `None` for an
+initial scan. It returns typed `StoreMismatch`, `GenerationMismatch`, then
+`SyncDisabled` errors in that precedence; compatible enabled requests succeed.
+Store identity and availability come from the same caller-owned read snapshot
+as journal metadata/rows, including when an outer read transaction already exists.
+WAL interleaving tests exercise old/fresh snapshots, not permission to leave
+processes running during maintenance. This guard does not decode cursors, enforce
+adapter/wire policy, or turn raw journal inspection into a sync endpoint.
+
+A complete summary that cannot fit even an otherwise empty supported response
+returns the existing `payload_too_large` envelope, not a new truncation format:
+`details={record_kind:item,record_id,maximum_response_bytes,minimum_required_bytes}`.
+`record_id` identifies the item, `maximum_response_bytes` is the effective
+supported budget (at most 1 MiB), and `minimum_required_bytes` counts the complete
+UTF-8 response envelope, including continuation metadata. Do not advance scan or
+replay past the item, truncate fields, or publish partial success. Retry or rebuild
+with unchanged item/budget cannot repair a permanently unfit record: surface
+`resolve_record_or_budget`, retain coverage, and require a supported content/budget
+resolution rather than a retry loop. This contract does not authorize SQL edits
+or increasing the supported budget.
+
+### Caller-owned mirror, status and recovery
+
+Require an **explicit caller-owned separate SQLite mirror path**, with no
+machine-local default and no reuse of the source database/sidecars. The fixture's
+`/mirrors/...` paths are examples, not deployment choices. Local example client IDs
+are not registrations on the server.
+
+One cross-process writer owner per mirror spans polling, reconciliation and
+publication. Within it, serialize scan/poll requests. Use short database
+transactions and **no transport under a write transaction**. Persist staging
+identity before sending a request. On both success **and failure**, compare
+request-attempt ownership, baseline/staging identity and captured source checkpoint
+with persisted state before changing data, checkpoint or health/status.
+An abandoned scan, old poll error or duplicate no-change callback must not alter a
+replacement baseline or falsely refresh its health, even if checkpoints match.
+Reacquiring ownership after interruption must invalidate the old request attempt.
+
+Keep replacements in staging. Only after scan exhaustion and complete catch-up
+to a chosen finite `H`, atomically publish baseline identity, contents/reference,
+completeness and checkpoint together. Reconciliation replaces contents rather than
+unioning them. While rebuilding, a previous **usable complete** baseline remains
+readable but receives no updates; staging is never served as a complete queue.
+Incompatible data is explicitly labeled old history, not a usable current-source
+baseline. Detected-corrupt data is never served.
+
+The fixture's typed status has:
+
+- `published_baseline`: null when absent, otherwise identity, explicit
+  completeness, checkpoint, item count and usability. Complete with zero items
+  is not absent; a leftover cursor alone cannot restore a lost baseline.
+- `rebuild_phase`: `idle`, `scanning`, `catching_up`, or `blocked`, plus a nullable
+  persisted `staging_identity`. This describes rebuilding, not server enablement.
+- `last_successful_catch_up`: nullable checkpoint, finite high water and observation
+  identifier. It changes only on a successful complete finite catch-up, not on a
+  partial page or stale callback. High water is explicit response metadata;
+  clients never decode opaque cursors.
+- `last_failure`: nullable typed cause and recovery action. A later successful
+  finite catch-up clears the active failure; failures retain the prior success
+  observation. Local failure categories are not additional server wire error codes.
+- `source_compatibility`: `unobserved`, `compatible`, or `incompatible`, always
+  **last observed, not current-now**. Transport failure cannot refresh it.
+
+| Observation | Normative recovery |
+| --- | --- |
+| Transient request failure | Retain usable baseline/checkpoint and last successful catch-up; retry with a fresh attempt. |
+| Expired coverage | Discard expired staging, rebuild independently; a usable old complete baseline stays readable without updates. |
+| Generation/source incompatibility | Invalidate old continuation/staging; label retained baseline incompatible history and rebuild. Reactivation does not repair it. |
+| Wrong source store (`wrong_store`) | Preserve baseline/checkpoint and last successful catch-up as incompatible history, discard staging and block updates. Verify the intended source before rebuilding; never resume that checkpoint against a different store. |
+| Missing baseline | Rebuild even if a cursor survives or an empty delta is returned; never infer a complete empty queue. |
+| Detected local corruption | Block serving that baseline; repair/quarantine local storage then rebuild. A corrupt retained checkpoint is not evidence of coverage. |
+| Permanently unfit summary | Block advancement; expose item/bytes/budget and resolve the record or supported budget. Retry/rebuild alone is not recovery. |
+| Disabled compatible source | Preserve local state; require separately authorized source activation, then retry. Identity mismatch still takes precedence. |
+
+A stale complete baseline supports browsing and provisional preparation only.
+Eligibility, ownership, authorization and mutation validation remain authoritative
+at the source. This contract adds no offline write queue, claim guarantee, ACL
+revocation mechanism or detection of arbitrary semantic corruption.
+
+### Scan start versus replay coverage
+
+`S` is the original bootstrap start, `C` the **durably applied** replay coverage,
+and `F` the global floor. During scan, validate `S` on every page. After scan,
+replay begins at `C=S` and validates the advancing `C`, not the original `S`.
+
+| Phase | Boundary | Outcome |
+| --- | --- | --- |
+| Scan | `S < F` | Discard staging and rebuild, regardless of any unrelated checkpoint. |
+| Scan | `S == F` | Valid scan continuation. |
+| Replay | `S < F < C` | Continue; original start being pruned does not invalidate durable replay progress. |
+| Replay | `S < F == C` | Continue; the floor is valid coverage. |
+| Replay | `C < F` | Discard staging/rebuild; never advance past missing coverage. |
+
+Generation/scope validation and finite high-water bounds still apply. These
+positions are server/test semantics, never instructions to parse cursor tokens.
+The amended fixture/schema tests check declared examples and closed shapes;
+F-P02 must test the state-machine behavior, and later runtime/storage/adapter
+tests must establish implementation correctness.
 
 ## Explicit offline journal retention (V2-034)
 

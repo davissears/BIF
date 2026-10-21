@@ -274,5 +274,11 @@ evidence does not itself supply review or human release approval.
   registered; this local execution is macOS only, not an executed Ubuntu claim.
 - Random 128-bit generation collisions are assumed negligible, not impossible.
   Saved later writes are retained, not reconciled. Retention is logical.
-- New production/harness/test changes intentionally invalidate this pinned
-  evidence until explicitly refreshed; passing CI is not human release approval.
+- New production/harness/test changes invalidate this evidence as coverage of
+  current inputs until explicitly refreshed. `gate.validate` and CLI `--validate`
+  retain that strict input equality check, as does generation before/after timing.
+  The recorded-evidence CI control uses `gate.validate_historical`: it first checks
+  all four artifact byte hashes against independent accepted pins, then reruns
+  provenance, semantic and statistical checks for that historical evidence only.
+  Current controls neither refresh these timings nor establish current-source
+  performance or human release approval.

@@ -22,6 +22,14 @@ import rehearse as archived
 
 CANDIDATE = "f0cd787f64a6bd3d301f11e616bb587e112a14fa"
 OLD = archived.OLD_REVISION
+# Accepted Phase E artifact bytes, independently pinned from validation-results.json.
+# A mutable manifest beside the evidence cannot authorize replacement artifacts.
+HISTORICAL_ARTIFACT_SHA256 = {
+    "proof.json": "70433c66156438d1eed31dab2120fc679e1207ea8cb759c68cc690845312a3a9",
+    "protocol.json": "dff0bd5e5413a0a4dfcb2eda0b23494fd1d5189047ecf572f2546cb13ea0be5e",
+    "measurements.json": "9053432b4053cb9a25a0df726b7b8c24bf4f276556edc62aed918473d3a21d21",
+    "upgrade-proof.json": "911f74b83de70469fe3f8857cda102c75346794fb876b7e76b2965394f197f0b",
+}
 KINDS = ["capture", "effective", "note_only", "compound", "replay", "genuine_noop"]
 SIZES = [100, 10000, 100000]
 LEGACY_TABLES = (
@@ -534,7 +542,19 @@ def validate_proof(proof):
 
 
 def validate(directory):
-    """Recompute provenance and summaries, but never turn timings into a CI threshold."""
+    """Validate evidence against current inputs; generation and --validate stay strict."""
+    _validate(directory, check_current_inputs=True)
+
+
+def validate_historical(directory):
+    """Check only accepted historical evidence, without asserting current-source coverage."""
+    for name, expected in HISTORICAL_ARTIFACT_SHA256.items():
+        require(digest((directory / name).read_bytes()) == expected, "historical artifact changed: " + name)
+    _validate(directory, check_current_inputs=False)
+
+
+def _validate(directory, *, check_current_inputs):
+    """Recompute shared provenance, semantics and summaries; timings are not CI thresholds."""
     proof = json.loads((directory / "proof.json").read_text())
     validate_proof(proof)
     protocol = json.loads((directory / "protocol.json").read_text())
@@ -544,8 +564,9 @@ def validate(directory):
     require(protocol["frozen_before_timing"] is True, "protocol must precede timing")
     require(protocol["warmups"] == 5 and protocol["paired_samples"] == 30, "sample protocol")
     require(protocol["sizes"] == SIZES and protocol["seed"] == 2003, "fixture protocol")
-    require(protocol["harness_inputs_sha256"] == harness_inputs(), "harness/tests changed; remeasure explicitly")
-    require(protocol["production_inputs_sha256"] == archived.source_inputs(ROOT), "production changed")
+    if check_current_inputs:
+        require(protocol["harness_inputs_sha256"] == harness_inputs(), "harness/tests changed; remeasure explicitly")
+        require(protocol["production_inputs_sha256"] == archived.source_inputs(ROOT), "production changed")
     require(measurements["started_at_unix_ns"] > protocol["frozen_at_unix_ns"], "timing preceded freeze")
     upgrade = json.loads((directory / "upgrade-proof.json").read_text())
     require(protocol["upgrade_proof_sha256"] ==
