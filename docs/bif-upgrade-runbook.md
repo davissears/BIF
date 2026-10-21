@@ -15,8 +15,9 @@ See the
 [Phase E proof](baselines/v2-phase-e/README.md) records only disposable executable
 and process evidence. V2-033 adds offline current-schema backup/restore and
 restore-generation reset; V2-034 adds explicit global journal pruning below.
-Journal rollout, activation, reconciliation and
-live operational release gates remain unfinished.
+F-P03 adds explicit offline activation and a reusable snapshot guard below.
+Sync adapters, reconciliation, journal rollout and live operational release gates
+remain unfinished.
 
 ## Compatibility and maintenance window
 
@@ -148,14 +149,16 @@ and access-control policy.
 
 ## Normative sync activation and mirror recovery contract (F-P01)
 
-**Future implementation, not an executable procedure:** F-P01 freezes the
+F-P01 freezes the
 [fixture](fixtures/bif-v2-sync-contract.json) and its
 [strict schema](fixtures/bif-v2-sync-contract.schema.json), following the
 [preparation plan](bif-v2-migration-plan.md#before-phase-f--required-preparation).
-F-P02 supplies behavioral-model checks. F-P03 must implement and test offline
-activation and its reusable read guard; actual scan/poll adapters and the mirror
-follow in Phase F. No activation command is available or authorized by this
-section, and fixture tests are not runtime correctness or release evidence.
+F-P02 supplies behavioral-model checks. F-P03 implements the explicit offline
+activation CLI/API and reusable storage read guard. Actual scan/poll adapters,
+cursor decoding/enforcement and the mirror still follow in Phase F
+(V2-036/V2-042); the wire/mirror behavior below remains their normative contract,
+not implemented endpoint evidence. This procedure is for separately authorized
+maintenance and disposable rehearsal, not release or live-store authorization.
 
 ### Source availability is not client completeness
 
@@ -178,7 +181,7 @@ maintenance operation:
    and establish that every supported effective writer journals in the same
    transaction as the item/audit/receipt changes. A successful schema open alone
    is not proof of deployment participation; direct SQL writers remain unsupported.
-3. Supply the deliberately inspected expected generation. In one short write
+3. Supply the deliberately inspected expected generation. In one immediate write
    transaction, validate persisted prerequisites and expected generation, then
    set **only** `sync_enabled=1`. Do not reset generation, `F`, `H`,
    `bootstrap_required`, journal rows, items, audit, receipts or client state.
@@ -189,6 +192,46 @@ maintenance operation:
    commit may have enabled service: keep the window, reopen and inspect, then
    safely retry. Do not infer rollback from missing acknowledgement.
 
+Use the exact explicit path, ignoring configuration/environment store selection.
+The CLI accepts only `--store`, `--expected-generation`, and the required
+`--offline` acknowledgement. There are no process-proof flags or markers.
+The API is `storage::maintenance::activate(store, expected_generation)` and has
+the same operator prerequisites; it cannot establish shutdown or binary inventory.
+
+```sh
+# After separately authorized stop/reap, restart exclusion and writer inventory:
+# Inspect only; no supported inspect endpoint or direct SQL writes are implied.
+sqlite3 -readonly "$DB" \
+  'SELECT generation, retention_floor AS F, high_water AS H, sync_enabled, bootstrap_required FROM journal_metadata WHERE singleton = 1;'
+
+# Set GEN deliberately to the inspected generation, not an old backup/token:
+bif maintenance activate --store "$DB" --expected-generation "$GEN" --offline
+
+# Reinspect the same path and verify only sync_enabled changed before reopening:
+sqlite3 -readonly "$DB" \
+  'SELECT generation, retention_floor AS F, high_water AS H, sync_enabled, bootstrap_required FROM journal_metadata WHERE singleton = 1;'
+```
+
+Activation opens only an existing regular store using the established trusted
+path/sidecar checks, without migration or journal-mode changes. `BEGIN IMMEDIATE`
+reserves the writer **before** checking the exact embedded schema and complete
+migration/name/checksum history, database integrity and foreign keys, store and
+generation identity, retained journal coverage/operation-item-project links and
+allocator. It checks the expected generation, sets only `sync_enabled=1` if
+disabled, revalidates, and commits. An already-enabled retry still validates
+everything and rejects stale generation. Missing/invalid prerequisites are
+refused without repair. Busy/locked fails closed without retry loops.
+
+These are **full history/integrity validations**, not constant-cost checks or
+bounded sync request work. Validation runs twice under the writer reservation,
+including a matching-generation retry; budget the maintenance window for store
+size, retained history and temporary reference-schema construction. Locks
+serialize SQLite writers but neither prove shutdown nor exclude future process
+launches. Operator inventory must verify the actual deployed supported binaries
+and launch paths, their transactional journal participation, and exclusion of
+unsupported/direct-SQL writers. Do not lift restart prevention on command success
+alone without persisted-state verification.
+
 Ordinary open, migration, restart, and client bootstrap completion never activate
 service. Restart preserves both generation and availability. Supported restore
 independently rotates generation and disables service, even when the same backup
@@ -197,11 +240,26 @@ After restore, inspect the **new** generation and explicitly reactivate under th
 same prerequisites. Reactivation preserves that restored history and does not
 make any old client compatible or complete.
 
+The recovery order is **restore → disabled → inspect new generation → explicitly
+activate → verify persisted state**, under the same uninterrupted maintenance
+window. Never reuse the pre-restore generation: it is rejected even if the backup
+was enabled. Restore sets `bootstrap_required=1`; activation preserves it along
+with restored F/H, journal rows, allocator and all other persisted values.
+
 There is **no server client registry**. `bootstrap_required` remains only for
 storage compatibility: no new runtime client-progress decision consults it, and
 no client's successful catch-up clears it. Two clients can independently have a
 complete baseline and no baseline while the same source is enabled. Each client
 owns its own checkpoint and recovery; activation cannot mark either ready.
+
+Disposable runtime tests compare complete table inventories, cover strict CLI
+rejection/retry and restored reactivation, and inject failures after flag update
+in the private production core using TEMP triggers (without relaxing main-schema
+validation). A test-only child calls the actual activation API, signals after
+commit but before a simulated operation response, and is forcibly killed/reaped;
+fresh inspection and retry retain the committed flag. CLI parsing/execution is
+tested separately, not instrumented inside that crash boundary. This is
+**process-crash**, not physical power-loss/torn-write or release evidence.
 
 ### Fail-closed requests and actionable errors
 
@@ -214,6 +272,16 @@ Initial scan with no cursor is **also refused**; disabled never means an empty
 project, successful no-change response, or checkpoint advancement. Read identity,
 availability, retention and coverage in the same read snapshot. Other typed cursor
 errors remain as frozen in the fixture. Tokens do not confer authorization.
+
+The implemented storage seam is `JournalSnapshot::require_sync`: the caller
+authorizes first and supplies decoded store/generation identity, or `None` for an
+initial scan. It returns typed `StoreMismatch`, `GenerationMismatch`, then
+`SyncDisabled` errors in that precedence; compatible enabled requests succeed.
+Store identity and availability come from the same caller-owned read snapshot
+as journal metadata/rows, including when an outer read transaction already exists.
+WAL interleaving tests exercise old/fresh snapshots, not permission to leave
+processes running during maintenance. This guard does not decode cursors, enforce
+adapter/wire policy, or turn raw journal inspection into a sync endpoint.
 
 A complete summary that cannot fit even an otherwise empty supported response
 returns the existing `payload_too_large` envelope, not a new truncation format:

@@ -1,4 +1,4 @@
-//! Deterministic process-crash evidence for the actual Online Backup primitive.
+//! Deterministic process-crash evidence for Online Backup and activation.
 //! Test-only child controls; no production hooks, timing sleeps, or power-loss claims.
 mod maintenance_support;
 
@@ -8,8 +8,71 @@ use std::{
 };
 
 use bif::storage::{self, maintenance};
-use maintenance_support::{Fixture, capture, inventory, read};
+use maintenance_support::{Fixture, capture, generation, inventory, read};
 use rusqlite::backup::{Backup, StepResult};
+
+#[test]
+fn committed_activation_without_response_survives_kill_inspection_and_retry() {
+    use bif::storage::journal::Generation;
+    let fixture = Fixture::new();
+    let generation = generation(&read(&fixture.store));
+    let mut expected = inventory(&read(&fixture.store));
+    expected
+        .iter_mut()
+        .find(|(name, _)| name == "journal_metadata")
+        .unwrap()
+        .1[0][4] = 1_i64.into();
+    let child = Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "activation_boundary_child",
+            "--ignored",
+            "--nocapture",
+        ])
+        .env("BIF_TEST_TARGET", &fixture.store)
+        .env("BIF_TEST_GENERATION", &generation)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .unwrap();
+    let mut child = ReapedChild::new(child);
+    let mut output = BufReader::new(child.process.stdout.take().unwrap());
+    let mut line = String::new();
+    loop {
+        line.clear();
+        assert!(
+            output.read_line(&mut line).unwrap() > 0,
+            "child exited before commit boundary"
+        );
+        if line.trim() == "ACTIVATION_COMMITTED_BEFORE_RESPONSE" {
+            break;
+        }
+    }
+    assert!(forced_termination(child.kill_and_reap().unwrap()));
+    // Inspect first: missing acknowledgement must not be interpreted as rollback.
+    assert_eq!(inventory(&read(&fixture.store)), expected);
+    maintenance::activate(&fixture.store, &Generation::parse(&generation).unwrap()).unwrap();
+    assert_eq!(inventory(&storage::open(&fixture.store).unwrap()), expected);
+}
+
+#[test]
+#[ignore = "test-only child invoked at activation commit-before-response boundary"]
+fn activation_boundary_child() {
+    let target = std::env::var_os("BIF_TEST_TARGET").expect("test target");
+    let generation = bif::storage::journal::Generation::parse(
+        &std::env::var("BIF_TEST_GENERATION").expect("test generation"),
+    )
+    .unwrap();
+    maintenance::activate(std::path::Path::new(&target), &generation).unwrap();
+    // Test-only handshake, NOT the operation response. The real API has committed;
+    // the parent kills/reaps us before we can publish a simulated success response.
+    println!("ACTIVATION_COMMITTED_BEFORE_RESPONSE");
+    std::io::stdout().flush().unwrap();
+    let mut release = [0];
+    std::io::stdin().read_exact(&mut release).unwrap();
+    panic!("parent should kill/reap before a response");
+}
 
 #[test]
 fn killed_backup_process_reopens_as_unchanged_or_fully_restored() {

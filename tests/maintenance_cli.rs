@@ -181,3 +181,89 @@ fn explicit_prune_requires_binding_bounds_and_offline_without_config_selection()
     assert_eq!(snapshot.metadata().high_water, 2);
     assert_eq!(snapshot.metadata().generation.as_str(), generation);
 }
+
+#[test]
+fn explicit_activate_is_strict_generation_bound_and_changes_only_availability() {
+    let fixture = Fixture::new();
+    let store = fixture.store.to_str().unwrap();
+    let generation = generation(&read(&fixture.store));
+    let before = inventory(&read(&fixture.store));
+    let valid = vec![
+        "maintenance",
+        "activate",
+        "--store",
+        store,
+        "--expected-generation",
+        &generation,
+        "--offline",
+    ];
+    for (remove, replacement) in [
+        (6, None),
+        (2, None),
+        (4, None),
+        (3, Some("")),
+        (5, Some("bad")),
+        (5, Some("ABCDEF0123456789abcdef0123456789")),
+    ] {
+        let mut args = valid.clone();
+        if let Some(value) = replacement {
+            args[remove] = value;
+        } else if remove == 6 {
+            args.remove(remove);
+        } else {
+            args.drain(remove..remove + 2);
+        }
+        let result = cli(&args);
+        assert_eq!(
+            result.status.code(),
+            Some(2),
+            "{args:?}: {:?}",
+            result.stderr
+        );
+        assert!(result.stdout.is_empty());
+        assert_eq!(inventory(&read(&fixture.store)), before);
+    }
+    for extra in [
+        vec!["--offline"],
+        vec!["--store", store],
+        vec!["--expected-generation", &generation],
+        vec!["--through", "1"],
+        vec!["--root", "ignored"],
+        vec!["--project", "bif"],
+        vec!["--source-processes-reaped"],
+    ] {
+        let mut args = valid.clone();
+        args.extend(extra);
+        let result = cli(&args);
+        assert_eq!(result.status.code(), Some(2), "{args:?}");
+        assert!(result.stdout.is_empty());
+        assert_eq!(inventory(&read(&fixture.store)), before);
+    }
+    let mut stale = valid.clone();
+    stale[5] = "11111111111111111111111111111111";
+    let result = cli(&stale);
+    assert_eq!(result.status.code(), Some(1), "{:?}", result.stderr);
+    assert!(result.stdout.is_empty());
+    assert_eq!(inventory(&read(&fixture.store)), before);
+
+    let mut expected = before;
+    expected
+        .iter_mut()
+        .find(|(name, _)| name == "journal_metadata")
+        .unwrap()
+        .1[0][4] = 1_i64.into();
+    for _ in 0..2 {
+        let result = cli(&valid);
+        assert!(result.status.success(), "{:?}", result.stderr);
+        assert!(
+            String::from_utf8(result.stdout)
+                .unwrap()
+                .contains("Sync enabled")
+        );
+        assert_eq!(inventory(&read(&fixture.store)), expected);
+    }
+    // An enabled retry must still reject stale identity.
+    let result = cli(&stale);
+    assert_eq!(result.status.code(), Some(1));
+    assert_eq!(inventory(&read(&fixture.store)), expected);
+}

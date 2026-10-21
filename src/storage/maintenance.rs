@@ -1,10 +1,13 @@
-//! Offline, current-schema SQLite backup, in-place restore and journal pruning.
+//! Offline, current-schema SQLite backup, restore, journal pruning and activation.
 //!
 //! OPERATOR PREREQUISITE for all APIs: stop/reap every reader and writer and
 //! disable all automatic restarts/new launches until verification finishes.
 //! An acknowledgement, SQLite lock, or generation guard is NOT shutdown proof.
 //! Paths/directories must remain trusted and must not be replaced concurrently.
-//! These APIs do not migrate, down-migrate, reconcile later writes, or enable sync.
+//! These APIs do not migrate, down-migrate, or reconcile later writes.
+//! Only explicit activation enables sync. Its caller must inventory deployed
+//! supported binaries whose effective writes journal transactionally; direct SQL
+//! writers are unsupported. Schema validation cannot prove that deployment duty.
 
 use std::{
     fmt, fs, io,
@@ -73,6 +76,45 @@ impl From<journal::JournalError> for MaintenanceError {
     fn from(error: journal::JournalError) -> Self {
         Self::Journal(error)
     }
+}
+
+/// Enables source availability without changing history or client progress.
+///
+/// Caller must satisfy the offline/trusted-path and supported-writer deployment
+/// prerequisites above. This opens an existing store without migration and fully
+/// validates it under an immediate writer reservation. Only sync_enabled changes.
+/// An already-enabled matching generation is a validated no-op. After uncertain
+/// acknowledgement, retain the window, inspect persisted state, then safely retry.
+pub fn activate(
+    store: impl AsRef<Path>,
+    expected_generation: &journal::Generation,
+) -> Result<(), MaintenanceError> {
+    let store = existing(store.as_ref())?;
+    let mut connection = open_existing(&store, true)?;
+    activate_opened(&mut connection, expected_generation)
+}
+
+fn activate_opened(
+    connection: &mut Connection,
+    expected_generation: &journal::Generation,
+) -> Result<(), MaintenanceError> {
+    // Reserve the writer before checking prerequisites, just as for pruning.
+    // This serializes writes, but cannot prove readers/writers have shut down.
+    let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    validate(&transaction)?;
+    let metadata = journal::read_metadata(&transaction)?;
+    if &metadata.generation != expected_generation {
+        return Err(journal::JournalError::GenerationMismatch.into());
+    }
+    if !metadata.sync_enabled {
+        transaction.execute(
+            "UPDATE journal_metadata SET sync_enabled = 1 WHERE singleton = 1",
+            [],
+        )?;
+    }
+    validate(&transaction)?;
+    transaction.commit()?;
+    Ok(())
 }
 
 /// Prunes global journal positions through an explicit inclusive bound.
@@ -534,5 +576,43 @@ mod retention_tests {
              END;",
             "invalid retained journal history or allocator",
         );
+    }
+
+    #[test]
+    fn activation_failure_after_flag_update_rolls_back_every_value_on_reopen() {
+        for (trigger, expected_error) in [
+            (
+                "CREATE TEMP TRIGGER fail_activation AFTER UPDATE OF sync_enabled ON main.journal_metadata
+                 BEGIN
+                   SELECT CASE WHEN (SELECT sync_enabled FROM journal_metadata) = 1
+                     THEN RAISE(ABORT, 'injected failure after enabling')
+                     ELSE RAISE(ABORT, 'flag update not reached') END;
+                 END;",
+                "injected failure after enabling",
+            ),
+            (
+                "CREATE TEMP TRIGGER damage_activation AFTER UPDATE OF sync_enabled ON main.journal_metadata
+                 BEGIN
+                   INSERT INTO sqlite_sequence (name, seq) VALUES ('change_journal', 1);
+                 END;",
+                "invalid retained journal history or allocator",
+            ),
+        ] {
+            let directory = tempfile::tempdir().unwrap();
+            let path = directory.path().join("activate.sqlite");
+            drop(super::super::open(&path).unwrap());
+            let mut connection = open_existing(&path, true).unwrap();
+            let generation = journal::read_metadata(&connection).unwrap().generation;
+            let before = inventory(&connection);
+            // TEMP preserves the exact main-schema prerequisite. Both failures
+            // occur after the flag changed in the actual production core.
+            connection.execute_batch(trigger).unwrap();
+            let error = activate_opened(&mut connection, &generation).unwrap_err();
+            assert!(error.to_string().contains(expected_error), "{error}");
+            assert!(connection.is_autocommit());
+            drop(connection);
+            let reopened = super::super::open(&path).unwrap();
+            assert_eq!(inventory(&reopened), before);
+        }
     }
 }
